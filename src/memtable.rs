@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{cmp::Ordering, fmt::Display, ptr::NonNull};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -99,6 +100,13 @@ impl<K: Ord + Eq + std::fmt::Debug, V> NodeLink<K, V> {
         match self.get_color() {
             Color::Red => true,
             Color::Black => false,
+        }
+    }
+
+    pub fn is_black(&self) -> bool {
+        match self.get_color() {
+            Color::Red => false,
+            Color::Black => true,
         }
     }
 
@@ -207,18 +215,136 @@ impl<K: Ord + Eq + std::fmt::Debug, V> Clone for NodeLink<K, V> {
     }
 }
 
-pub struct Memtable<K: Ord + Eq + std::fmt::Debug, V> {
+pub struct Memtable<K: Ord + Eq + Debug, V: Debug> {
     memtable_size: i32,
     root: NodeLink<K, V>,
 }
 
 pub enum PutError {}
 
-impl<K: Ord + Eq + std::fmt::Debug, V: std::fmt::Debug> Memtable<K, V> {
+impl<K: Ord + Eq + Debug, V: Debug> Memtable<K, V> {
     pub fn new(memtable_size: i32) -> Self {
         Memtable {
             memtable_size,
             root: NodeLink::none(),
+        }
+    }
+
+    /// From page 323 of CLRS
+    fn rb_transplant(&mut self, u: NodeLink<K, V>, mut v: NodeLink<K, V>) {
+        if u.get_parent().is_none() {
+            self.root = v.clone();
+        } else if u == u.get_parent().get_left_child() {
+            u.get_parent().set_left_child(v.clone());
+        } else {
+            u.get_parent().set_right_child(v.clone());
+        }
+        v.set_parent(u.get_parent().clone());
+    }
+
+    fn rb_delete_fixup(&mut self, mut x: NodeLink<K, V>) {
+        while x.is_some() && x.is_black() {
+            if x == x.get_parent().get_left_child() {
+                let mut w = x.get_parent().get_right_child();
+                if w.is_red() {
+                    w.set_color(Color::Black);
+                    x.get_parent().set_color(Color::Red);
+                    self.left_rotate(x.get_parent().clone());
+                    w = x.get_parent().get_right_child();
+                }
+
+                if w.get_left_child().is_black() && w.get_right_child().is_black() {
+                    w.set_color(Color::Red);
+                    x = x.get_parent().clone();
+                } else if w.get_right_child().is_black() {
+                    w.get_left_child().set_color(Color::Black);
+                    w.set_color(Color::Red);
+                    self.right_rotate(w);
+                    w = x.get_parent().get_right_child();
+                }
+
+                w.set_color(x.get_parent().get_color());
+                x.get_parent().set_color(Color::Black);
+                w.get_right_child().set_color(Color::Black);
+                self.left_rotate(x.get_parent());
+                x = self.root.clone();
+            } else {
+                let mut w = x.get_parent().get_left_child();
+                if w.is_red() {
+                    w.set_color(Color::Black);
+                    x.get_parent().set_color(Color::Red);
+                    self.right_rotate(x.get_parent().clone());
+                    w = x.get_parent().get_left_child();
+                }
+
+                if w.get_right_child().is_black() && w.get_left_child().is_black() {
+                    w.set_color(Color::Red);
+                    x = x.get_parent().clone();
+                } else if w.get_left_child().is_black() {
+                    w.get_right_child().set_color(Color::Black);
+                    w.set_color(Color::Red);
+                    self.left_rotate(w);
+                    w = x.get_parent().get_left_child();
+                }
+
+                w.set_color(x.get_parent().get_color());
+                x.get_parent().set_color(Color::Black);
+                w.get_left_child().set_color(Color::Black);
+                self.right_rotate(x.get_parent());
+                x = self.root.clone();
+            }
+        }
+
+        x.set_color(Color::Black);
+    }
+
+    fn tree_min(&self, mut x: NodeLink<K, V>) -> NodeLink<K, V> {
+        while x.get_left_child().is_some() {
+            x = x.get_left_child()
+        }
+        return x;
+    }
+
+    fn tree_max(&self, mut x: NodeLink<K, V>) -> NodeLink<K, V> {
+        while x.get_right_child().is_some() {
+            x = x.get_right_child()
+        }
+        return x;
+    }
+
+    fn rb_delete(&mut self, z: NodeLink<K, V>) {
+        let mut y = z.clone();
+        let mut y_original_color = y.get_color();
+
+        let mut x;
+        if z.get_left_child().is_none() {
+            x = z.get_right_child();
+            self.rb_transplant(z.clone(), z.get_right_child().clone());
+        } else if z.get_right_child().is_none() {
+            x = z.get_left_child();
+            self.rb_transplant(z.clone(), z.get_left_child().clone());
+        } else {
+            y = self.tree_min(z.get_right_child().clone());
+            y_original_color = y.get_color();
+            x = y.get_right_child().clone();
+            if y.get_parent() == z {
+                x.set_parent(y.clone());
+            } else {
+                self.rb_transplant(y.clone(), y.get_right_child().clone());
+                y.set_right_child(z.get_right_child().clone());
+                y.get_right_child().set_parent(y.clone());
+            }
+            self.rb_transplant(z.clone(), y.clone());
+            y.set_left_child(z.get_left_child().clone());
+            y.get_left_child().set_parent(y.clone());
+            y.set_color(z.get_color())
+        }
+
+        if match y_original_color {
+            Color::Black => true,
+            _ => false,
+        } {
+            self.rb_delete_fixup(x.clone())
         }
     }
 
@@ -387,6 +513,14 @@ impl<K: Ord + Eq + std::fmt::Debug, V: std::fmt::Debug> Memtable<K, V> {
     pub fn put(&mut self, key: K, value: V) -> () {
         println!("Putting!");
         self.rb_insert(NodeLink::new(key, value))
+    }
+}
+
+impl<K: Ord + Eq + Debug, V: Debug> Drop for Memtable<K, V> {
+    fn drop(&mut self) {
+        while self.root.is_some() {
+            self.rb_delete(self.root.clone());
+        }
     }
 }
 
