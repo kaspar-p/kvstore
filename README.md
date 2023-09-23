@@ -1,2 +1,7 @@
-# kv-store
-The KV store written as a group project in CSC443, Fall 2023
+# kvstore
+
+This is the kvstore project.
+
+# Building and installing
+
+See the [BUILDING](BUILDING.md) document.
