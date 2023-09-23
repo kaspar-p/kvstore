@@ -25,9 +25,9 @@ public:
   const bool is_some() const;
   const bool is_none() const;
 
-  RbNode* parent() const;
-  RbNode* left() const;
-  RbNode* right() const;
+  RbNode* parent(void) const;
+  RbNode* left(void) const;
+  RbNode* right(void) const;
 
   void set_parent(RbNode* parent);
   void set_left(RbNode* left);
@@ -49,6 +49,7 @@ private:
   RbNode* _parent;
   RbNode* _left;
   RbNode* _right;
+  std::string print(int depth) const;
 };
 
 template<typename K, typename V>

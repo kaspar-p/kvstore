@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.14)
 
 project(kvstoreTests LANGUAGES CXX)
 
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+
 # ---- Dependencies ----
 find_package(GTest REQUIRED)
 include(FetchContent)

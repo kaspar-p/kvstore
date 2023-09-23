@@ -7,16 +7,30 @@
 
 #include "memtable.hpp"
 
+std::string repeat(const std::string& input, unsigned num)
+{
+  std::string ret;
+  ret.reserve(input.size() * num);
+  while (num--) {
+    ret += input;
+  }
+  return ret;
+}
+
+template<typename K, typename V>
+RbNode<K, V> nil_sentinel;
+
 template<typename K, typename V>
 RbNode<K, V>::RbNode(K key, V value)
 {
   this->is_nil = false;
   this->_key = key;
   this->_data = value;
+  this->_color = black;
 
-  this->_parent = new RbNode();
-  this->_left = new RbNode();
-  this->_right = new RbNode();
+  this->_parent = this;
+  this->_left = this;
+  this->_right = this;
 }
 
 template<typename K, typename V>
@@ -25,9 +39,9 @@ RbNode<K, V>::RbNode()
   this->is_nil = true;
   this->_color = black;
 
-  this->_parent = new RbNode();
-  this->_left = new RbNode();
-  this->_right = new RbNode();
+  this->_parent = this;
+  this->_left = this;
+  this->_right = this;
 }
 
 template<typename K, typename V>
@@ -88,7 +102,7 @@ template<typename K, typename V>
 RbNode<K, V>* RbNode<K, V>::left() const
 {
   if (this->is_nil) {
-    return new RbNode();
+    return &nil_sentinel<K, V>;
   }
   return this->_left;
 }
@@ -97,7 +111,7 @@ template<typename K, typename V>
 RbNode<K, V>* RbNode<K, V>::right() const
 {
   if (this->is_nil) {
-    return new RbNode();
+    return &nil_sentinel<K, V>;
   }
   return this->_right;
 }
@@ -105,6 +119,10 @@ RbNode<K, V>* RbNode<K, V>::right() const
 template<typename K, typename V>
 Color RbNode<K, V>::color() const
 {
+  if (this->is_nil) {
+    return black;
+  }
+
   return this->_color;
 }
 
@@ -147,14 +165,22 @@ bool RbNode<K, V>::operator==(const RbNode& other) const
 template<typename K, typename V>
 std::string RbNode<K, V>::print() const
 {
+  return this->print(1);
+}
+
+template<typename K, typename V>
+std::string RbNode<K, V>::print(int depth) const
+{
   if (this->is_nil) {
-    return "{NULL}";
+    return "{NULL}\n";
   }
 
+  std::string offset = repeat("-", 4 * depth);
   std::ostringstream os;
-  os << "[" + std::to_string(this->_key) + "] " + this->_data + "\n"
-     << "  " + this->_left->print() + "\n"
-     << "  " + this->_right->print() + "\n";
+  os << "(" << (this->_color == black ? "b" : "r")
+     << ")[" + std::to_string(this->_key) + "] " + this->_data + "\n"
+     << offset + this->_left->print(depth + 1)
+     << offset + this->_right->print(depth + 1);
   return os.str();
 }
 
@@ -162,15 +188,13 @@ template<typename K, typename V>
 MemTable<K, V>::MemTable(int memtable_size)
 {
   this->memtable_size = memtable_size;
+  this->root = &nil_sentinel<K, V>;
 }
 
 template<typename K, typename V>
 std::string MemTable<K, V>::Print() const
 {
-  if (this->root) {
-    return this->root->print();
-  }
-  return "{NULL}";
+  return this->root->print();
 }
 
 template<typename K, typename V>
@@ -253,7 +277,7 @@ void MemTable<K, V>::rb_right_rotate(RbNode<K, V>* x)
 template<typename K, typename V>
 void MemTable<K, V>::rb_insert(RbNode<K, V>* z)
 {
-  RbNode<K, V>* y = new RbNode<K, V>();
+  RbNode<K, V>* y = &nil_sentinel<K, V>;
   RbNode<K, V>* x = this->root;
   while (x->is_some()) {
     y = x;
@@ -263,17 +287,19 @@ void MemTable<K, V>::rb_insert(RbNode<K, V>* z)
       x = x->right();
     }
   }
+
   z->set_parent(y);
   if (y->is_none()) {
-    this->root = y;
+    this->root = z;
   } else if (z < y) {
     y->set_left(z);
   } else {
     y->set_right(z);
   }
-  z->set_left(new RbNode<K, V>());
-  z->set_right(new RbNode<K, V>());
+  z->set_left(&nil_sentinel<K, V>);
+  z->set_right(&nil_sentinel<K, V>);
   z->set_color(red);
+
   this->rb_insert_fixup(z);
 }
 
@@ -311,6 +337,8 @@ void MemTable<K, V>::rb_insert_fixup(RbNode<K, V>* z)
       this->rb_left_rotate(z->parent()->parent());
     }
   }
+
+  this->root->set_color(black);
 }
 
 template class MemTable<int, std::string>;
