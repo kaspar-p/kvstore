@@ -18,7 +18,7 @@ enable_testing()
 
 # ---- Tests ----
 add_executable(kvstore_test src/kvstore_test.cpp)
-target_link_libraries(kvstore_test PRIVATE kvstore_lib)
+target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
 target_link_libraries(kvstore_test PRIVATE GTest::gtest_main)
 target_compile_features(kvstore_test PRIVATE cxx_std_17)
 

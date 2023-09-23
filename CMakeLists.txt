@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
+set(CMAKE_CXX_STANDARD 17)
+
 include(cmake/prelude.cmake)
 
 project(
@@ -13,17 +15,19 @@ project(
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
-# ---- Declare library ----
-add_library(kvstore_lib OBJECT src/lib.cpp)
+# ---- Declare testing directory ----
 add_subdirectory(tests)
 
+# ---- Declare library ----
+
+# memtable.cpp
+add_library(kvstore_memtable OBJECT src/memtable.cpp)
 target_include_directories(
-  kvstore_lib ${warning_guard}
+  kvstore_memtable ${warning_guard}
   PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
-
-target_compile_features(kvstore_lib PUBLIC cxx_std_17)
+target_compile_features(kvstore_memtable PUBLIC cxx_std_17)
 
 # ---- Declare executable ----
 add_executable(kvstore_exe src/main.cpp)
@@ -33,7 +37,8 @@ set_property(TARGET kvstore_exe PROPERTY OUTPUT_NAME kvstore)
 
 target_compile_features(kvstore_exe PRIVATE cxx_std_17)
 
-target_link_libraries(kvstore_exe PRIVATE kvstore_lib)
+# ---- Link libraries ----
+target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
 
 # ---- Install rules ----
 if(NOT CMAKE_SKIP_INSTALL_RULES)
