@@ -23,9 +23,10 @@ RbNode<K, V> nil_sentinel;
 template<typename K, typename V>
 RbNode<K, V>::RbNode(K key, V value)
     : _key(key)
-    , _data(value)
     , is_nil(false)
 {
+  this->_data = value;
+
   this->_color = black;
   this->_parent = this;
   this->_left = this;
@@ -35,9 +36,9 @@ RbNode<K, V>::RbNode(K key, V value)
 template<typename K, typename V>
 RbNode<K, V>::RbNode()
     : _key(0)
-    , _data("")
     , is_nil(true)
 {
+  this->_data = "";
   this->_color = black;
 
   this->_parent = this;
@@ -100,9 +101,17 @@ const K& RbNode<K, V>::key() const
 }
 
 template<typename K, typename V>
-const V* RbNode<K, V>::value() const
+V* RbNode<K, V>::value() const
 {
-  return &this->_data;
+  return const_cast<V*>(&this->_data);
+}
+
+template<typename K, typename V>
+V RbNode<K, V>::replace_value(V new_value)
+{
+  V old_data = this->_data;
+  this->_data = new_value;
+  return old_data;
 }
 
 template<typename K, typename V>
@@ -211,7 +220,7 @@ std::string MemTable<K, V>::Print() const
 }
 
 template<typename K, typename V>
-const V* MemTable<K, V>::Get(const K key) const
+V* MemTable<K, V>::Get(const K key) const
 {
   RbNode<K, V>* node = this->rb_search(this->root, key);
   if (node->is_some()) {
@@ -222,14 +231,21 @@ const V* MemTable<K, V>::Get(const K key) const
 }
 
 template<typename K, typename V>
-void MemTable<K, V>::Put(const K key, const V value)
+std::optional<V> MemTable<K, V>::Put(const K key, const V value)
 {
+  RbNode<K, V>* preexisting_node = this->rb_search(this->root, key);
+  if (preexisting_node->is_some()) {
+    return std::make_optional(preexisting_node->replace_value(value));
+  }
+
   RbNode<K, V>* node = new RbNode<K, V>(key, value);
   this->rb_insert(node);
+
+  return std::nullopt;
 }
 
 template<typename K, typename V>
-const V* MemTable<K, V>::Delete(const K key)
+V* MemTable<K, V>::Delete(const K key)
 {
   RbNode<K, V>* node = this->rb_search(this->root, key);
 

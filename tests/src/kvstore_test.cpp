@@ -44,6 +44,9 @@ TEST(MemTable, InsertAndDeleteAFew)
                         "----(r)[3] wow3!\n"
                         "--------{NULL}\n"
                         "--------{NULL}\n"));
+
+  auto val = table->Get(2);
+  EXPECT_EQ(*val, std::string("wow2!"));
 }
 
 TEST(MemTable, InsertAndGetOne)
@@ -54,7 +57,16 @@ TEST(MemTable, InsertAndGetOne)
   EXPECT_EQ(*val, std::string("wow1!"));
 }
 
-TEST(MemTable, InsertManyGetMany)
+TEST(MemTable, InsertOneAndReplaceIt)
+{
+  auto table = new MemTable<int, std::string>(100);
+  table->Put(1, "value 1");
+  table->Put(1, "value 2");
+  const std::string* val = table->Get(1);
+  EXPECT_EQ(*val, std::string("value 2"));
+}
+
+TEST(MemTable, InsertManyAndGetMany)
 {
   auto table = new MemTable<int, std::string>(100);
   table->Put(1, "wow1!");

@@ -26,7 +26,9 @@ public:
   const bool is_none(void) const;
 
   const K& key() const;
-  const V* value() const;
+  V* value() const;
+  V replace_value(V new_value);
+
   RbNode* parent(void) const;
   RbNode* left(void) const;
   RbNode* right(void) const;
@@ -46,7 +48,7 @@ public:
 private:
   const bool is_nil;
   const K _key;
-  const V _data;
+  V _data;
   Color _color;
   RbNode* _parent;
   RbNode* _left;
@@ -74,7 +76,7 @@ private:
 public:
   MemTable(int memtable_size);
   std::string Print() const;
-  const V* Get(const K key) const;
-  void Put(const K key, const V value);
-  const V* Delete(const K key);
+  V* Get(const K key) const;
+  std::optional<V> Put(const K key, const V value);
+  V* Delete(const K key);
 };
