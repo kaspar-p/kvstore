@@ -197,7 +197,7 @@ std::string RbNode<K, V>::print(int depth) const
     return "{NULL}\n";
   }
 
-  std::string offset = repeat("-", 4 * depth);
+  std::string offset = repeat("=", 4 * depth);
   std::ostringstream os;
   os << "(" << (this->_color == black ? "b" : "r")
      << ")[" + std::to_string(this->_key) + "] " + this->_data + "\n"
@@ -432,7 +432,7 @@ void MemTable<K, V>::rb_right_rotate(RbNode<K, V>* x)
     return;
   }
 
-  auto y = x->left();
+  RbNode<K, V>* y = x->left();
   x->set_left(y->right());
   if (y->right()->is_some()) {
     y->right()->set_parent(x);
@@ -490,13 +490,15 @@ void MemTable<K, V>::rb_insert_fixup(RbNode<K, V>* z)
         y->set_color(black);
         z->parent()->parent()->set_color(red);
         z = z->parent()->parent();
-      } else if (*z == *z->parent()->right()) {
-        z = z->parent();
-        this->rb_left_rotate(z);
+      } else {
+        if (*z == *z->parent()->right()) {
+          z = z->parent();
+          this->rb_left_rotate(z);
+        }
+        z->parent()->set_color(black);
+        z->parent()->parent()->set_color(red);
+        this->rb_right_rotate(z->parent()->parent());
       }
-      z->parent()->set_color(black);
-      z->parent()->parent()->set_color(red);
-      this->rb_right_rotate(z->parent()->parent());
     } else {
       RbNode<K, V>* y = z->parent()->parent()->left();
       if (y->color() == red) {
@@ -504,13 +506,16 @@ void MemTable<K, V>::rb_insert_fixup(RbNode<K, V>* z)
         y->set_color(black);
         z->parent()->parent()->set_color(red);
         z = z->parent()->parent();
-      } else if (*z == *z->parent()->left()) {
-        z = z->parent();
-        this->rb_right_rotate(z);
+      } else {
+        if (*z == *z->parent()->left()) {
+          z = z->parent();
+          this->rb_right_rotate(z);
+        }
+
+        z->parent()->set_color(black);
+        z->parent()->parent()->set_color(red);
+        this->rb_left_rotate(z->parent()->parent());
       }
-      z->parent()->set_color(black);
-      z->parent()->parent()->set_color(red);
-      this->rb_left_rotate(z->parent()->parent());
     }
   }
 
