@@ -22,12 +22,11 @@ RbNode<K, V> nil_sentinel;
 
 template<typename K, typename V>
 RbNode<K, V>::RbNode(K key, V value)
+    : _key(key)
+    , _data(value)
+    , is_nil(false)
 {
-  this->is_nil = false;
-  this->_key = key;
-  this->_data = value;
   this->_color = black;
-
   this->_parent = this;
   this->_left = this;
   this->_right = this;
@@ -35,8 +34,10 @@ RbNode<K, V>::RbNode(K key, V value)
 
 template<typename K, typename V>
 RbNode<K, V>::RbNode()
+    : _key(0)
+    , _data("")
+    , is_nil(true)
 {
-  this->is_nil = true;
   this->_color = black;
 
   this->_parent = this;
@@ -93,6 +94,18 @@ void RbNode<K, V>::set_color(const Color color)
 }
 
 template<typename K, typename V>
+const K& RbNode<K, V>::key() const
+{
+  return this->_key;
+}
+
+template<typename K, typename V>
+const V* RbNode<K, V>::value() const
+{
+  return &this->_data;
+}
+
+template<typename K, typename V>
 RbNode<K, V>* RbNode<K, V>::parent() const
 {
   return this->_parent;
@@ -129,25 +142,25 @@ Color RbNode<K, V>::color() const
 template<typename K, typename V>
 bool RbNode<K, V>::operator<(const RbNode& other) const
 {
-  return this->_key < other->_key;
+  return this->_key < other._key;
 }
 
 template<typename K, typename V>
 bool RbNode<K, V>::operator<=(const RbNode& other) const
 {
-  return this->_key <= other->_key;
+  return this->_key <= other._key;
 }
 
 template<typename K, typename V>
 bool RbNode<K, V>::operator>(const RbNode& other) const
 {
-  return this->_key > other->_key;
+  return this->_key > other._key;
 }
 
 template<typename K, typename V>
 bool RbNode<K, V>::operator>=(const RbNode& other) const
 {
-  return this->_key >= other->_key;
+  return this->_key >= other._key;
 }
 
 template<typename K, typename V>
@@ -198,9 +211,14 @@ std::string MemTable<K, V>::Print() const
 }
 
 template<typename K, typename V>
-std::optional<std::reference_wrapper<V>> MemTable<K, V>::Get(const K key) const
+const V* MemTable<K, V>::Get(const K key) const
 {
-  return std::nullopt;
+  RbNode<K, V>* node = this->rb_search(this->root, key);
+  if (node->is_some()) {
+    return node->value();
+  } else {
+    return NULL;
+  }
 }
 
 template<typename K, typename V>
@@ -211,9 +229,143 @@ void MemTable<K, V>::Put(const K key, const V value)
 }
 
 template<typename K, typename V>
-std::optional<V> MemTable<K, V>::Delete(const K key)
+const V* MemTable<K, V>::Delete(const K key)
 {
-  return std::nullopt;
+  RbNode<K, V>* node = this->rb_search(this->root, key);
+
+  this->rb_delete(node);
+
+  if (node->is_none()) {
+    return NULL;
+  } else {
+    return node->value();
+  }
+
+  delete node;
+}
+
+template<typename K, typename V>
+RbNode<K, V>* MemTable<K, V>::rb_search(RbNode<K, V>* node, const K key) const
+{
+  while (node->is_some() && key != node->key()) {
+    if (key < node->key()) {
+      node = node->left();
+    } else {
+      node = node->right();
+    }
+  }
+  return node;
+}
+
+template<typename K, typename V>
+RbNode<K, V>* MemTable<K, V>::rb_minimum(RbNode<K, V>* node) const
+{
+  while (node->left()->is_some()) {
+    node = node->left();
+  }
+  return node;
+}
+
+template<typename K, typename V>
+RbNode<K, V>* MemTable<K, V>::rb_maximum(RbNode<K, V>* node) const
+{
+  while (node->right()->is_some()) {
+    node = node->right();
+  }
+  return node;
+}
+
+template<typename K, typename V>
+void MemTable<K, V>::rb_delete(RbNode<K, V>* z)
+{
+  RbNode<K, V>* y = z;
+  Color y_original_color = y->color();
+
+  RbNode<K, V>* x;
+  if (z->left()->is_none()) {
+    x = z->right();
+    this->rb_transplant(z, z->right());
+  } else if (z->right()->is_none()) {
+    x = z->left();
+    this->rb_transplant(z, z->left());
+  } else {
+    y = this->rb_minimum(z->right());
+    y_original_color = y->color();
+    x = y->right();
+    if (*y->parent() == *z) {
+      x->set_parent(y);
+    } else {
+      this->rb_transplant(y, y->right());
+      y->set_right(z->right());
+      y->right()->set_parent(y);
+    }
+    this->rb_transplant(z, y);
+    y->set_left(z->left());
+    y->left()->set_parent(y);
+    y->set_color(z->color());
+  }
+
+  if (y_original_color == black) {
+    this->rb_delete_fixup(x);
+  }
+}
+
+template<typename K, typename V>
+void MemTable<K, V>::rb_delete_fixup(RbNode<K, V>* x)
+{
+  while (x->is_some() && x->color() == black) {
+    if (*x == *x->parent()->left()) {
+      RbNode<K, V>* w = x->parent()->right();
+      if (w->color() == red) {
+        w->set_color(black);
+        x->parent()->set_color(red);
+        this->rb_left_rotate(x->parent());
+        w = x->parent()->right();
+      }
+
+      if (w->left()->color() == black && w->right()->color() == black) {
+        w->set_color(red);
+        x = x->parent();
+      } else if (w->right()->color() == black) {
+        w->left()->set_color(black);
+        w->set_color(red);
+        this->rb_right_rotate(w);
+        w = x->parent()->right();
+      }
+
+      w->set_color(x->parent()->color());
+      x->parent()->set_color(black);
+      w->right()->set_color(black);
+      this->rb_left_rotate(x->parent());
+      x = this->root;
+    } else {
+      RbNode<K, V>* w = x->parent()->left();
+      if (w->color() == red) {
+        w->set_color(black);
+        x->parent()->set_color(red);
+        this->rb_right_rotate(x->parent());
+        w = x->parent()->left();
+      }
+
+      if (w->right()->color() == black && w->left()->color() == black) {
+        w->set_color(red);
+        x = x->parent();
+      } else if (w->left()->color() == black) {
+        w->right()->set_color(black);
+        w->set_color(red);
+        this->rb_left_rotate(w);
+        w = x->parent()->left();
+      }
+
+      w->set_color(x->parent()->color());
+      x->parent()->set_color(black);
+      w->left()->set_color(black);
+      this->rb_right_rotate(x->parent());
+      x = this->root;
+    }
+  }
+
+  x->set_color(black);
 }
 
 template<typename K, typename V>
@@ -235,7 +387,11 @@ void MemTable<K, V>::rb_transplant(RbNode<K, V>* u, RbNode<K, V>* v)
 template<typename K, typename V>
 void MemTable<K, V>::rb_left_rotate(RbNode<K, V>* x)
 {
-  auto y = x->right();
+  if (x->is_none()) {
+    return;
+  }
+
+  RbNode<K, V>* y = x->right();
   x->set_right(y->left());
   if (y->left()->is_some()) {
     y->left()->set_parent(x);
@@ -243,7 +399,7 @@ void MemTable<K, V>::rb_left_rotate(RbNode<K, V>* x)
   y->set_parent(x->parent());
   if (x->parent()->is_none()) {
     this->root = y;
-  } else if (x == x->parent()->left()) {
+  } else if (*x == *x->parent()->left()) {
     x->parent()->set_left(y);
   } else {
     x->parent()->set_right(y);
@@ -256,6 +412,10 @@ void MemTable<K, V>::rb_left_rotate(RbNode<K, V>* x)
 template<typename K, typename V>
 void MemTable<K, V>::rb_right_rotate(RbNode<K, V>* x)
 {
+  if (x->is_none()) {
+    return;
+  }
+
   auto y = x->left();
   x->set_left(y->right());
   if (y->right()->is_some()) {
@@ -264,7 +424,7 @@ void MemTable<K, V>::rb_right_rotate(RbNode<K, V>* x)
   y->set_parent(x->parent());
   if (x->parent()->is_none()) {
     this->root = y;
-  } else if (x == x->parent()->right()) {
+  } else if (*x == *x->parent()->right()) {
     x->parent()->set_right(y);
   } else {
     x->parent()->set_left(y);
@@ -281,7 +441,7 @@ void MemTable<K, V>::rb_insert(RbNode<K, V>* z)
   RbNode<K, V>* x = this->root;
   while (x->is_some()) {
     y = x;
-    if (z < x) {
+    if (*z < *x) {
       x = x->left();
     } else {
       x = x->right();
@@ -291,7 +451,7 @@ void MemTable<K, V>::rb_insert(RbNode<K, V>* z)
   z->set_parent(y);
   if (y->is_none()) {
     this->root = z;
-  } else if (z < y) {
+  } else if (*z < *y) {
     y->set_left(z);
   } else {
     y->set_right(z);
@@ -307,14 +467,14 @@ template<typename K, typename V>
 void MemTable<K, V>::rb_insert_fixup(RbNode<K, V>* z)
 {
   while (z->parent()->color() == red) {
-    if (z->parent() == z->parent()->parent()->left()) {
+    if (*z->parent() == *z->parent()->parent()->left()) {
       RbNode<K, V>* y = z->parent()->parent()->right();
       if (y->color() == red) {
         z->parent()->set_color(black);
         y->set_color(black);
         z->parent()->parent()->set_color(red);
         z = z->parent()->parent();
-      } else if (z == z->parent()->right()) {
+      } else if (*z == *z->parent()->right()) {
         z = z->parent();
         this->rb_left_rotate(z);
       }
@@ -328,7 +488,7 @@ void MemTable<K, V>::rb_insert_fixup(RbNode<K, V>* z)
         y->set_color(black);
         z->parent()->parent()->set_color(red);
         z = z->parent()->parent();
-      } else if (z == z->parent()->left()) {
+      } else if (*z == *z->parent()->left()) {
         z = z->parent();
         this->rb_right_rotate(z);
       }
