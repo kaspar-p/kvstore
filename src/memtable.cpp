@@ -207,9 +207,10 @@ std::string RbNode<K, V>::print(int depth) const
 }
 
 template<typename K, typename V>
-MemTable<K, V>::MemTable(int memtable_size)
+MemTable<K, V>::MemTable(int capacity)
 {
-  this->memtable_size = memtable_size;
+  this->capacity = capacity;
+  this->size = 0;
   this->root = &nil_sentinel<K, V>;
 }
 
@@ -217,6 +218,12 @@ template<typename K, typename V>
 std::string MemTable<K, V>::Print() const
 {
   return this->root->print();
+}
+
+char* MemTableFullException::what()
+{
+  return (char*)"MemTable is full! Can not insert any more elements, please flush "
+         "the contents into a file!";
 }
 
 template<typename K, typename V>
@@ -238,10 +245,22 @@ std::optional<V> MemTable<K, V>::Put(const K key, const V value)
     return std::make_optional(preexisting_node->replace_value(value));
   }
 
+  if (this->size == this->capacity) {
+    throw MemTableFullException();
+  }
+
   RbNode<K, V>* node = new RbNode<K, V>(key, value);
   this->rb_insert(node);
+  this->size++;
 
   return std::nullopt;
+}
+
+template<typename K, typename V>
+std::vector<std::pair<K, V>> MemTable<K, V>::Scan(const K lower_bound,
+                                                  const K upper_bound) const
+{
+  return this->rb_in_order(this->root, lower_bound, upper_bound);
 }
 
 template<typename K, typename V>
@@ -258,6 +277,36 @@ V* MemTable<K, V>::Delete(const K key)
   }
 
   delete node;
+}
+
+template<typename K, typename V>
+std::vector<std::pair<K, V>> MemTable<K, V>::rb_in_order(
+    RbNode<K, V>* node, const K lower_bound, const K upper_bound) const
+{
+  assert(node->is_some());
+  std::vector<std::pair<K, V>> l;
+
+  if (node->key() < lower_bound || node->key() > upper_bound) {
+    return l;
+  }
+
+  if (node->left()->is_some()) {
+    std::vector<std::pair<K, V>> left_vec =
+        this->rb_in_order(node->left(), lower_bound, upper_bound);
+    l.insert(l.end(), left_vec.begin(), left_vec.end());
+  }
+
+  std::cout << *node->value() << std::endl;
+  const std::pair<K, V> elem = std::make_pair(node->key(), *node->value());
+  l.push_back(elem);
+
+  if (node->right()->is_some()) {
+    std::vector<std::pair<K, V>> right_vec =
+        this->rb_in_order(node->right(), lower_bound, upper_bound);
+    l.insert(l.end(), right_vec.begin(), right_vec.end());
+  }
+
+  return l;
 }
 
 template<typename K, typename V>

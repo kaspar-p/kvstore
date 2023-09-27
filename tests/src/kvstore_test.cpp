@@ -1,8 +1,94 @@
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "memtable.hpp"
 
-TEST(MemTable, InsertSeven)
+TEST(MemTable, ScanIncludesEnds)
+{
+  auto table = new MemTable<int, std::string>(100);
+  table->Put(1, "v1");
+  table->Put(2, "v2");
+  table->Put(3, "v3");
+
+  std::vector<std::pair<int, std::string>> v = table->Scan(1, 3);
+
+  ASSERT_EQ(v.size(), 3);
+
+  ASSERT_EQ(v[0].first, 1);
+  ASSERT_EQ(v[0].second, "v1");
+
+  ASSERT_EQ(v[1].first, 2);
+  ASSERT_EQ(v[1].second, "v2");
+
+  ASSERT_EQ(v[2].first, 3);
+  ASSERT_EQ(v[2].second, "v3");
+}
+
+TEST(MemTable, ScanStopsBeforeEnd)
+{
+  auto table = new MemTable<int, std::string>(100);
+  table->Put(1, "v1");
+  table->Put(2, "v2");
+  table->Put(3, "v3");
+
+  std::vector<std::pair<int, std::string>> v = table->Scan(1, 2);
+  ASSERT_EQ(v.size(), 2);
+  ASSERT_EQ(v[0].first, 1);
+  ASSERT_EQ(v[0].second, "v1");
+  ASSERT_EQ(v[1].first, 2);
+  ASSERT_EQ(v[1].second, "v2");
+}
+
+TEST(MemTable, ScanStopsBeforeStart)
+{
+  auto table = new MemTable<int, std::string>(100);
+  table->Put(1, "v1");
+  table->Put(2, "v2");
+  table->Put(3, "v3");
+
+  std::vector<std::pair<int, std::string>> v = table->Scan(2, 3);
+  ASSERT_EQ(v.size(), 2);
+  ASSERT_EQ(v[0].first, 2);
+  ASSERT_EQ(v[0].second, "v2");
+  ASSERT_EQ(v[1].first, 3);
+  ASSERT_EQ(v[1].second, "v3");
+}
+
+TEST(MemTable, ScanGoesBeyondKeySizes)
+{
+  auto table = new MemTable<int, std::string>(100);
+  table->Put(1, "v1");
+  table->Put(2, "v2");
+  table->Put(3, "v3");
+
+  std::vector<std::pair<int, std::string>> v = table->Scan(-100, 100);
+  ASSERT_EQ(v[0].first, 1);
+  ASSERT_EQ(v[0].second, "v1");
+
+  ASSERT_EQ(v[1].first, 2);
+  ASSERT_EQ(v[1].second, "v2");
+
+  ASSERT_EQ(v[2].first, 3);
+  ASSERT_EQ(v[2].second, "v3");
+}
+
+TEST(MemTable, InsertTooManyThrows)
+{
+  auto table = new MemTable<int, std::string>(1);
+  table->Put(1, "v1");
+
+  ASSERT_THROW({ table->Put(2, "v2"); }, MemTableFullException);
+}
+
+TEST(MemTable, InsertMany)
 {
   auto table = new MemTable<int, std::string>(100);
 
@@ -11,7 +97,7 @@ TEST(MemTable, InsertSeven)
     table->Put(i, "val" + std::to_string(i));
   }
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[2] val2\n"
                         "====(b)[1] val1\n"
                         "========{NULL}\n"
@@ -27,18 +113,15 @@ TEST(MemTable, InsertSeven)
                         "============(r)[7] val7\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
-}
+  delete table;
 
-TEST(MemTable, InsertNine)
-{
-  auto table = new MemTable<int, std::string>(100);
-
-  int nodes_to_insert = 9;
+  table = new MemTable<int, std::string>(100);
+  nodes_to_insert = 9;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, "val" + std::to_string(i));
   }
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[4] val4\n"
                         "====(r)[2] val2\n"
                         "========(b)[1] val1\n"
@@ -58,18 +141,15 @@ TEST(MemTable, InsertNine)
                         "============(r)[9] val9\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
-}
+  delete table;
+  table = new MemTable<int, std::string>(100);
 
-TEST(MemTable, InsertTen)
-{
-  auto table = new MemTable<int, std::string>(100);
-
-  int nodes_to_insert = 10;
+  nodes_to_insert = 10;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, "val" + std::to_string(i));
   }
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[4] val4\n"
                         "====(b)[2] val2\n"
                         "========(b)[1] val1\n"
@@ -91,18 +171,15 @@ TEST(MemTable, InsertTen)
                         "================(r)[10] val10\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
-}
+  delete table;
+  table = new MemTable<int, std::string>(100);
 
-TEST(MemTable, InsertTwelve)
-{
-  auto table = new MemTable<int, std::string>(100);
-
-  int nodes_to_insert = 12;
+  nodes_to_insert = 12;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, "val" + std::to_string(i));
   }
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[4] val4\n"
                         "====(b)[2] val2\n"
                         "========(b)[1] val1\n"
@@ -128,18 +205,15 @@ TEST(MemTable, InsertTwelve)
                         "================(r)[12] val12\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
-}
+  delete table;
+  table = new MemTable<int, std::string>(100);
 
-TEST(MemTable, InsertEighteen)
-{
-  auto table = new MemTable<int, std::string>(100);
-
-  int nodes_to_insert = 18;
+  nodes_to_insert = 18;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, "val" + std::to_string(i));
   }
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[8] val8\n"
                         "====(r)[4] val4\n"
                         "========(b)[2] val2\n"
@@ -177,19 +251,16 @@ TEST(MemTable, InsertEighteen)
                         "====================(r)[18] val18\n"
                         "========================{NULL}\n"
                         "========================{NULL}\n"));
-}
+  delete table;
+  table = new MemTable<int, std::string>(100);
 
-TEST(MemTable, InsertTwentyOne)
-{
-  auto table = new MemTable<int, std::string>(100);
-
-  int nodes_to_insert = 21;
+  nodes_to_insert = 21;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, "val" + std::to_string(i));
   }
 
   // Verified using cs.usfca.edu/~galles/visualization/RedBlack.html
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[8] val8\n"
                         "====(r)[4] val4\n"
                         "========(b)[2] val2\n"
@@ -241,7 +312,7 @@ TEST(MemTable, InsertAndDeleteOne)
   table->Put(1, "wow1!");
   table->Delete(1);
 
-  EXPECT_EQ(table->Print(), std::string("{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 }
 
 TEST(MemTable, InsertAndDeleteAFew)
@@ -252,7 +323,7 @@ TEST(MemTable, InsertAndDeleteAFew)
   table->Put(3, "wow3!");
   table->Delete(1);
 
-  EXPECT_EQ(table->Print(),
+  ASSERT_EQ(table->Print(),
             std::string("(b)[2] wow2!\n"
                         "===={NULL}\n"
                         "====(r)[3] wow3!\n"
@@ -260,7 +331,7 @@ TEST(MemTable, InsertAndDeleteAFew)
                         "========{NULL}\n"));
 
   auto val = table->Get(2);
-  EXPECT_EQ(*val, std::string("wow2!"));
+  ASSERT_EQ(*val, std::string("wow2!"));
 }
 
 TEST(MemTable, InsertAndGetOne)
@@ -268,7 +339,7 @@ TEST(MemTable, InsertAndGetOne)
   auto table = new MemTable<int, std::string>(100);
   table->Put(1, "wow1!");
   const std::string* val = table->Get(1);
-  EXPECT_EQ(*val, std::string("wow1!"));
+  ASSERT_EQ(*val, std::string("wow1!"));
 }
 
 TEST(MemTable, InsertOneAndReplaceIt)
@@ -277,7 +348,7 @@ TEST(MemTable, InsertOneAndReplaceIt)
   table->Put(1, "value 1");
   table->Put(1, "value 2");
   const std::string* val = table->Get(1);
-  EXPECT_EQ(*val, std::string("value 2"));
+  ASSERT_EQ(*val, std::string("value 2"));
 }
 
 TEST(MemTable, InsertManyAndGetMany)
@@ -289,14 +360,14 @@ TEST(MemTable, InsertManyAndGetMany)
   table->Put(4, "wow4!");
 
   const std::string* val1 = table->Get(1);
-  EXPECT_EQ(*val1, std::string("wow1!"));
+  ASSERT_EQ(*val1, std::string("wow1!"));
 
   const std::string* val2 = table->Get(2);
-  EXPECT_EQ(*val2, std::string("wow2!"));
+  ASSERT_EQ(*val2, std::string("wow2!"));
 
   const std::string* val3 = table->Get(3);
-  EXPECT_EQ(*val3, std::string("wow3!"));
+  ASSERT_EQ(*val3, std::string("wow3!"));
 
   const std::string* val4 = table->Get(4);
-  EXPECT_EQ(*val4, std::string("wow4!"));
+  ASSERT_EQ(*val4, std::string("wow4!"));
 }
