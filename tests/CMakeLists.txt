@@ -8,23 +8,22 @@ project(kvstoreTests LANGUAGES CXX)
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 # ---- Dependencies ----
-find_package(GTest REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+  googletest
+  # Specify the commit you depend on and update it regularly.
+  URL https://github.com/google/googletest/archive/5376968f6948923e2411081fd9372e71a59d8e77.zip
 )
-include(GoogleTest)
+FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
 # ---- Tests ----
 add_executable(kvstore_test src/kvstore_test.cpp)
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
-target_link_libraries(kvstore_test PRIVATE GTest::gtest_main)
+target_link_libraries(kvstore_test PRIVATE kvstore_kvstore)
+target_link_libraries(kvstore_test PRIVATE gtest_main)
 target_compile_features(kvstore_test PRIVATE cxx_std_17)
-
-gtest_discover_tests(kvstore_test)
 
 add_test(NAME kvstore_test COMMAND kvstore_test)
 

@@ -1,17 +1,10 @@
 #include <iostream>
 #include <string>
 
-#include "memtable.hpp"
+#include "kvstore.hpp"
 
 auto main() -> int
 {
-  auto table = new MemTable<int, std::string>(100);
-  int nodes_to_insert = 10;
-  for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
-  }
-
-  std::cout << table->Print() << std::endl;
-
+  auto table = std::make_unique<KvStore>();
   return 0;
 }

@@ -7,309 +7,313 @@
 #include <string>
 #include <vector>
 
+#include "kvstore.hpp"
+
 #include <gtest/gtest.h>
 
 #include "memtable.hpp"
 
 TEST(MemTable, ScanIncludesEnds)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "v1");
-  table->Put(2, "v2");
-  table->Put(3, "v3");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
 
-  std::vector<std::pair<int, std::string>> v = table->Scan(1, 3);
+  std::vector<std::pair<K, V>> v = table->Scan(1, 3);
 
   ASSERT_EQ(v.size(), 3);
 
   ASSERT_EQ(v[0].first, 1);
-  ASSERT_EQ(v[0].second, "v1");
+  ASSERT_EQ(v[0].second, 10);
 
   ASSERT_EQ(v[1].first, 2);
-  ASSERT_EQ(v[1].second, "v2");
+  ASSERT_EQ(v[1].second, 20);
 
   ASSERT_EQ(v[2].first, 3);
-  ASSERT_EQ(v[2].second, "v3");
+  ASSERT_EQ(v[2].second, 30);
 }
 
 TEST(MemTable, ScanStopsBeforeEnd)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "v1");
-  table->Put(2, "v2");
-  table->Put(3, "v3");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
 
-  std::vector<std::pair<int, std::string>> v = table->Scan(1, 2);
+  std::vector<std::pair<K, V>> v = table->Scan(1, 2);
   ASSERT_EQ(v.size(), 2);
   ASSERT_EQ(v[0].first, 1);
-  ASSERT_EQ(v[0].second, "v1");
+  ASSERT_EQ(v[0].second, 10);
   ASSERT_EQ(v[1].first, 2);
-  ASSERT_EQ(v[1].second, "v2");
+  ASSERT_EQ(v[1].second, 20);
 }
 
 TEST(MemTable, ScanStopsBeforeStart)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "v1");
-  table->Put(2, "v2");
-  table->Put(3, "v3");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
 
-  std::vector<std::pair<int, std::string>> v = table->Scan(2, 3);
+  std::vector<std::pair<K, V>> v = table->Scan(2, 3);
   ASSERT_EQ(v.size(), 2);
   ASSERT_EQ(v[0].first, 2);
-  ASSERT_EQ(v[0].second, "v2");
+  ASSERT_EQ(v[0].second, 20);
   ASSERT_EQ(v[1].first, 3);
-  ASSERT_EQ(v[1].second, "v3");
+  ASSERT_EQ(v[1].second, 30);
 }
 
 TEST(MemTable, ScanGoesBeyondKeySizes)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "v1");
-  table->Put(2, "v2");
-  table->Put(3, "v3");
+  auto table = new MemTable(100);
+  table->Put(10, 10);
+  table->Put(20, 20);
+  table->Put(30, 30);
 
-  std::vector<std::pair<int, std::string>> v = table->Scan(-100, 100);
-  ASSERT_EQ(v[0].first, 1);
-  ASSERT_EQ(v[0].second, "v1");
+  std::vector<std::pair<K, V>> v = table->Scan(0, 100);
+  ASSERT_EQ(v.size(), 3);
 
-  ASSERT_EQ(v[1].first, 2);
-  ASSERT_EQ(v[1].second, "v2");
+  ASSERT_EQ(v[0].first, 10);
+  ASSERT_EQ(v[0].second, 10);
 
-  ASSERT_EQ(v[2].first, 3);
-  ASSERT_EQ(v[2].second, "v3");
+  ASSERT_EQ(v[1].first, 20);
+  ASSERT_EQ(v[1].second, 20);
+
+  ASSERT_EQ(v[2].first, 30);
+  ASSERT_EQ(v[2].second, 30);
 }
 
 TEST(MemTable, InsertTooManyThrows)
 {
-  auto table = new MemTable<int, std::string>(1);
-  table->Put(1, "v1");
+  auto table = new MemTable(1);
+  table->Put(1, 10);
 
-  ASSERT_THROW({ table->Put(2, "v2"); }, MemTableFullException);
+  ASSERT_THROW({ table->Put(2, 20); }, MemTableFullException);
 }
 
 TEST(MemTable, InsertMany)
 {
-  auto table = new MemTable<int, std::string>(100);
+  auto table = new MemTable(100);
 
   int nodes_to_insert = 7;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[2] val2\n"
-                        "====(b)[1] val1\n"
+            std::string("(b)[2] 200\n"
+                        "====(b)[1] 100\n"
                         "========{NULL}\n"
                         "========{NULL}\n"
-                        "====(r)[4] val4\n"
-                        "========(b)[3] val3\n"
+                        "====(r)[4] 400\n"
+                        "========(b)[3] 300\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(b)[6] val6\n"
-                        "============(r)[5] val5\n"
+                        "========(b)[6] 600\n"
+                        "============(r)[5] 500\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(r)[7] val7\n"
+                        "============(r)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
   delete table;
 
-  table = new MemTable<int, std::string>(100);
+  table = new MemTable(100);
   nodes_to_insert = 9;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[4] val4\n"
-                        "====(r)[2] val2\n"
-                        "========(b)[1] val1\n"
+            std::string("(b)[4] 400\n"
+                        "====(r)[2] 200\n"
+                        "========(b)[1] 100\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(b)[3] val3\n"
+                        "========(b)[3] 300\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "====(r)[6] val6\n"
-                        "========(b)[5] val5\n"
+                        "====(r)[6] 600\n"
+                        "========(b)[5] 500\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(b)[8] val8\n"
-                        "============(r)[7] val7\n"
+                        "========(b)[8] 800\n"
+                        "============(r)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(r)[9] val9\n"
+                        "============(r)[9] 900\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
   delete table;
-  table = new MemTable<int, std::string>(100);
+  table = new MemTable(100);
 
   nodes_to_insert = 10;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[4] val4\n"
-                        "====(b)[2] val2\n"
-                        "========(b)[1] val1\n"
+            std::string("(b)[4] 400\n"
+                        "====(b)[2] 200\n"
+                        "========(b)[1] 100\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(b)[3] val3\n"
+                        "========(b)[3] 300\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "====(b)[6] val6\n"
-                        "========(b)[5] val5\n"
+                        "====(b)[6] 600\n"
+                        "========(b)[5] 500\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(r)[8] val8\n"
-                        "============(b)[7] val7\n"
+                        "========(r)[8] 800\n"
+                        "============(b)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[9] val9\n"
+                        "============(b)[9] 900\n"
                         "================{NULL}\n"
-                        "================(r)[10] val10\n"
+                        "================(r)[10] 1000\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
   delete table;
-  table = new MemTable<int, std::string>(100);
+  table = new MemTable(100);
 
   nodes_to_insert = 12;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[4] val4\n"
-                        "====(b)[2] val2\n"
-                        "========(b)[1] val1\n"
+            std::string("(b)[4] 400\n"
+                        "====(b)[2] 200\n"
+                        "========(b)[1] 100\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "========(b)[3] val3\n"
+                        "========(b)[3] 300\n"
                         "============{NULL}\n"
                         "============{NULL}\n"
-                        "====(b)[8] val8\n"
-                        "========(r)[6] val6\n"
-                        "============(b)[5] val5\n"
+                        "====(b)[8] 800\n"
+                        "========(r)[6] 600\n"
+                        "============(b)[5] 500\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[7] val7\n"
+                        "============(b)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "========(r)[10] val10\n"
-                        "============(b)[9] val9\n"
+                        "========(r)[10] 1000\n"
+                        "============(b)[9] 900\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[11] val11\n"
+                        "============(b)[11] 1100\n"
                         "================{NULL}\n"
-                        "================(r)[12] val12\n"
+                        "================(r)[12] 1200\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
   delete table;
-  table = new MemTable<int, std::string>(100);
+  table = new MemTable(100);
 
   nodes_to_insert = 18;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[8] val8\n"
-                        "====(r)[4] val4\n"
-                        "========(b)[2] val2\n"
-                        "============(b)[1] val1\n"
+            std::string("(b)[8] 800\n"
+                        "====(r)[4] 400\n"
+                        "========(b)[2] 200\n"
+                        "============(b)[1] 100\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[3] val3\n"
+                        "============(b)[3] 300\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "========(b)[6] val6\n"
-                        "============(b)[5] val5\n"
+                        "========(b)[6] 600\n"
+                        "============(b)[5] 500\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[7] val7\n"
+                        "============(b)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "====(r)[12] val12\n"
-                        "========(b)[10] val10\n"
-                        "============(b)[9] val9\n"
+                        "====(r)[12] 1200\n"
+                        "========(b)[10] 1000\n"
+                        "============(b)[9] 900\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[11] val11\n"
+                        "============(b)[11] 1100\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "========(b)[14] val14\n"
-                        "============(b)[13] val13\n"
+                        "========(b)[14] 1400\n"
+                        "============(b)[13] 1300\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(r)[16] val16\n"
-                        "================(b)[15] val15\n"
+                        "============(r)[16] 1600\n"
+                        "================(b)[15] 1500\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"
-                        "================(b)[17] val17\n"
+                        "================(b)[17] 1700\n"
                         "===================={NULL}\n"
-                        "====================(r)[18] val18\n"
+                        "====================(r)[18] 1800\n"
                         "========================{NULL}\n"
                         "========================{NULL}\n"));
   delete table;
-  table = new MemTable<int, std::string>(100);
+  table = new MemTable(100);
 
   nodes_to_insert = 21;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
-    table->Put(i, "val" + std::to_string(i));
+    table->Put(i, i * 100);
   }
 
   // Verified using cs.usfca.edu/~galles/visualization/RedBlack.html
   ASSERT_EQ(table->Print(),
-            std::string("(b)[8] val8\n"
-                        "====(r)[4] val4\n"
-                        "========(b)[2] val2\n"
-                        "============(b)[1] val1\n"
+            std::string("(b)[8] 800\n"
+                        "====(r)[4] 400\n"
+                        "========(b)[2] 200\n"
+                        "============(b)[1] 100\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[3] val3\n"
+                        "============(b)[3] 300\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "========(b)[6] val6\n"
-                        "============(b)[5] val5\n"
+                        "========(b)[6] 600\n"
+                        "============(b)[5] 500\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[7] val7\n"
+                        "============(b)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "====(r)[12] val12\n"
-                        "========(b)[10] val10\n"
-                        "============(b)[9] val9\n"
+                        "====(r)[12] 1200\n"
+                        "========(b)[10] 1000\n"
+                        "============(b)[9] 900\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "============(b)[11] val11\n"
+                        "============(b)[11] 1100\n"
                         "================{NULL}\n"
                         "================{NULL}\n"
-                        "========(b)[16] val16\n"
-                        "============(r)[14] val14\n"
-                        "================(b)[13] val13\n"
+                        "========(b)[16] 1600\n"
+                        "============(r)[14] 1400\n"
+                        "================(b)[13] 1300\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"
-                        "================(b)[15] val15\n"
+                        "================(b)[15] 1500\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"
-                        "============(r)[18] val18\n"
-                        "================(b)[17] val17\n"
+                        "============(r)[18] 1800\n"
+                        "================(b)[17] 1700\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"
-                        "================(b)[20] val20\n"
-                        "====================(r)[19] val19\n"
+                        "================(b)[20] 2000\n"
+                        "====================(r)[19] 1900\n"
                         "========================{NULL}\n"
                         "========================{NULL}\n"
-                        "====================(r)[21] val21\n"
+                        "====================(r)[21] 2100\n"
                         "========================{NULL}\n"
                         "========================{NULL}\n"));
 }
 
 TEST(MemTable, InsertAndDeleteOne)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "wow1!");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
   table->Delete(1);
 
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
@@ -317,57 +321,202 @@ TEST(MemTable, InsertAndDeleteOne)
 
 TEST(MemTable, InsertAndDeleteAFew)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "wow1!");
-  table->Put(2, "wow2!");
-  table->Put(3, "wow3!");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
   table->Delete(1);
 
   ASSERT_EQ(table->Print(),
-            std::string("(b)[2] wow2!\n"
+            std::string("(b)[2] 20\n"
                         "===={NULL}\n"
-                        "====(r)[3] wow3!\n"
+                        "====(r)[3] 30\n"
                         "========{NULL}\n"
                         "========{NULL}\n"));
 
   auto val = table->Get(2);
-  ASSERT_EQ(*val, std::string("wow2!"));
+  ASSERT_EQ(*val, 20);
 }
 
 TEST(MemTable, InsertAndGetOne)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "wow1!");
-  const std::string* val = table->Get(1);
-  ASSERT_EQ(*val, std::string("wow1!"));
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+
+  const V* val = table->Get(1);
+  ASSERT_NE(val, nullptr);
+  ASSERT_EQ(*val, 10);
 }
 
 TEST(MemTable, InsertOneAndReplaceIt)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "value 1");
-  table->Put(1, "value 2");
-  const std::string* val = table->Get(1);
-  ASSERT_EQ(*val, std::string("value 2"));
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(1, 20);
+
+  const V* val = table->Get(1);
+  ASSERT_NE(val, nullptr);
+  ASSERT_EQ(*val, 20);
 }
 
 TEST(MemTable, InsertManyAndGetMany)
 {
-  auto table = new MemTable<int, std::string>(100);
-  table->Put(1, "wow1!");
-  table->Put(2, "wow2!");
-  table->Put(3, "wow3!");
-  table->Put(4, "wow4!");
+  auto table = new MemTable(100);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+  table->Put(4, 40);
 
-  const std::string* val1 = table->Get(1);
-  ASSERT_EQ(*val1, std::string("wow1!"));
+  const V* val1 = table->Get(1);
+  ASSERT_EQ(*val1, 10);
 
-  const std::string* val2 = table->Get(2);
-  ASSERT_EQ(*val2, std::string("wow2!"));
+  const V* val2 = table->Get(2);
+  ASSERT_EQ(*val2, 20);
 
-  const std::string* val3 = table->Get(3);
-  ASSERT_EQ(*val3, std::string("wow3!"));
+  const V* val3 = table->Get(3);
+  ASSERT_EQ(*val3, 30);
 
-  const std::string* val4 = table->Get(4);
-  ASSERT_EQ(*val4, std::string("wow4!"));
+  const V* val4 = table->Get(4);
+  ASSERT_EQ(*val4, 40);
+}
+
+TEST(KvStore, ScanIncludesEnds)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+
+  std::vector<std::pair<K, V>> v = table->Scan(1, 3);
+
+  ASSERT_EQ(v.size(), 3);
+
+  ASSERT_EQ(v[0].first, 1);
+  ASSERT_EQ(v[0].second, 10);
+
+  ASSERT_EQ(v[1].first, 2);
+  ASSERT_EQ(v[1].second, 20);
+
+  ASSERT_EQ(v[2].first, 3);
+  ASSERT_EQ(v[2].second, 30);
+}
+
+TEST(KvStore, ScanStopsBeforeEnd)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+
+  std::vector<std::pair<K, V>> v = table->Scan(1, 2);
+  ASSERT_EQ(v.size(), 2);
+  ASSERT_EQ(v[0].first, 1);
+  ASSERT_EQ(v[0].second, 10);
+  ASSERT_EQ(v[1].first, 2);
+  ASSERT_EQ(v[1].second, 20);
+}
+
+TEST(KvStore, ScanStopsBeforeStart)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+
+  std::vector<std::pair<K, V>> v = table->Scan(2, 3);
+  ASSERT_EQ(v.size(), 2);
+  ASSERT_EQ(v[0].first, 2);
+  ASSERT_EQ(v[0].second, 20);
+  ASSERT_EQ(v[1].first, 3);
+  ASSERT_EQ(v[1].second, 30);
+}
+
+TEST(KvStore, ScanGoesBeyondKeySizes)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(10, 10);
+  table->Put(20, 20);
+  table->Put(30, 30);
+
+  std::vector<std::pair<K, V>> v = table->Scan(0, 100);
+  ASSERT_EQ(v.size(), 3);
+
+  ASSERT_EQ(v[0].first, 10);
+  ASSERT_EQ(v[0].second, 10);
+
+  ASSERT_EQ(v[1].first, 20);
+  ASSERT_EQ(v[1].second, 20);
+
+  ASSERT_EQ(v[2].first, 30);
+  ASSERT_EQ(v[2].second, 30);
+}
+
+TEST(KvStore, InsertAndDeleteOne)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Delete(1);
+  auto ptr = table->Get(1);
+
+  ASSERT_EQ(ptr, nullptr);
+}
+
+TEST(KvStore, InsertAndDeleteAFew)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+  table->Delete(1);
+
+  auto val = table->Get(2);
+  ASSERT_NE(val, nullptr);
+  ASSERT_EQ(*val, 20);
+
+  auto val2 = table->Get(1);
+  ASSERT_EQ(val2, nullptr);
+}
+
+TEST(KvStore, InsertAndGetOne)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  const V* val = table->Get(1);
+  ASSERT_NE(val, nullptr);
+  ASSERT_EQ(*val, 10);
+}
+
+TEST(KvStore, InsertOneAndReplaceIt)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 100);
+  table->Put(1, 200);
+  const V* val = table->Get(1);
+  ASSERT_NE(val, nullptr);
+  ASSERT_EQ(*val, 200);
+}
+
+TEST(KvStore, InsertManyAndGetMany)
+{
+  auto table = std::make_unique<KvStore>();
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Put(3, 30);
+  table->Put(4, 40);
+
+  const V* val1 = table->Get(1);
+  ASSERT_NE(val1, nullptr);
+  ASSERT_EQ(*val1, 10);
+
+  const V* val2 = table->Get(2);
+  ASSERT_NE(val2, nullptr);
+  ASSERT_EQ(*val2, 20);
+
+  const V* val3 = table->Get(3);
+  ASSERT_NE(val3, nullptr);
+  ASSERT_EQ(*val3, 30);
+
+  const V* val4 = table->Get(4);
+  ASSERT_NE(val4, nullptr);
+  ASSERT_EQ(*val4, 40);
 }
