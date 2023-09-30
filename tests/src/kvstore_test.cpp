@@ -15,7 +15,7 @@
 
 TEST(MemTable, ScanIncludesEnds)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);
@@ -36,7 +36,7 @@ TEST(MemTable, ScanIncludesEnds)
 
 TEST(MemTable, ScanStopsBeforeEnd)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);
@@ -51,7 +51,7 @@ TEST(MemTable, ScanStopsBeforeEnd)
 
 TEST(MemTable, ScanStopsBeforeStart)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);
@@ -66,7 +66,7 @@ TEST(MemTable, ScanStopsBeforeStart)
 
 TEST(MemTable, ScanGoesBeyondKeySizes)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(10, 10);
   table->Put(20, 20);
   table->Put(30, 30);
@@ -86,15 +86,24 @@ TEST(MemTable, ScanGoesBeyondKeySizes)
 
 TEST(MemTable, InsertTooManyThrows)
 {
-  auto table = new MemTable(1);
+  auto table = std::make_unique<MemTable>(1);
   table->Put(1, 10);
 
   ASSERT_THROW({ table->Put(2, 20); }, MemTableFullException);
 }
 
+TEST(MemTable, InsertOneAndClear)
+{
+  auto table = std::make_unique<MemTable>(1);
+  table->Put(1, 10);
+  table->Clear();
+
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
+}
+
 TEST(MemTable, InsertMany)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
 
   int nodes_to_insert = 7;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
@@ -117,9 +126,9 @@ TEST(MemTable, InsertMany)
                         "============(r)[7] 700\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
-  delete table;
+  table->Clear();
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
-  table = new MemTable(100);
   nodes_to_insert = 9;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
     table->Put(i, i * 100);
@@ -145,8 +154,8 @@ TEST(MemTable, InsertMany)
                         "============(r)[9] 900\n"
                         "================{NULL}\n"
                         "================{NULL}\n"));
-  delete table;
-  table = new MemTable(100);
+  table->Clear();
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
   nodes_to_insert = 10;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
@@ -175,8 +184,8 @@ TEST(MemTable, InsertMany)
                         "================(r)[10] 1000\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
-  delete table;
-  table = new MemTable(100);
+  table->Clear();
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
   nodes_to_insert = 12;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
@@ -209,8 +218,8 @@ TEST(MemTable, InsertMany)
                         "================(r)[12] 1200\n"
                         "===================={NULL}\n"
                         "===================={NULL}\n"));
-  delete table;
-  table = new MemTable(100);
+  table->Clear();
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
   nodes_to_insert = 18;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
@@ -255,8 +264,8 @@ TEST(MemTable, InsertMany)
                         "====================(r)[18] 1800\n"
                         "========================{NULL}\n"
                         "========================{NULL}\n"));
-  delete table;
-  table = new MemTable(100);
+  table->Clear();
+  ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
   nodes_to_insert = 21;
   for (int i = 1; i < nodes_to_insert + 1; i++) {
@@ -312,7 +321,7 @@ TEST(MemTable, InsertMany)
 
 TEST(MemTable, InsertAndDeleteOne)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Delete(1);
 
@@ -321,7 +330,7 @@ TEST(MemTable, InsertAndDeleteOne)
 
 TEST(MemTable, InsertAndDeleteAFew)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);
@@ -340,7 +349,7 @@ TEST(MemTable, InsertAndDeleteAFew)
 
 TEST(MemTable, InsertAndGetOne)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
 
   const V* val = table->Get(1);
@@ -350,7 +359,7 @@ TEST(MemTable, InsertAndGetOne)
 
 TEST(MemTable, InsertOneAndReplaceIt)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(1, 20);
 
@@ -361,7 +370,7 @@ TEST(MemTable, InsertOneAndReplaceIt)
 
 TEST(MemTable, InsertManyAndGetMany)
 {
-  auto table = new MemTable(100);
+  auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);

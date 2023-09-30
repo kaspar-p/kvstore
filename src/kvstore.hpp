@@ -5,12 +5,22 @@
 typedef unsigned long long int K;
 typedef unsigned long long int V;
 
+class DatabaseClosedException : public std::exception
+{
+public:
+  char* what();
+};
+
 class KvStore
 {
 private:
   std::unique_ptr<MemTable> memtable;
   bool open;
   std::string name;
+  K least;
+  K most;
+
+  void flush();
 
 public:
   KvStore(void);
@@ -73,4 +83,7 @@ public:
    * @param key The key to delete
    */
   void Delete(const K key);
+
+  /* The following public methods are just for tests, do not use! */
+  void TEST_set_memtable_size(unsigned long long capacity);
 };

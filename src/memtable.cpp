@@ -173,7 +173,7 @@ std::string RbNode::print() const
 std::string RbNode::print(int depth) const
 {
   if (this->is_nil) {
-    return "{NULL}\n";
+    return std::string("{NULL}\n");
   }
 
   std::string k = std::to_string(this->_key);
@@ -236,7 +236,16 @@ std::optional<V> MemTable::Put(const K key, const V value)
 std::vector<std::pair<K, V>> MemTable::Scan(const K lower_bound,
                                             const K upper_bound) const
 {
-  return this->rb_in_order(this->root, lower_bound, upper_bound);
+  std::vector<RbNode*> nodes =
+      this->rb_in_order(this->root, lower_bound, upper_bound);
+
+  std::vector<std::pair<K, V>> pairs;
+  std::transform(nodes.begin(),
+                 nodes.end(),
+                 std::back_inserter(pairs),
+                 [](RbNode* elem)
+                 { return std::make_pair(elem->key(), *elem->value()); });
+  return pairs;
 }
 
 V* MemTable::Delete(const K key)
@@ -245,37 +254,58 @@ V* MemTable::Delete(const K key)
 
   this->rb_delete(node);
 
+  V* ret;
   if (node->is_none()) {
-    return NULL;
+    ret = nullptr;
   } else {
-    return node->value();
+    ret = node->value();
   }
-
   delete node;
+
+  return ret;
 }
 
-std::vector<std::pair<K, V>> MemTable::rb_in_order(RbNode* node,
-                                                   const K lower_bound,
-                                                   const K upper_bound) const
+void MemTable::Clear()
 {
-  assert(node->is_some());
-  std::vector<std::pair<K, V>> l;
+  for (RbNode* node : this->rb_in_order(this->root,
+                                        this->rb_minimum(this->root)->key(),
+                                        this->rb_maximum(this->root)->key()))
+  {
+    if (node == this->root) {
+      this->root = &nil_sentinel;
+    }
+    delete node;
+  }
+}
+
+MemTable::~MemTable()
+{
+  this->Clear();
+}
+
+std::vector<RbNode*> MemTable::rb_in_order(RbNode* node,
+                                           const K lower_bound,
+                                           const K upper_bound) const
+{
+  std::vector<RbNode*> l {};
+  if (node->is_none()) {
+    return l;
+  }
 
   if (node->key() < lower_bound || node->key() > upper_bound) {
     return l;
   }
 
   if (node->left()->is_some()) {
-    std::vector<std::pair<K, V>> left_vec =
+    std::vector<RbNode*> left_vec =
         this->rb_in_order(node->left(), lower_bound, upper_bound);
     l.insert(l.end(), left_vec.begin(), left_vec.end());
   }
 
-  const std::pair<K, V> elem = std::make_pair(node->key(), *node->value());
-  l.push_back(elem);
+  l.push_back(node);
 
   if (node->right()->is_some()) {
-    std::vector<std::pair<K, V>> right_vec =
+    std::vector<RbNode*> right_vec =
         this->rb_in_order(node->right(), lower_bound, upper_bound);
     l.insert(l.end(), right_vec.begin(), right_vec.end());
   }

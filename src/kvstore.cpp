@@ -2,6 +2,11 @@
 
 #include "memtable.hpp"
 
+char* DatabaseClosedException::what()
+{
+  return (char*)"Database still closed, please Open() it first!";
+}
+
 KvStore::KvStore()
 {
   constexpr unsigned long long page = 4 * 1024;
@@ -21,7 +26,7 @@ void KvStore::Close()
 
 std::vector<std::pair<K, V>> KvStore::Scan(const K lower, const K upper) const
 {
-  std::vector<std::pair<K, V>> l;
+  std::vector<std::pair<K, V>> l {};
   return l;
 }
 
@@ -32,10 +37,30 @@ V* KvStore::Get(const K key) const
 
 void KvStore::Put(const K key, const V value)
 {
-  return;
+  if (!this->open) {
+    throw DatabaseClosedException();
+  }
+
+  try {
+    this->memtable->Put(key, value);
+  } catch (MemTableFullException& e) {
+    this->flush();
+    this->memtable->Clear();
+    this->memtable->Put(key, value);
+  }
 }
 
 void KvStore::Delete(const K key)
 {
   return;
+}
+
+void KvStore::TEST_set_memtable_size(unsigned long long capacity)
+{
+  this->memtable = std::make_unique<MemTable>(capacity);
+}
+
+void KvStore::flush()
+{
+  //
 }

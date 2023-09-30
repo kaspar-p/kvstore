@@ -3,8 +3,13 @@
 
 #include "kvstore.hpp"
 
-auto main() -> int
+int main()
 {
-  auto table = std::make_unique<KvStore>();
+  MemTable* table = new MemTable(2);
+
+  // std::cout << table->Print() << std::endl;
+
+  delete table;
+
   return 0;
 }

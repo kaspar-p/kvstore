@@ -117,9 +117,9 @@ private:
    * @param upper_bound The upper bound on keys to return.
    * @return std::vector<std::pair<K,V>> A list of ordered pairs.
    */
-  std::vector<std::pair<K, V>> rb_in_order(RbNode* subtree,
-                                           const K lower_bound,
-                                           const K upper_bound) const;
+  std::vector<RbNode*> rb_in_order(RbNode* subtree,
+                                   const K lower_bound,
+                                   const K upper_bound) const;
   void rb_transplant(RbNode* u, RbNode* v);
 
   /**
@@ -181,6 +181,7 @@ public:
    * @param memtable_size The size, in elements, of the memtable.
    */
   MemTable(unsigned long long memtable_size);
+  ~MemTable();
 
   /**
    * @brief Returns a string representation of the tree, meant only for
@@ -232,4 +233,9 @@ public:
    * @return V* A pointer to the old value, or a nullptr
    */
   V* Delete(const K key);
+
+  /**
+   * @brief Removes _all_ elements from the tree, leaving it empty!
+   */
+  void Clear();
 };
