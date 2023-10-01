@@ -11,19 +11,20 @@ public:
   char* what();
 };
 
+struct Options
+{
+  bool use_if_exists;
+};
+
 class KvStore
 {
 private:
-  std::unique_ptr<MemTable> memtable;
-  bool open;
-  std::string name;
-  K least;
-  K most;
-
-  void flush();
+  class KvStoreImpl;
+  std::unique_ptr<KvStoreImpl> pimpl;
 
 public:
   KvStore(void);
+  ~KvStore();
 
   /**
    * @brief Opens a database, either new or used.
@@ -36,7 +37,7 @@ public:
    * @param name A unique database name, also the name of the directory where
    * the data is stored.
    */
-  void Open(const std::string name);
+  void Open(const std::string name, Options options);
 
   /**
    * @brief Paired operation with `Open()`, closes the
@@ -83,7 +84,4 @@ public:
    * @param key The key to delete
    */
   void Delete(const K key);
-
-  /* The following public methods are just for tests, do not use! */
-  void TEST_set_memtable_size(unsigned long long capacity);
 };
