@@ -11,6 +11,7 @@ KvStore::KvStore()
 {
   constexpr unsigned long long page = 4 * 1024;
   this->memtable = std::make_unique<MemTable>(page);
+  this->open = false;
 }
 
 void KvStore::Open(const std::string name)
