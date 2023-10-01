@@ -9,10 +9,12 @@ See the [BUILDING](BUILDING.md) document.
 ## Progress
 
 - [ ] KvStore Implementation
-  - [x] Get
-    - But using text serialization, see below
-  - [x] Put
-    - But using text serialization, see below
+  - [ ] Get
+    - Working in main(), but using text serialization, see below
+    - No tests
+  - [ ] Put
+    - Working in main(), but using text serialization, see below
+    - No tests
   - [ ] Scan
   - [ ] Delete
   - [ ] Benchmarks
