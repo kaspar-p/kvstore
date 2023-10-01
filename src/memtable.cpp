@@ -276,6 +276,8 @@ void MemTable::Clear()
     }
     delete node;
   }
+
+  this->size = 0;
 }
 
 MemTable::~MemTable()

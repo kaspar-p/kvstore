@@ -1,9 +1,11 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "memtable.hpp"
 
-typedef unsigned long long int K;
-typedef unsigned long long int V;
+typedef uint64_t K;
+typedef uint64_t V;
 
 class DatabaseClosedException : public std::exception
 {
@@ -11,9 +13,15 @@ public:
   char* what();
 };
 
+class FailedToOpenException : public std::exception
+{
+public:
+  char* what();
+};
+
 struct Options
 {
-  bool use_if_exists;
+  bool overwrite;
 };
 
 class KvStore
@@ -58,15 +66,14 @@ public:
   std::vector<std::pair<K, V>> Scan(const K lower, const K upper) const;
 
   /**
-   * @brief Get a single value from the database by its key. Returns a
-   * _non-owning_ pointer to the value, and std::nullptr if there is no such key
-   * in the database.
+   * @brief Get a single value from the database by its key. Returns
+   * std::nullopt if the key doesn't exist in the database.
    *
    * @param key The key to search for.
    * @return V* A pointer to the value, and std::nullptr if there was no such
    * value
    */
-  V* Get(const K key) const;
+  std::optional<V> Get(const K key) const;
 
   /**
    * @brief Put a (key, value) pair into the database. If the key already

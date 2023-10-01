@@ -14,8 +14,8 @@ enum Color
   black
 };
 
-typedef unsigned long long int K;
-typedef unsigned long long int V;
+typedef uint64_t K;
+typedef uint64_t V;
 
 class RbNode
 {

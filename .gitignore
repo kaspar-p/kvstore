@@ -10,3 +10,6 @@ prefix/
 CMakeLists.txt.user
 CMakeUserPresets.json
 compile_commands.json
+
+# Kaspar's database files are in a "kvstore.db" directory
+/kvstore.db

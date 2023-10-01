@@ -101,6 +101,24 @@ TEST(MemTable, InsertOneAndClear)
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 }
 
+TEST(MemTable, InsertAfterClear)
+{
+  auto table = std::make_unique<MemTable>(2);
+  table->Put(1, 10);
+  table->Put(2, 20);
+  table->Clear();
+
+  table->Put(5, 50);
+  table->Put(6, 60);
+
+  ASSERT_EQ(table->Print(),
+            std::string("(b)[5] 50\n"
+                        "===={NULL}\n"
+                        "====(r)[6] 60\n"
+                        "========{NULL}\n"
+                        "========{NULL}\n"));
+}
+
 TEST(MemTable, InsertMany)
 {
   auto table = std::make_unique<MemTable>(100);
@@ -465,9 +483,9 @@ TEST(KvStore, InsertAndDeleteOne)
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Delete(1);
-  auto ptr = table->Get(1);
+  const std::optional<V> v = table->Get(1);
 
-  ASSERT_EQ(ptr, nullptr);
+  ASSERT_EQ(v, std::nullopt);
 }
 
 TEST(KvStore, InsertAndDeleteAFew)
@@ -478,21 +496,21 @@ TEST(KvStore, InsertAndDeleteAFew)
   table->Put(3, 30);
   table->Delete(1);
 
-  auto val = table->Get(2);
-  ASSERT_NE(val, nullptr);
-  ASSERT_EQ(*val, 20);
+  const std::optional<V> val = table->Get(2);
+  ASSERT_NE(val, std::nullopt);
+  ASSERT_EQ(val.value(), 20);
 
-  auto val2 = table->Get(1);
-  ASSERT_EQ(val2, nullptr);
+  const std::optional<V> val2 = table->Get(1);
+  ASSERT_EQ(val2, std::nullopt);
 }
 
 TEST(KvStore, InsertAndGetOne)
 {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
-  const V* val = table->Get(1);
-  ASSERT_NE(val, nullptr);
-  ASSERT_EQ(*val, 10);
+  const std::optional<V> val = table->Get(1);
+  ASSERT_NE(val, std::nullopt);
+  ASSERT_EQ(val.value(), 10);
 }
 
 TEST(KvStore, InsertOneAndReplaceIt)
@@ -500,9 +518,9 @@ TEST(KvStore, InsertOneAndReplaceIt)
   auto table = std::make_unique<KvStore>();
   table->Put(1, 100);
   table->Put(1, 200);
-  const V* val = table->Get(1);
-  ASSERT_NE(val, nullptr);
-  ASSERT_EQ(*val, 200);
+  const std::optional<V> val = table->Get(1);
+  ASSERT_NE(val, std::nullopt);
+  ASSERT_EQ(val.value(), 200);
 }
 
 TEST(KvStore, InsertManyAndGetMany)
@@ -513,19 +531,19 @@ TEST(KvStore, InsertManyAndGetMany)
   table->Put(3, 30);
   table->Put(4, 40);
 
-  const V* val1 = table->Get(1);
-  ASSERT_NE(val1, nullptr);
-  ASSERT_EQ(*val1, 10);
+  const std::optional<V> val1 = table->Get(1);
+  ASSERT_NE(val1, std::nullopt);
+  ASSERT_EQ(val1.value(), 10);
 
-  const V* val2 = table->Get(2);
-  ASSERT_NE(val2, nullptr);
-  ASSERT_EQ(*val2, 20);
+  const std::optional<V> val2 = table->Get(2);
+  ASSERT_NE(val2, std::nullopt);
+  ASSERT_EQ(val2.value(), 20);
 
-  const V* val3 = table->Get(3);
-  ASSERT_NE(val3, nullptr);
-  ASSERT_EQ(*val3, 30);
+  const std::optional<V> val3 = table->Get(3);
+  ASSERT_NE(val3, std::nullopt);
+  ASSERT_EQ(val3.value(), 30);
 
-  const V* val4 = table->Get(4);
-  ASSERT_NE(val4, nullptr);
-  ASSERT_EQ(*val4, 40);
+  const std::optional<V> val4 = table->Get(4);
+  ASSERT_NE(val4, std::nullopt);
+  ASSERT_EQ(val4.value(), 40);
 }
