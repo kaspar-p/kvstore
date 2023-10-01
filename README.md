@@ -6,6 +6,22 @@ A key-value store implementation for CSC443, Fall 2023 by Kaspar Poland, Janine 
 
 See the [BUILDING](BUILDING.md) document.
 
+## Progress
+
+- [ ] KvStore Implementation
+  - [x] Get
+    - But using text serialization, see below
+  - [x] Put
+    - But using text serialization, see below
+  - [ ] Scan
+  - [ ] Delete
+  - [ ] Benchmarks
+- [x] MemTable Implementation
+  - [x] Get
+  - [x] Put
+  - [x] Delete
+  - [x] Scan
+
 ## TODO
 
 - Benchmarks!!!! There aren't any!
