@@ -30,6 +30,7 @@ std::vector<std::string> split_string(std::string s, std::string delimiter)
     tokens.push_back(s.substr(0, pos));
     s.erase(0, pos + delimiter.length());
   }
+  tokens.push_back(s);
 
   return tokens;
 }
@@ -79,7 +80,7 @@ struct KvStore::KvStoreImpl
     }
     buf.shrink_to_fit();
 
-    std::string serialized = std::accumulate(std::next(buf.begin()),
+    std::string serialized = std::accumulate(buf.begin(),
                                              buf.end(),
                                              std::string(),
                                              [](std::string a, std::string b)
