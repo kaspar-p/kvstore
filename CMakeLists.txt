@@ -39,17 +39,33 @@ target_include_directories(
 )
 target_compile_features(kvstore_kvstore PUBLIC cxx_std_17)
 
-# ---- Declare executable ----
+# benchmarks.cpp
+add_library(kvstore_benchmarks OBJECT src/benchmarks.cpp)
+target_include_directories(
+  kvstore_benchmarks ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_benchmarks PUBLIC cxx_std_17)
+
+
+# ---- Declare executables ----
 add_executable(kvstore_exe src/main.cpp)
 add_executable(kvstore::exe ALIAS kvstore_exe)
+add_executable(benchmarks_exe src/benchmarks.cpp)
+add_executable(benchmarks::exe ALIAS benchmarks_exe)
 
 set_property(TARGET kvstore_exe PROPERTY OUTPUT_NAME kvstore)
+set_property(TARGET benchmarks_exe PROPERTY OUTPUT_NAME benchmarks)
 
 target_compile_features(kvstore_exe PRIVATE cxx_std_17)
+target_compile_features(benchmarks_exe PRIVATE cxx_std_17)
 
 # ---- Link libraries ----
 target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)
 
 # ---- Install rules ----
 if(NOT CMAKE_SKIP_INSTALL_RULES)
