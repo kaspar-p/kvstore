@@ -28,12 +28,20 @@ target_compile_features(kvstore_test PRIVATE cxx_std_17)
 add_test(NAME kvstore_test COMMAND kvstore_test)
 
 # ---- SstableNaive Tests ----
-add_executable(kvstore_sstable_naive_test src/sstable_naive.test.cpp)
-target_link_libraries(kvstore_sstable_naive_test PRIVATE kvstore_memtable)
-target_link_libraries(kvstore_sstable_naive_test PRIVATE kvstore_sstable)
-target_link_libraries(kvstore_sstable_naive_test PRIVATE gtest_main)
-target_compile_features(kvstore_sstable_naive_test PRIVATE cxx_std_17)
+add_executable(sstable_naive_test src/sstable_naive.test.cpp)
+target_link_libraries(sstable_naive_test PRIVATE kvstore_memtable)
+target_link_libraries(sstable_naive_test PRIVATE kvstore_sstable)
+target_link_libraries(sstable_naive_test PRIVATE gtest_main)
+target_compile_features(sstable_naive_test PRIVATE cxx_std_17)
 
-add_test(NAME kvstore_sstable_naive_test COMMAND kvstore_sstable_naive_test)
+add_test(NAME sstable_naive_test COMMAND sstable_naive_test)
+
+# ---- Memtable Tests ----
+add_executable(memtable_test src/memtable.test.cpp)
+target_link_libraries(memtable_test PRIVATE kvstore_memtable)
+target_link_libraries(memtable_test PRIVATE gtest_main)
+target_compile_features(memtable_test PRIVATE cxx_std_17)
+
+add_test(NAME memtable_test COMMAND memtable_test)
 
 # ---- End-of-file commands ----
