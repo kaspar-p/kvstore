@@ -18,13 +18,22 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-# ---- Tests ----
+# ---- Kvstore Tests ----
 add_executable(kvstore_test src/kvstore_test.cpp)
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
+target_link_libraries(kvstore_test PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_test PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_test PRIVATE gtest_main)
 target_compile_features(kvstore_test PRIVATE cxx_std_17)
-
 add_test(NAME kvstore_test COMMAND kvstore_test)
+
+# ---- SstableNaive Tests ----
+add_executable(kvstore_sstable_naive_test src/sstable_naive.test.cpp)
+target_link_libraries(kvstore_sstable_naive_test PRIVATE kvstore_memtable)
+target_link_libraries(kvstore_sstable_naive_test PRIVATE kvstore_sstable)
+target_link_libraries(kvstore_sstable_naive_test PRIVATE gtest_main)
+target_compile_features(kvstore_sstable_naive_test PRIVATE cxx_std_17)
+
+add_test(NAME kvstore_sstable_naive_test COMMAND kvstore_sstable_naive_test)
 
 # ---- End-of-file commands ----

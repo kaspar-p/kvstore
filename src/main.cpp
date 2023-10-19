@@ -6,7 +6,6 @@
 #include "kvstore.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
-#include "sstable_naive.hpp"
 
 int main()
 {
@@ -18,10 +17,11 @@ int main()
   }
   SstableNaive t {};
   std::fstream f;
-  t.flush(f, memtable);
-  f.close();
+  t.Flush(f, memtable);
 
-  std::cout << "ENDING" << std::endl;
+  auto val = t.GetFromFile(f, 33).value();
+
+  std::cout << "ENDING " << val << std::endl;
 
   return 0;
 }

@@ -12,6 +12,7 @@
 #include <libc.h>
 
 #include "memtable.hpp"
+#include "sstable.hpp"
 
 char* DatabaseClosedException::what()
 {
@@ -47,6 +48,7 @@ struct KvStore::KvStoreImpl
   std::unique_ptr<MemTable> memtable;
   bool open;
   std::vector<std::unique_ptr<std::fstream>> levels;
+  SstableNaive sstable;
 
   // Might not be necessary
   K least_key;
@@ -65,38 +67,16 @@ struct KvStore::KvStoreImpl
 
   ~KvStoreImpl() = default;
 
-  /**
-   * This method serializes in a TEXT format right now. Figure out how to solve
-   * endian-ness and then save in a binary format, since right now it's O(n) for
-   * searching through the table, even though the keys are sorted. It could be
-   * O(log(n)), but we can't immediately jump to the right offsets, since it's
-   * a text format.
-   */
-  std::string serialize_memtable()
-  {
-    std::vector<std::pair<K, V>> pairs =
-        this->memtable->Scan(this->least_key, this->most_key);
-
-    std::vector<std::string> buf;
-    buf.reserve(pairs.size());
-
-    std::string serialized = std::accumulate(buf.begin(),
-                                             buf.end(),
-                                             std::string(),
-                                             [](std::string a, std::string b)
-                                             { return a + "." + b; });
-    serialized.erase(0, 1);
-    return serialized;
-  }
-
   void flush_memtable()
   {
-    std::string ser = this->serialize_memtable();
+    std::fstream file(
+        this->datafile(this->blocks),
+        std::fstream::binary | std::fstream::out | std::fstream::trunc);
 
-    std::ofstream file {this->datafile(this->blocks)};
-    file.write(ser.c_str(), ser.size());
+    this->sstable.Flush(file, *this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
+      exit(1);
     }
 
     this->blocks++;
