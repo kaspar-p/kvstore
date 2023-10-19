@@ -30,10 +30,10 @@ This includes the root node if there are <= `ORDER` (key, value) pairs in the fi
 
 ```
 [ previous leaf block ptr ] (8 bytes)
-[ key ] [ value ]           (16 bytes)
-[ key ] [ value ]           (16 bytes)
+[ key ] [ value ]           (8 + 8 bytes)
+[ key ] [ value ]           (8 + 8 bytes)
 ...
-[ key ] [ value ]           (16 bytes)
+[ key ] [ value ]           (8 + 8 bytes)
 [ next leaf block ptr ]     (8 bytes)
 ```
 

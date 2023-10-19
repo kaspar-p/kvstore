@@ -8,57 +8,9 @@
 #include <string>
 #include <vector>
 
-enum Color
-{
-  red,
-  black
-};
-
 typedef uint64_t K;
 typedef uint64_t V;
-
-class RbNode
-{
-public:
-  RbNode(K key, V value);
-  RbNode();
-
-  Color color() const;
-  void set_color(const Color color);
-
-  const bool is_some(void) const;
-  const bool is_none(void) const;
-
-  const K& key() const;
-  V* value() const;
-  V replace_value(V new_value);
-
-  RbNode* parent(void) const;
-  RbNode* left(void) const;
-  RbNode* right(void) const;
-
-  void set_parent(RbNode* parent);
-  void set_left(RbNode* left);
-  void set_right(RbNode* right);
-
-  bool operator<(const RbNode& other) const;
-  bool operator<=(const RbNode& other) const;
-  bool operator>(const RbNode& other) const;
-  bool operator>=(const RbNode& other) const;
-  bool operator==(const RbNode& other) const;
-
-  std::string print() const;
-
-private:
-  const bool is_nil;
-  const K _key;
-  V _data;
-  Color _color;
-  RbNode* _parent;
-  RbNode* _left;
-  RbNode* _right;
-  std::string print(int depth) const;
-};
+#define PAGE_SIZE (4096)
 
 class MemTableFullException : public std::exception
 {
@@ -69,108 +21,8 @@ public:
 class MemTable
 {
 private:
-  unsigned long long capacity;
-  unsigned long long size;
-  RbNode* root;
-
-  /**
-   * @brief Find the node with minimum key in a subtree.
-   * Symmetric with `rb_maximum`. If `subtree` is itself a nil sentinel,
-   * this function returns a nil sentinel. Implementation described in my
-   * roommate's copy of CLRS.
-   *
-   * @param subtree The starting point of the search, often the root.
-   * @return RbNode* The resulting minimum node.
-   * If there are no such nodes, returns a nil sentinel.
-   */
-  RbNode* rb_minimum(RbNode* subtree) const;
-
-  /**
-   * @brief Find the node with maximum key in a subtree.
-   * Symmetric with `rb_minimum`. If `subtree` is itself a nil sentinel,
-   * this function returns a nil sentinel. Implementation described in my
-   * roommate's copy of CLRS.
-   *
-   * @param subtree The starting point of the search, often the root.
-   * @return RbNode* The resulting maximum node.
-   * If there are no such nodes, returns a nil sentinel.
-   */
-  RbNode* rb_maximum(RbNode* subtree) const;
-
-  /**
-   * @brief Search the red-black tree for a node where node.key() == key.
-   * Implementation described in my roommate's copy of CLRS.
-   *
-   * @param subtree The starting point of the search, often the root.
-   * @param key The key to search for exact matches.
-   * @return RbNode* The node with matching key.
-   * If no such node, returns a nil sentinel.
-   */
-  RbNode* rb_search(RbNode* subtree, const K key) const;
-
-  /**
-   * @brief Return a vector of pairs, sorted. All pairs (k, v) in
-   * the vector are such that lower_bound < k < upper_bound, exclusive.
-   *
-   * @param subtree The beginning of the search, often the root.
-   * @param lower_bound The lower bound on keys to return.
-   * @param upper_bound The upper bound on keys to return.
-   * @return std::vector<std::pair<K,V>> A list of ordered pairs.
-   */
-  std::vector<RbNode*> rb_in_order(RbNode* subtree,
-                                   const K lower_bound,
-                                   const K upper_bound) const;
-  void rb_transplant(RbNode* u, RbNode* v);
-
-  /**
-   * @brief Rotate a red-black tree _left_ around a node. Does nothing if the
-   * node is a nil sentinel. Implementation described in my roommate's copy of
-   * CLRS.
-   *
-   * @param node The node to rotate around.
-   */
-  void rb_left_rotate(RbNode* node);
-
-  /**
-   * @brief Rotate a red-black tree _right_ around a node. Does nothing if the
-   * node is a nil sentinel. Implementation described in my roommate's copy of
-   * CLRS.
-   *
-   * @param node The node to rotate around.
-   */
-  void rb_right_rotate(RbNode* node);
-
-  /**
-   * @brief Insert a node into the red-black tree. Implementation described in
-   * my roommate's copy of CLRS.
-   *
-   * @param node The node to insert.
-   */
-  void rb_insert(RbNode* node);
-
-  /**
-   * @brief Fix the red-black tree balanced property. Implementation described
-   * in my roommate's copy of CLRS.
-   *
-   * @param node The node to fix around.
-   */
-  void rb_insert_fixup(RbNode* node);
-
-  /**
-   * @brief Delete a node from the red-black tree. Implementation described in
-   * my roommate's copy of CLRS.
-   *
-   * @param node The node to delete.
-   */
-  void rb_delete(RbNode* node);
-
-  /**
-   * @brief Fix the balanced property of a red-black tree. Implementation
-   * described in my roommate's copy of CLRS.
-   *
-   * @param node The node to fix the balancing property around.
-   */
-  void rb_delete_fixup(RbNode* node);
+  class MemTableImpl;
+  std::unique_ptr<MemTableImpl> pimpl;
 
 public:
   /**
@@ -182,6 +34,10 @@ public:
    */
   MemTable(unsigned long long memtable_size);
   ~MemTable();
+  MemTable(const MemTable&);
+  MemTable& operator=(const MemTable&);
+  MemTable(MemTable&& t) = default;
+  MemTable& operator=(MemTable&& t) = default;
 
   /**
    * @brief Returns a string representation of the tree, meant only for
@@ -224,6 +80,14 @@ public:
    * key earliest.
    */
   std::vector<std::pair<K, V>> Scan(const K lower, const K upper) const;
+
+  /**
+   * @brief Get a list of all pairs in the MemTable. Same as Scan() with [-inf,
+   * +inf] bounds.
+   *
+   * @return std::vector<std::pair<K, V>> All pairs in the table.
+   */
+  std::vector<std::pair<K, V>> ScanAll() const;
 
   /**
    * @brief Deletes a key from the table. Returns a nullptr if the key was never

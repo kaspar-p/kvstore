@@ -30,6 +30,16 @@ target_include_directories(
 )
 target_compile_features(kvstore_memtable PUBLIC cxx_std_17)
 
+# sstable_naive.cpp
+add_library(kvstore_sstable OBJECT src/sstable.hpp)
+add_library(kvstore_sstable_naive OBJECT src/sstable_naive.cpp)
+target_include_directories(
+  kvstore_sstable_naive ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_sstable_naive PUBLIC cxx_std_17)
+
 # kvstore.cpp
 add_library(kvstore_kvstore OBJECT src/kvstore.cpp)
 target_include_directories(
@@ -63,6 +73,8 @@ target_compile_features(benchmarks_exe PRIVATE cxx_std_17)
 
 # ---- Link libraries ----
 target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
+target_link_libraries(kvstore_exe PRIVATE kvstore_sstable)
+target_link_libraries(kvstore_exe PRIVATE kvstore_sstable_naive)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)

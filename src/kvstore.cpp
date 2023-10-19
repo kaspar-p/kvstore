@@ -4,9 +4,11 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <vector>
 
 #include "kvstore.hpp"
 
+#include <assert.h>
 #include <libc.h>
 
 #include "memtable.hpp"
@@ -41,18 +43,22 @@ constexpr static unsigned int page_size = 4096;
 
 struct KvStore::KvStoreImpl
 {
+  // Necessary
   std::unique_ptr<MemTable> memtable;
   bool open;
+  std::vector<std::unique_ptr<std::fstream>> levels;
+
+  // Might not be necessary
   K least_key;
   K most_key;
-  std::fstream file;
   long blocks;
   std::filesystem::path dir;
 
   KvStoreImpl(void)
   {
     int max_elems = page_size / (key_size + val_size);
-    this->memtable = std::make_unique<MemTable>(max_elems);
+    int other_elems = 4;  // [ magic number, num elements, min key, max key ]
+    this->memtable = std::make_unique<MemTable>(max_elems - other_elems);
     this->open = false;
     this->blocks = 0;
   };
@@ -73,12 +79,6 @@ struct KvStore::KvStoreImpl
 
     std::vector<std::string> buf;
     buf.reserve(pairs.size());
-    for (const auto [key, value] : pairs) {
-      std::string s =
-          "(" + std::to_string(key) + "," + std::to_string(value) + ")";
-      buf.push_back(s);
-    }
-    buf.shrink_to_fit();
 
     std::string serialized = std::accumulate(buf.begin(),
                                              buf.end(),
@@ -150,6 +150,15 @@ struct KvStore::KvStoreImpl
     return memtable_l;
   }
 
+  std::optional<V> level_get(const std::size_t level, const K key) const
+  {
+    assert(level < this->levels.size());
+    this->levels.at(level)->open("test.txt");
+    // levelf.open("test.txt", std::fstream::in | std::fstream::out);
+
+    return std::nullopt;
+  }
+
   std::optional<V> sst_get(const K key) const
   {
     for (int i = 0; i < this->blocks; i++) {
@@ -182,7 +191,14 @@ struct KvStore::KvStoreImpl
       return std::make_optional(*mem_val);
     }
 
-    return this->sst_get(key);
+    for (int level = 0; level < this->levels.size(); level++) {
+      std::optional<V> val = this->level_get(level, key);
+      if (val.has_value()) {
+        return val.value();
+      }
+    }
+
+    return std::nullopt;
   }
 
   void Put(const K key, const K value)
