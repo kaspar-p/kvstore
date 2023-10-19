@@ -8,44 +8,6 @@
 #include "math.h"
 #include "memtable.hpp"
 
-std::optional<int> binary_find(uint64_t buf[PAGE_SIZE],
-                               uint64_t key,
-                               int left,
-                               int right)
-{
-  while (left <= right) {
-    int mid = left + floor((right - left) / 2);
-    if (buf[mid] == key) {
-      return std::make_optional(mid);
-    } else if (buf[mid] < key) {
-      left = mid + 2;
-    } else {
-      right = mid - 2;
-    }
-  }
-
-  return std::nullopt;
-}
-
-std::optional<int> binary_find_gt(uint64_t buf[PAGE_SIZE],
-                                  uint64_t key,
-                                  int left,
-                                  int right)
-{
-  while (left <= right) {
-    int mid = left + floor((right - left) / 2);
-    if (buf[mid] == key) {
-      return std::make_optional(mid + 1);
-    } else if (buf[mid] < key) {
-      left = mid + 1;
-    } else {
-      right = mid - 1;
-    }
-  }
-
-  return std::nullopt;
-}
-
 void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
 {
   assert(file.is_open());
@@ -112,16 +74,22 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
   int header_size = 4;
   int pair_size = 2;
 
-  std::optional<int> val_idx =
-      binary_find(buf, key, header_size, header_size + elems * pair_size);
-  if (val_idx.has_value()) {
-    return buf[val_idx.value()];
-  } else {
-    return std::nullopt;
+  int left = header_size;
+  int right = header_size + elems * pair_size;
+  while (left <= right) {
+    int mid = left + floor((right - left) / 2);
+    if (buf[mid] == key) {
+      return std::make_optional(buf[mid]);
+    } else if (buf[mid] < key) {
+      left = mid + 2;
+    } else {
+      right = mid - 2;
+    }
   }
-}
 
-;
+  return std::nullopt;
+};
+
 std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
                                                       const K lower,
                                                       const K upper)
@@ -158,9 +126,6 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
 
   int header_size = 4;
   int pair_size = 2;
-
-  std::optional<int> left_idx =
-      binary_find(buf, lower, header_size, header_size + elems * pair_size);
 
   int left = header_size;
   int right = header_size + elems * pair_size;
