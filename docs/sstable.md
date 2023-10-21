@@ -29,29 +29,31 @@ with the rest being `00` until the end of the block.
 This includes the root node if there are <= `ORDER` (key, value) pairs in the file.
 
 ```
-[ previous leaf block ptr ] (8 bytes)
-[ key ] [ value ]           (8 + 8 bytes)
-[ key ] [ value ]           (8 + 8 bytes)
+[ 00 db 00 11 ] [ uint32_t ]  (4+4 bytes, magic number for leaf node, then 4 bytes garbage)
+[ key ] [ value ]             (8 + 8 bytes)
+[ key ] [ value ]             (8 + 8 bytes)
 ...
-[ key ] [ value ]           (8 + 8 bytes)
-[ next leaf block ptr ]     (8 bytes)
+[ key ] [ value ]             (8 + 8 bytes)
+[ right leaf block ptr ]      (8 bytes)
 ```
 
-The previous/next ptrs are the macro `BLOCK_NULL` if there is no previous/next.
+The next ptrs are the macro `BLOCK_NULL` if there is no previous/next.
 
 ## BTree internal node format
 
 This includes the root node if there are > `ORDER` (key, value) pairs in the file.
 
 ```
-[ child ptr ] [ key ] (16 bytes)
-[ child ptr ] [ key ] (16 bytes)
+[ 00 db 00 ff ] [ uint32_t ]  (4+4 bytes, magic number for internal node, then # children)
+[ child ptr ]                 (8 bytes)
+[ key ] [ child ptr ]         (16 bytes)
 ...
-[ child ptr ] [ key ] (16 bytes)
-[ child ptr ] [ BLOCK_NULL ] (16 bytes)
+[ key ] [ child ptr ]         (16 bytes)
+[ key ] [ child ptr ]         (16 bytes)
 ```
 
 Note that there is 1 fewer key than there are pointers, since all keys greater than the
-`ORDER-1`th key go to the `ORDER`th ptr, no matter what.
+`ORDER-1`th key go to the `ORDER`th ptr, no matter what. We pack the magic number
+and number of elements in the remaining 8 bytes.
 
 Each child ptr is `BLOCK_NULL` if there is no leaf node at the end of it.
