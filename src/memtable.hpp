@@ -1,28 +1,26 @@
 #pragma once
 
-#include <functional>
-#include <iostream>
+#include <cstdint>
+#include <exception>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
-typedef uint64_t K;
-typedef uint64_t V;
-#define PAGE_SIZE (4096)
+#include "constants.hpp"
 
 class MemTableFullException : public std::exception
 {
 public:
-  char* what();
+  [[nodiscard]] const char* what() const noexcept override;
 };
 
 class MemTable
 {
 private:
   class MemTableImpl;
-  std::unique_ptr<MemTableImpl> pimpl;
+  std::unique_ptr<MemTableImpl> impl_;
 
 public:
   /**
@@ -32,7 +30,7 @@ public:
    *
    * @param memtable_size The size, in elements, of the memtable.
    */
-  MemTable(unsigned long long memtable_size);
+  explicit MemTable(uint64_t capacity);
   ~MemTable();
   MemTable(const MemTable&);
   MemTable& operator=(const MemTable&);
@@ -45,7 +43,7 @@ public:
    *
    * @return std::string
    */
-  std::string Print() const;
+  [[nodiscard]] std::string Print() const;
 
   /**
    * @brief Get a value by key. Returns nullptr if does not exist.
@@ -53,7 +51,7 @@ public:
    * @param key The key to search for.
    * @return V* A pointer to the value, or nullptr.
    */
-  V* Get(const K key) const;
+  [[nodiscard]] V* Get(K key) const;
 
   /**
    * @brief Put a value into the tree. Replaces the value if the key was
@@ -67,7 +65,7 @@ public:
    * @param value The value to insert.
    * @return std::optional<V> The old value, if it existed.
    */
-  std::optional<V> Put(const K key, const V value);
+  std::optional<V> Put(K key, V value);
 
   /**
    * @brief Get a vector of sorted (key, value) pairs, where all keys k are such
@@ -79,7 +77,7 @@ public:
    * @return std::vector<std::pair<K, V>> A list of ordered pairs, with lowest
    * key earliest.
    */
-  std::vector<std::pair<K, V>> Scan(const K lower, const K upper) const;
+  [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const;
 
   /**
    * @brief Get a list of all pairs in the MemTable. Same as Scan() with [-inf,
@@ -87,7 +85,7 @@ public:
    *
    * @return std::vector<std::pair<K, V>> All pairs in the table.
    */
-  std::vector<std::pair<K, V>> ScanAll() const;
+  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const;
 
   /**
    * @brief Deletes a key from the table. Returns a nullptr if the key was never
@@ -96,7 +94,7 @@ public:
    * @param key The key to delete
    * @return V* A pointer to the old value, or a nullptr
    */
-  V* Delete(const K key);
+  V* Delete(K key);
 
   /**
    * @brief Removes _all_ elements from the tree, leaving it empty!

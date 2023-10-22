@@ -1,13 +1,13 @@
 #pragma once
 
 #include <fstream>
-#include <functional>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "constants.hpp"
 #include "memtable.hpp"
-
-typedef uint64_t K;
-typedef uint64_t V;
 
 class Sstable
 {
@@ -30,7 +30,7 @@ public:
    * @param key The key to search for
    * @return std::optional<V> The resulting value.
    */
-  virtual std::optional<V> GetFromFile(std::fstream file, const K key);
+  virtual std::optional<V> GetFromFile(std::fstream& file, K key);
 
   /**
    * @brief Scan keys in range [lower, upper] from @param file.
@@ -40,27 +40,27 @@ public:
    * @param upper The upper bound of the scan
    * @return std::vector<std::pair<K, V>>
    */
-  virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream file,
-                                                  const K lower,
-                                                  const K upper);
+  virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
+                                                  K lower,
+                                                  K upper);
 };
 
 class SstableNaive
 {
 public:
-  void Flush(std::fstream& filename, MemTable& memtable);
-  std::optional<V> GetFromFile(std::fstream& file, const K key);
-  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
-                                          const K lower,
-                                          const K upper);
+  static void Flush(std::fstream& filename, MemTable& memtable);
+  static std::optional<V> GetFromFile(std::fstream& file, K key);
+  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
+                                                 K lower,
+                                                 K upper);
 };
 
 class SstableBTree
 {
 public:
-  void Flush(std::fstream& filename, MemTable& memtable);
-  std::optional<V> GetFromFile(std::fstream& file, const K key);
-  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
-                                          const K lower,
-                                          const K upper);
+  static void Flush(std::fstream& filename, MemTable& memtable);
+  static std::optional<V> GetFromFile(std::fstream& file, K key);
+  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
+                                                 K lower,
+                                                 K upper);
 };

@@ -1,23 +1,36 @@
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
-#include <vector>
+#include <memory>
+#include <optional>
+#include <string>
 
-#include "stdint.h"
+#include "constants.hpp"
 
-typedef uint64_t K;
-typedef uint64_t V;
-typedef uint64_t pageno;
+using pageno = uint64_t;
 
-#define PAGE_SIZE (4096)
+enum PageType
+{
+  kBTreeLeaf = 0,
+  kBTreeInternal = 1,
+  kMetadata = 2,
+};
+
+using Buffer = std::array<std::byte, kPageSize>;
 
 class BufPool
 {
 private:
-  std::size_t initial_size;
-  std::size_t max_size;
+  class BufPoolImpl;
+  std::unique_ptr<BufPoolImpl> impl_;
 
 public:
-  BufPool(std::size_t initial_size, std::size_t max_size);
+  BufPool(std::size_t min_size, std::size_t max_size);
+  ~BufPool();
 
-  std::array<uint8_t, PAGE_SIZE> Get(pageno page);
+  [[nodiscard]] bool HasPage(const std::string& file, const pageno& page) const;
+  [[nodiscard]] std::optional<Buffer> GetPage(const std::string& file,
+                                              const pageno& page) const;
+  void PutPage(const std::string& file, const pageno& page, Buffer contents);
 };

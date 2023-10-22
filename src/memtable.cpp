@@ -1,13 +1,18 @@
-#include <functional>
+#include <algorithm>
+#include <cstdint>
+#include <exception>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "memtable.hpp"
 
-#include <assert.h>
+#include "constants.hpp"
 
 std::string repeat(const std::string& input, unsigned num)
 {
@@ -21,180 +26,173 @@ std::string repeat(const std::string& input, unsigned num)
 
 enum Color
 {
-  red,
-  black
+  kRed = 0,
+  kBlack = 1
 };
 
-typedef uint64_t K;
-typedef uint64_t V;
-
 class RbNode;
-RbNode* _nil_sentinel;
+RbNode* nil_sentinel_node = nullptr;
 RbNode* nil_sentinel();
 
 class RbNode
 {
 public:
   RbNode(K key, V value)
-      : _key(key)
-      , is_nil(false)
+      : key_(key)
+      , is_nil_(false)
   {
-    this->_data = value;
+    this->data_ = value;
 
-    this->_color = black;
-    this->_parent = this;
-    this->_left = this;
-    this->_right = this;
+    this->color_ = kBlack;
+    this->parent_ = this;
+    this->left_ = this;
+    this->right_ = this;
   }
   RbNode()
-      : _key(0)
-      , is_nil(true)
+      : key_(0)
+      , is_nil_(true)
   {
-    this->_data = 0;
-    this->_color = black;
+    this->data_ = 0;
+    this->color_ = kBlack;
 
-    this->_parent = this;
-    this->_left = this;
-    this->_right = this;
+    this->parent_ = this;
+    this->left_ = this;
+    this->right_ = this;
   }
 
-  Color color() const
+  [[nodiscard]] Color color() const
   {
-    if (this->is_nil) {
-      return black;
+    if (this->is_nil_) {
+      return kBlack;
     }
 
-    return this->_color;
+    return this->color_;
   };
   void set_color(const Color color)
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return;
     }
 
-    this->_color = color;
+    this->color_ = color;
   };
 
-  const bool is_some() const { return !this->is_nil; }
-  const bool is_none() const { return this->is_nil; }
+  [[nodiscard]] bool is_some() const { return !this->is_nil_; }
+  [[nodiscard]] bool is_none() const { return this->is_nil_; }
 
-  const K& key() const { return this->_key; }
-  V* value() const { return const_cast<V*>(&this->_data); }
+  [[nodiscard]] const K& key() const { return this->key_; }
+  [[nodiscard]] V* value() const { return const_cast<V*>(&this->data_); }
+
   V replace_value(V new_value)
   {
-    V old_data = this->_data;
-    this->_data = new_value;
+    V old_data = this->data_;
+    this->data_ = new_value;
     return old_data;
   }
-  RbNode* parent() const { return this->_parent; }
-  RbNode* left() const
+
+  [[nodiscard]] RbNode* parent() const { return this->parent_; }
+  [[nodiscard]] RbNode* left() const
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return nil_sentinel();
     }
-    return this->_left;
+    return this->left_;
   }
-  RbNode* right() const
+  [[nodiscard]] RbNode* right() const
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return nil_sentinel();
     }
-    return this->_right;
+    return this->right_;
   }
 
-  void set_parent(RbNode* parent) { this->_parent = parent; };
+  void set_parent(RbNode* parent) { this->parent_ = parent; };
   void set_left(RbNode* left)
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return;
     }
 
-    this->_left = left;
+    this->left_ = left;
   };
   void set_right(RbNode* right)
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return;
     }
 
-    this->_right = right;
+    this->right_ = right;
   };
 
-  bool operator<(const RbNode& other) const { return this->_key < other._key; }
+  bool operator<(const RbNode& other) const { return this->key_ < other.key_; }
   bool operator<=(const RbNode& other) const
   {
-    return this->_key <= other._key;
+    return this->key_ <= other.key_;
   }
-  bool operator>(const RbNode& other) const { return this->_key > other._key; }
+  bool operator>(const RbNode& other) const { return this->key_ > other.key_; }
   bool operator>=(const RbNode& other) const
   {
-    return this->_key >= other._key;
+    return this->key_ >= other.key_;
   }
   bool operator==(const RbNode& other) const
   {
-    if ((this->is_none() && other.is_none())
-        || (this->is_some() && other.is_some() && this->_key == other._key))
-    {
-      return true;
-    }
-
-    return false;
+    return (
+        (this->is_none() && other.is_none())
+        || (this->is_some() && other.is_some() && this->key_ == other.key_));
   }
 
-  std::string print() const { return this->print(1); }
+  [[nodiscard]] std::string print() const { return this->print(1); }
 
 private:
-  const bool is_nil;
-  const K _key;
-  V _data;
-  Color _color;
-  RbNode* _parent;
-  RbNode* _left;
-  RbNode* _right;
+  const bool is_nil_;
+  const K key_;
+  V data_;
+  Color color_;
+  RbNode* parent_;
+  RbNode* left_;
+  RbNode* right_;
 
-  std::string print(int depth) const
+  [[nodiscard]] std::string print(int depth) const
   {
-    if (this->is_nil) {
+    if (this->is_nil_) {
       return std::string("{NULL}\n");
     }
 
-    std::string k = std::to_string(this->_key);
-    std::string v = std::to_string(this->_data);
+    std::string k = std::to_string(this->key_);
+    std::string v = std::to_string(this->data_);
 
     std::string offset = repeat("=", 4 * depth);
     std::ostringstream os;
-    os << "(" << (this->_color == black ? "b" : "r")
+    os << "(" << (this->color_ == kBlack ? "b" : "r")
        << ")[" + k + "] " + v + "\n"
-       << offset + this->_left->print(depth + 1)
-       << offset + this->_right->print(depth + 1);
+       << offset + this->left_->print(depth + 1)
+       << offset + this->right_->print(depth + 1);
     return os.str();
   }
 };
 
 RbNode* nil_sentinel()
 {
-  if (_nil_sentinel == nullptr) {
-    _nil_sentinel = new RbNode();
-    return _nil_sentinel;
-  } else {
-    return _nil_sentinel;
+  if (nil_sentinel_node == nullptr) {
+    nil_sentinel_node = new RbNode();
   }
+  return nil_sentinel_node;
 }
 
-char* MemTableFullException::what()
+const char* MemTableFullException::what() const noexcept
 {
-  return (char*)"MemTable is full! Can not insert any more elements, please flush "
+  return "MemTable is full! Can not insert any more elements, please flush "
          "the contents into a file!";
 }
 
 class MemTable::MemTableImpl
 {
 private:
-  unsigned long long capacity;
-  unsigned long long size;
-  std::optional<K> least_key;
-  std::optional<K> most_key;
-  RbNode* root;
+  uint64_t capacity_;
+  uint64_t size_;
+  std::optional<K> least_key_;
+  std::optional<K> most_key_;
+  RbNode* root_;
 
   /**
    * @brief Return a vector of pairs, sorted. All pairs (k, v) in
@@ -244,7 +242,7 @@ private:
    * @return RbNode* The node with matching key.
    * If no such node, returns a nil sentinel.
    */
-  RbNode* rb_search(RbNode* node, const K key) const
+  static RbNode* rb_search(RbNode* node, const K key)
   {
     while (node->is_some() && key != node->key()) {
       if (key < node->key()) {
@@ -266,7 +264,7 @@ private:
    * @return RbNode* The resulting minimum node.
    * If there are no such nodes, returns a nil sentinel.
    */
-  RbNode* rb_minimum(RbNode* node) const
+  static RbNode* rb_minimum(RbNode* node)
   {
     while (node->left()->is_some()) {
       node = node->left();
@@ -284,7 +282,7 @@ private:
    * @return RbNode* The resulting maximum node.
    * If there are no such nodes, returns a nil sentinel.
    */
-  RbNode* rb_maximum(RbNode* node) const
+  static RbNode* rb_maximum(RbNode* node)
   {
     while (node->right()->is_some()) {
       node = node->right();
@@ -311,7 +309,7 @@ private:
       x = z->left();
       this->rb_transplant(z, z->left());
     } else {
-      y = this->rb_minimum(z->right());
+      y = rb_minimum(z->right());
       y_original_color = y->color();
       x = y->right();
       if (*y->parent() == *z) {
@@ -327,7 +325,7 @@ private:
       y->set_color(z->color());
     }
 
-    if (y_original_color == black) {
+    if (y_original_color == kBlack) {
       this->rb_delete_fixup(x);
     }
   }
@@ -340,65 +338,65 @@ private:
    */
   void rb_delete_fixup(RbNode* x)
   {
-    while (x->is_some() && x->color() == black) {
+    while (x->is_some() && x->color() == kBlack) {
       if (*x == *x->parent()->left()) {
         RbNode* w = x->parent()->right();
-        if (w->color() == red) {
-          w->set_color(black);
-          x->parent()->set_color(red);
+        if (w->color() == kRed) {
+          w->set_color(kBlack);
+          x->parent()->set_color(kRed);
           this->rb_left_rotate(x->parent());
           w = x->parent()->right();
         }
 
-        if (w->left()->color() == black && w->right()->color() == black) {
-          w->set_color(red);
+        if (w->left()->color() == kBlack && w->right()->color() == kBlack) {
+          w->set_color(kRed);
           x = x->parent();
-        } else if (w->right()->color() == black) {
-          w->left()->set_color(black);
-          w->set_color(red);
+        } else if (w->right()->color() == kBlack) {
+          w->left()->set_color(kBlack);
+          w->set_color(kRed);
           this->rb_right_rotate(w);
           w = x->parent()->right();
         }
 
         w->set_color(x->parent()->color());
-        x->parent()->set_color(black);
-        w->right()->set_color(black);
+        x->parent()->set_color(kBlack);
+        w->right()->set_color(kBlack);
         this->rb_left_rotate(x->parent());
-        x = this->root;
+        x = this->root_;
       } else {
         RbNode* w = x->parent()->left();
-        if (w->color() == red) {
-          w->set_color(black);
-          x->parent()->set_color(red);
+        if (w->color() == kRed) {
+          w->set_color(kBlack);
+          x->parent()->set_color(kRed);
           this->rb_right_rotate(x->parent());
           w = x->parent()->left();
         }
 
-        if (w->right()->color() == black && w->left()->color() == black) {
-          w->set_color(red);
+        if (w->right()->color() == kBlack && w->left()->color() == kBlack) {
+          w->set_color(kRed);
           x = x->parent();
-        } else if (w->left()->color() == black) {
-          w->right()->set_color(black);
-          w->set_color(red);
+        } else if (w->left()->color() == kBlack) {
+          w->right()->set_color(kBlack);
+          w->set_color(kRed);
           this->rb_left_rotate(w);
           w = x->parent()->left();
         }
 
         w->set_color(x->parent()->color());
-        x->parent()->set_color(black);
-        w->left()->set_color(black);
+        x->parent()->set_color(kBlack);
+        w->left()->set_color(kBlack);
         this->rb_right_rotate(x->parent());
-        x = this->root;
+        x = this->root_;
       }
     }
 
-    x->set_color(black);
+    x->set_color(kBlack);
   }
 
   void rb_transplant(RbNode* u, RbNode* v)
   {
     if (u->parent()->is_none()) {
-      this->root = v;
+      this->root_ = v;
     } else if (u == u->parent()->left()) {
       u->parent()->set_left(v);
     } else {
@@ -430,7 +428,7 @@ private:
     }
     y->set_parent(x->parent());
     if (x->parent()->is_none()) {
-      this->root = y;
+      this->root_ = y;
     } else if (*x == *x->parent()->left()) {
       x->parent()->set_left(y);
     } else {
@@ -461,7 +459,7 @@ private:
     }
     y->set_parent(x->parent());
     if (x->parent()->is_none()) {
-      this->root = y;
+      this->root_ = y;
     } else if (*x == *x->parent()->right()) {
       x->parent()->set_right(y);
     } else {
@@ -481,7 +479,7 @@ private:
   void rb_insert(RbNode* z)
   {
     RbNode* y = nil_sentinel();
-    RbNode* x = this->root;
+    RbNode* x = this->root_;
     while (x->is_some()) {
       y = x;
       if (*z < *x) {
@@ -493,7 +491,7 @@ private:
 
     z->set_parent(y);
     if (y->is_none()) {
-      this->root = z;
+      this->root_ = z;
     } else if (*z < *y) {
       y->set_left(z);
     } else {
@@ -501,7 +499,7 @@ private:
     }
     z->set_left(nil_sentinel());
     z->set_right(nil_sentinel());
-    z->set_color(red);
+    z->set_color(kRed);
 
     this->rb_insert_fixup(z);
   }
@@ -514,29 +512,29 @@ private:
    */
   void rb_insert_fixup(RbNode* z)
   {
-    while (z->parent()->color() == red) {
+    while (z->parent()->color() == kRed) {
       if (*z->parent() == *z->parent()->parent()->left()) {
         RbNode* y = z->parent()->parent()->right();
-        if (y->color() == red) {
-          z->parent()->set_color(black);
-          y->set_color(black);
-          z->parent()->parent()->set_color(red);
+        if (y->color() == kRed) {
+          z->parent()->set_color(kBlack);
+          y->set_color(kBlack);
+          z->parent()->parent()->set_color(kRed);
           z = z->parent()->parent();
         } else {
           if (*z == *z->parent()->right()) {
             z = z->parent();
             this->rb_left_rotate(z);
           }
-          z->parent()->set_color(black);
-          z->parent()->parent()->set_color(red);
+          z->parent()->set_color(kBlack);
+          z->parent()->parent()->set_color(kRed);
           this->rb_right_rotate(z->parent()->parent());
         }
       } else {
         RbNode* y = z->parent()->parent()->left();
-        if (y->color() == red) {
-          z->parent()->set_color(black);
-          y->set_color(black);
-          z->parent()->parent()->set_color(red);
+        if (y->color() == kRed) {
+          z->parent()->set_color(kBlack);
+          y->set_color(kBlack);
+          z->parent()->parent()->set_color(kRed);
           z = z->parent()->parent();
         } else {
           if (*z == *z->parent()->left()) {
@@ -544,68 +542,68 @@ private:
             this->rb_right_rotate(z);
           }
 
-          z->parent()->set_color(black);
-          z->parent()->parent()->set_color(red);
+          z->parent()->set_color(kBlack);
+          z->parent()->parent()->set_color(kRed);
           this->rb_left_rotate(z->parent()->parent());
         }
       }
     }
 
-    this->root->set_color(black);
+    this->root_->set_color(kBlack);
   }
 
 public:
-  MemTableImpl(unsigned long long capacity)
+  explicit MemTableImpl(uint64_t capacity)
   {
-    this->capacity = capacity;
-    this->size = 0;
-    this->root = nil_sentinel();
+    this->capacity_ = capacity;
+    this->size_ = 0;
+    this->root_ = nil_sentinel();
   }
+
   MemTableImpl(const MemTableImpl& t) = default;
   MemTableImpl& operator=(const MemTableImpl& t) = default;
 
-  std::string Print() const { return this->root->print(); }
+  [[nodiscard]] std::string Print() const { return this->root_->print(); }
 
-  V* Get(const K key) const
+  [[nodiscard]] V* Get(const K key) const
   {
-    RbNode* node = this->rb_search(this->root, key);
+    RbNode* node = rb_search(this->root_, key);
     if (node->is_some()) {
       return node->value();
-    } else {
-      return NULL;
     }
+    return nullptr;
   }
 
   std::optional<V> Put(const K key, const V value)
   {
-    RbNode* preexisting_node = this->rb_search(this->root, key);
+    RbNode* preexisting_node = rb_search(this->root_, key);
     if (preexisting_node->is_some()) {
       return std::make_optional(preexisting_node->replace_value(value));
     }
 
-    if (this->size == this->capacity) {
+    if (this->size_ == this->capacity_) {
       throw MemTableFullException();
     }
 
-    if (!this->least_key.has_value() || key < this->least_key.value()) {
-      this->least_key = key;
+    if (!this->least_key_.has_value() || key < this->least_key_.value()) {
+      this->least_key_ = key;
     }
-    if (!this->most_key || key > this->most_key.value()) {
-      this->most_key = key;
+    if (!this->most_key_ || key > this->most_key_.value()) {
+      this->most_key_ = key;
     }
 
-    RbNode* node = new RbNode(key, value);
+    auto* node = new RbNode(key, value);
     this->rb_insert(node);
-    this->size++;
+    this->size_++;
 
     return std::nullopt;
   }
 
-  std::vector<std::pair<K, V>> Scan(const K lower_bound,
-                                    const K upper_bound) const
+  [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower_bound,
+                                                  const K upper_bound) const
   {
     std::vector<RbNode*> nodes =
-        this->rb_in_order(this->root, lower_bound, upper_bound);
+        this->rb_in_order(this->root_, lower_bound, upper_bound);
 
     std::vector<std::pair<K, V>> pairs;
     std::transform(nodes.begin(),
@@ -616,15 +614,15 @@ public:
     return pairs;
   }
 
-  std::vector<std::pair<K, V>> ScanAll() const
+  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const
   {
     std::vector<std::pair<K, V>> pairs;
-    if (!this->least_key.has_value() || !this->most_key.has_value()) {
+    if (!this->least_key_.has_value() || !this->most_key_.has_value()) {
       return pairs;
     }
 
     std::vector<RbNode*> nodes = this->rb_in_order(
-        this->root, this->least_key.value(), this->most_key.value());
+        this->root_, this->least_key_.value(), this->most_key_.value());
 
     std::transform(nodes.begin(),
                    nodes.end(),
@@ -636,7 +634,7 @@ public:
 
   V* Delete(const K key)
   {
-    RbNode* node = this->rb_search(this->root, key);
+    RbNode* node = rb_search(this->root_, key);
 
     this->rb_delete(node);
 
@@ -653,73 +651,77 @@ public:
 
   void Clear()
   {
-    for (RbNode* node : this->rb_in_order(this->root,
-                                          this->rb_minimum(this->root)->key(),
-                                          this->rb_maximum(this->root)->key()))
+    for (RbNode* node : this->rb_in_order(this->root_,
+                                          rb_minimum(this->root_)->key(),
+                                          rb_maximum(this->root_)->key()))
     {
-      if (node == this->root) {
-        this->root = nil_sentinel();
+      if (node == this->root_) {
+        this->root_ = nil_sentinel();
       }
       delete node;
     }
 
-    this->size = 0;
+    this->size_ = 0;
   }
 };
 
-MemTable::MemTable(unsigned long long capacity)
+MemTable::MemTable(uint64_t capacity)
 {
-  this->pimpl = std::make_unique<MemTableImpl>(capacity);
+  this->impl_ = std::make_unique<MemTableImpl>(capacity);
 }
 
 MemTable::MemTable(const MemTable& t)
-    : pimpl(new MemTableImpl(*t.pimpl))
+    : impl_(new MemTableImpl(*t.impl_))
 {
 }
 
 MemTable& MemTable::operator=(const MemTable& t)
 {
-  *this->pimpl = *t.pimpl;
+  *this->impl_ = *t.impl_;
   return *this;
 }
 
 std::string MemTable::Print() const
 {
-  return this->pimpl->Print();
+  return this->impl_->Print();
 }
 
 V* MemTable::Get(const K key) const
 {
-  return this->pimpl->Get(key);
+  return this->impl_->Get(key);
 }
 
 std::optional<V> MemTable::Put(const K key, const V value)
 {
-  return this->pimpl->Put(key, value);
+  return this->impl_->Put(key, value);
 }
 
 std::vector<std::pair<K, V>> MemTable::Scan(const K lower_bound,
                                             const K upper_bound) const
 {
-  return this->pimpl->Scan(lower_bound, upper_bound);
+  return this->impl_->Scan(lower_bound, upper_bound);
 }
 
 V* MemTable::Delete(const K key)
 {
-  return this->pimpl->Delete(key);
+  return this->impl_->Delete(key);
 }
 
 std::vector<std::pair<K, V>> MemTable::ScanAll() const
 {
-  return this->pimpl->ScanAll();
+  return this->impl_->ScanAll();
 }
 
 void MemTable::Clear()
 {
-  this->pimpl->Clear();
+  this->impl_->Clear();
 }
 
 MemTable::~MemTable()
 {
-  this->pimpl->Clear();
+  try {
+    this->impl_->Clear();
+  } catch (std::exception& e) {
+    std::cerr << "FAILED TO CLEAR MEMTABLE: " << e.what() << '\n';
+  }
 }

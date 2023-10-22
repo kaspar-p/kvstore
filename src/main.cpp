@@ -1,27 +1,27 @@
-#include <chrono>
+#include <exception>
 #include <fstream>
 #include <iostream>
-#include <string>
 
-#include "kvstore.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
 
 int main()
 {
-  std::cout << "STARTING" << std::endl;
+  std::cout << "STARTING" << '\n';
+  try {
+    MemTable memtable(64);
+    for (int i = 0; i < 64; i++) {
+      memtable.Put(i, i);
+    }
+    std::fstream f;
+    SstableNaive::Flush(f, memtable);
 
-  MemTable memtable(64);
-  for (int i = 0; i < 64; i++) {
-    memtable.Put(i, i);
+    auto val = SstableNaive::GetFromFile(f, 33).value();
+
+    std::cout << "ENDING " << val << '\n';
+
+    return 0;
+  } catch (std::exception& e) {
+    std::cerr << e.what() << '\n';
   }
-  SstableNaive t {};
-  std::fstream f;
-  t.Flush(f, memtable);
-
-  auto val = t.GetFromFile(f, 33).value();
-
-  std::cout << "ENDING " << val << std::endl;
-
-  return 0;
 }

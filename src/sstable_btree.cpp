@@ -1,20 +1,23 @@
 #include <fstream>
-#include <functional>
-#include <string>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include "sstable.hpp"
 
-#include "assert.h"
-#include "math.h"
+#include "constants.hpp"
 #include "memtable.hpp"
 
 void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
 {
-  return;
+  (void)file;
+  (void)memtable;
 };
 
 std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
 {
+  (void)file;
+  (void)key;
   return std::nullopt;
 };
 
@@ -22,6 +25,9 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
                                                       const K lower,
                                                       const K upper)
 {
+  (void)file;
+  (void)lower;
+  (void)upper;
   std::vector<std::pair<K, V>> l {};
   return l;
 };

@@ -1,11 +1,16 @@
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <fstream>
-#include <functional>
-#include <string>
+#include <iostream>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include "sstable.hpp"
 
-#include "assert.h"
-#include "math.h"
+#include "constants.hpp"
 #include "memtable.hpp"
 
 void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
@@ -18,7 +23,7 @@ void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
   assert(file.good());
 
   const size_t actual_size = 4 + 2 * pairs.size();
-  const size_t bufsize = PAGE_SIZE;
+  const size_t bufsize = kPageSize;
   uint64_t wbuf[bufsize];
   wbuf[0] = 0x11223344;
   wbuf[1] = pairs.size();
@@ -33,8 +38,8 @@ void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
     wbuf[i] = 0;
   }
 
-  for (int i = 0; i < bufsize; i++) {
-    file.write(reinterpret_cast<char*>(&wbuf[i]), sizeof(wbuf[i]));
+  for (uint64_t& elem : wbuf) {
+    file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
     assert(file.good());
   }
 
@@ -44,18 +49,18 @@ void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
 
 std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
 {
-  uint64_t buf[PAGE_SIZE];
+  uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
 
   file.seekg(0);
 
-  file.read(reinterpret_cast<char*>(buf), PAGE_SIZE);
+  file.read(reinterpret_cast<char*>(buf), kPageSize);
   assert(file.good());
 
   if (buf[0] != 0x11223344) {
     std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
-              << buf[0] << std::endl;
+              << buf[0] << '\n';
     exit(1);
   }
 
@@ -66,7 +71,8 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
   }
 
   // If the key is out of bounds for the page
-  int lower = buf[2], upper = buf[3];
+  K lower = buf[2];
+  K upper = buf[3];
   if (key < lower || key > upper) {
     return std::nullopt;
   }
@@ -80,7 +86,9 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
     int mid = left + floor((right - left) / 2);
     if (buf[mid] == key) {
       return std::make_optional(buf[mid]);
-    } else if (buf[mid] < key) {
+    }
+
+    if (buf[mid] < key) {
       left = mid + 2;
     } else {
       right = mid - 2;
@@ -94,17 +102,17 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
                                                       const K lower,
                                                       const K upper)
 {
-  uint64_t buf[PAGE_SIZE];
+  uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
 
   file.seekg(0);
-  file.read(reinterpret_cast<char*>(buf), PAGE_SIZE);
+  file.read(reinterpret_cast<char*>(buf), kPageSize);
   assert(file.good());
 
   if (buf[0] != 0x11223344) {
     std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
-              << buf[0] << std::endl;
+              << buf[0] << '\n';
     exit(1);
   }
 
@@ -117,7 +125,8 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
   }
 
   // If the keys are out of bounds for the page
-  uint64_t page_lower = buf[2], page_upper = buf[3];
+  K page_lower = buf[2];
+  K page_upper = buf[3];
   if ((lower < page_lower && upper < page_lower)
       || (lower > page_upper && upper > page_upper))
   {
@@ -135,7 +144,9 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
     assert(mid % 2 == 0);
     if (left == right || buf[mid] == lower) {
       break;
-    } else if (buf[mid] < lower) {
+    }
+
+    if (buf[mid] < lower) {
       left = mid + pair_size;
     } else {
       right = mid - pair_size;
@@ -145,7 +156,7 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
 
   int walk = mid;
   while (buf[walk] <= upper && walk < header_size + elems * pair_size) {
-    l.push_back(std::make_pair(buf[walk], buf[walk + 1]));
+    l.emplace_back(buf[walk], buf[walk + 1]);
     walk += 2;
   }
 

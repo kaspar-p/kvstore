@@ -1,22 +1,24 @@
 #pragma once
 
-#include <stdint.h>
+#include <exception>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "memtable.hpp"
-
-typedef uint64_t K;
-typedef uint64_t V;
+#include "constants.hpp"
 
 class DatabaseClosedException : public std::exception
 {
 public:
-  char* what();
+  [[nodiscard]] const char* what() const noexcept override;
 };
 
 class FailedToOpenException : public std::exception
 {
 public:
-  char* what();
+  [[nodiscard]] const char* what() const noexcept override;
 };
 
 struct Options
@@ -28,10 +30,10 @@ class KvStore
 {
 private:
   class KvStoreImpl;
-  std::unique_ptr<KvStoreImpl> pimpl;
+  std::unique_ptr<KvStoreImpl> impl_;
 
 public:
-  KvStore(void);
+  KvStore();
   ~KvStore();
 
   /**
@@ -45,7 +47,7 @@ public:
    * @param name A unique database name, also the name of the directory where
    * the data is stored.
    */
-  void Open(const std::string name, Options options);
+  void Open(const std::string& name, Options options);
 
   /**
    * @brief Paired operation with `Open()`, closes the
@@ -63,7 +65,7 @@ public:
    * @param upper The upper bound of the scan search.
    * @return std::vector<std::pair<K, V>> An ordered list of (key, value) pairs.
    */
-  std::vector<std::pair<K, V>> Scan(const K lower, const K upper) const;
+  [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const;
 
   /**
    * @brief Get a single value from the database by its key. Returns
@@ -73,7 +75,7 @@ public:
    * @return V* A pointer to the value, and std::nullptr if there was no such
    * value
    */
-  std::optional<V> Get(const K key) const;
+  [[nodiscard]] std::optional<V> Get(K key) const;
 
   /**
    * @brief Put a (key, value) pair into the database. If the key already
@@ -82,7 +84,7 @@ public:
    * @param key The key to insert.
    * @param value The value to insert.
    */
-  void Put(const K key, const V value);
+  void Put(K key, V value);
 
   /**
    * @brief Delete a (key, value) pair from the database. Does nothing if the
@@ -90,5 +92,5 @@ public:
    *
    * @param key The key to delete
    */
-  void Delete(const K key);
+  void Delete(K key);
 };
