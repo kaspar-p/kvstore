@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -7,12 +8,21 @@
 
 #include "buf.hpp"
 
-struct BufPool::BufPoolImpl
+class BufPool::BufPoolImpl
 {
+private:
   std::size_t min_size_;
   std::size_t max_size_;
   std::unordered_map<std::string, std::unordered_map<pageno, Buffer>> pages_;
 
+  static uint32_t hash(const std::string& file, const pageno& page)
+  {
+    (void)file;
+    (void)page;
+    return 0;
+  }
+
+public:
   BufPoolImpl(std::size_t min_size, std::size_t max_size)
   {
     this->min_size_ = min_size;

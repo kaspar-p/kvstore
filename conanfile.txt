@@ -1,0 +1,9 @@
+[requires]
+xxhash/0.8.1
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
