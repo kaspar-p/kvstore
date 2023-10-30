@@ -39,6 +39,15 @@ target_include_directories(
 )
 target_compile_features(kvstore_sstable PUBLIC cxx_std_17)
 
+# evict.cpp
+add_library(kvstore_evict OBJECT src/evict.cpp)
+target_include_directories(
+  kvstore_evict ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_evict PUBLIC cxx_std_17)
+
 # buf.cpp
 add_library(kvstore_buf OBJECT src/buf.cpp)
 target_include_directories(
@@ -83,10 +92,12 @@ target_compile_features(benchmarks_exe PRIVATE cxx_std_17)
 target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_exe PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_exe PRIVATE kvstore_buf)
+target_link_libraries(kvstore_exe PRIVATE kvstore_evict)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_sstable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_buf)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_evict)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)
 
 # ---- Install rules ----

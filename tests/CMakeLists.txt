@@ -24,9 +24,11 @@ add_executable(kvstore_test
   src/bufpool.test.cpp
   src/memtable.test.cpp
   src/sstable_naive.test.cpp
+  src/evict.test.cpp
 )
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
 target_link_libraries(kvstore_test PRIVATE kvstore_buf)
+target_link_libraries(kvstore_test PRIVATE kvstore_evict)
 target_link_libraries(kvstore_test PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_test PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_test PRIVATE gtest_main)
