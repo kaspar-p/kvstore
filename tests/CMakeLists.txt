@@ -21,7 +21,7 @@ enable_testing()
 # ---- Kvstore Tests ----
 add_executable(kvstore_test 
   src/kvstore.test.cpp
-  src/bufpool.test.cpp
+  src/buf.test.cpp
   src/memtable.test.cpp
   src/sstable_naive.test.cpp
   src/evict.test.cpp
