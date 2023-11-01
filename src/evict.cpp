@@ -13,7 +13,7 @@
 struct ClockMetadata
 {
   bool dirty;
-  std::shared_ptr<BufferedPage> page;
+  ChainedPage* page;
 };
 
 class ClockEvictor::ClockEvictorImpl : Evictor
@@ -21,15 +21,14 @@ class ClockEvictor::ClockEvictorImpl : Evictor
 private:
   uint32_t head_;
   std::vector<std::optional<ClockMetadata>> clock_;
-  std::unordered_map<std::shared_ptr<BufferedPage>, uint32_t> indices_;
+  std::unordered_map<ChainedPage*, uint32_t> indices_;
 
 public:
   ClockEvictorImpl() { this->head_ = 0; };
 
   ~ClockEvictorImpl() = default;
 
-  std::optional<std::shared_ptr<BufferedPage>> Insert(
-      std::shared_ptr<BufferedPage> page) override
+  std::optional<ChainedPage*> Insert(ChainedPage* page) override
   {
     assert(this->head_ < this->clock_.capacity());
 
@@ -55,7 +54,7 @@ public:
     return std::nullopt;
   }
 
-  void MarkUsed(std::shared_ptr<BufferedPage> page) override
+  void MarkUsed(ChainedPage* page) override
   {
     if (this->indices_.find(page) != this->indices_.end()) {
       uint32_t index = this->indices_.at(page);
@@ -80,13 +79,12 @@ void ClockEvictor::Resize(const uint32_t n)
   return this->impl_->Resize(n);
 }
 
-void ClockEvictor::MarkUsed(std::shared_ptr<BufferedPage> page)
+void ClockEvictor::MarkUsed(ChainedPage* page)
 {
   return this->impl_->MarkUsed(page);
 };
 
-std::optional<std::shared_ptr<BufferedPage>> ClockEvictor::Insert(
-    std::shared_ptr<BufferedPage> page)
+std::optional<ChainedPage*> ClockEvictor::Insert(ChainedPage* page)
 {
   return this->impl_->Insert(page);
 }

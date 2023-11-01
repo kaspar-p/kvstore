@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 
-class BufferedPage;
+class ChainedPage;
 
 class Evictor
 {
@@ -26,8 +26,7 @@ public:
    * @return std::optional<std::shared_ptr<BufferedPage>> The page evicted if
    * present, std::nullopt if not.
    */
-  virtual std::optional<std::shared_ptr<BufferedPage>> Insert(
-      std::shared_ptr<BufferedPage> page) = 0;
+  virtual std::optional<ChainedPage*> Insert(ChainedPage* page) = 0;
 
   /**
    * @brief Mark a page as dirty/used if it gets accessed.
@@ -40,7 +39,7 @@ public:
    *
    * @param page The page that was accessed.
    */
-  virtual void MarkUsed(std::shared_ptr<BufferedPage> page) = 0;
+  virtual void MarkUsed(ChainedPage* page) = 0;
 
   /**
    * @brief Resize the eviction data to now have @param n elements
@@ -58,8 +57,7 @@ public:
   ClockEvictor();
   ~ClockEvictor();
 
-  std::optional<std::shared_ptr<BufferedPage>> Insert(
-      std::shared_ptr<BufferedPage> page) override;
-  void MarkUsed(std::shared_ptr<BufferedPage> page) override;
+  std::optional<ChainedPage*> Insert(ChainedPage* page) override;
+  void MarkUsed(ChainedPage* page) override;
   void Resize(uint32_t n) override;
 };

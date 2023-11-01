@@ -1,9 +1,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "constants.hpp"
 #include "evict.hpp"
@@ -39,14 +39,19 @@ struct BufferedPage
   PageId id;
   PageType type;
   Buffer contents;
-  std::optional<std::shared_ptr<BufferedPage>> next;
+};
+
+struct ChainedPage
+{
+  BufferedPage page;
+  ChainedPage* prev;
+  ChainedPage* next;
 };
 
 struct BufPoolTuning
 {
-  std::size_t bucket_size;
-  std::size_t min_directory_size;
-  std::size_t max_directory_size;
+  uint32_t initial_elements;
+  uint32_t max_elements;
 };
 
 class BufPool
@@ -62,4 +67,5 @@ public:
   [[nodiscard]] bool HasPage(PageId& page) const;
   [[nodiscard]] std::optional<BufferedPage> GetPage(PageId& page) const;
   void PutPage(PageId& page, PageType type, Buffer contents);
+  std::string DebugPrint();
 };
