@@ -57,7 +57,7 @@ class BufPool
 {
 private:
   class BufPoolImpl;
-  std::unique_ptr<BufPoolImpl> impl_;
+  const std::unique_ptr<BufPoolImpl> impl_;
 
 public:
   BufPool(BufPoolTuning tuning,

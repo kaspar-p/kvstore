@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_CXX_CLANG_TIDY clang-tidy)
 
 include(cmake/prelude.cmake)
 
@@ -15,6 +16,9 @@ project(
 
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
+
+# Declare third-party dependencies
+add_subdirectory(third_party/xxHash/cmake_unofficial third_party/xxHash/build EXCLUDE_FROM_ALL)
 
 # ---- Declare testing directory ----
 add_subdirectory(tests)
@@ -65,6 +69,17 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
 target_compile_features(kvstore_buf PUBLIC cxx_std_17)
+target_link_libraries(kvstore_buf PRIVATE xxHash::xxhash)
+
+# filter.cpp
+add_library(kvstore_filter OBJECT src/filter.cpp)
+target_include_directories(
+  kvstore_filter ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_filter PUBLIC cxx_std_17)
+target_link_libraries(kvstore_filter PRIVATE xxHash::xxhash)
 
 # kvstore.cpp
 add_library(kvstore_kvstore OBJECT src/kvstore.cpp)
@@ -97,19 +112,26 @@ set_property(TARGET benchmarks_exe PROPERTY OUTPUT_NAME benchmarks)
 target_compile_features(kvstore_exe PRIVATE cxx_std_17)
 target_compile_features(benchmarks_exe PRIVATE cxx_std_17)
 
-# ---- Link libraries ----
+# ---- Link external libraries ----
+target_link_libraries(kvstore_exe PRIVATE xxHash::xxhash)
+target_link_libraries(benchmarks_exe PRIVATE xxHash::xxhash)
+
+# ---- Link internal libraries ----
 target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_exe PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_exe PRIVATE kvstore_buf)
 target_link_libraries(kvstore_exe PRIVATE kvstore_evict)
 target_link_libraries(kvstore_exe PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
+target_link_libraries(kvstore_exe PRIVATE kvstore_filter)
+
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_sstable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_buf)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_evict)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_dbg)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_filter)
 
 # ---- Install rules ----
 if(NOT CMAKE_SKIP_INSTALL_RULES)

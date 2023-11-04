@@ -1,13 +1,14 @@
 #include <chrono>
 #include <cstdint>
 #include <exception>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <random>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
-#include <fstream>
 
 #include "constants.hpp"
 #include "kvstore.hpp"
@@ -15,8 +16,15 @@
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 using std::chrono::microseconds;
-using BenchmarkResult = std::tuple<uint64_t, std::chrono::microseconds, double, std::chrono::microseconds, double, std::chrono::microseconds, double, std::chrono::microseconds, double>;
-
+using BenchmarkResult = std::tuple<uint64_t,
+                                   std::chrono::microseconds,
+                                   double,
+                                   std::chrono::microseconds,
+                                   double,
+                                   std::chrono::microseconds,
+                                   double,
+                                   std::chrono::microseconds,
+                                   double>;
 
 auto benchmark_inserts(KvStore& db, uint64_t nodes_to_insert)
 {
@@ -69,17 +77,20 @@ auto benchmark_get_random(KvStore& db, uint64_t nodes_to_get, K lower, K upper)
   return ms_int;
 }
 
-void write_to_csv(const std::string& file_name, std::vector<BenchmarkResult> &results)
+void write_to_csv(const std::string& file_name,
+                  std::vector<BenchmarkResult>& results)
 {
-  std::cout << "Writing benchmarks to " << file_name << std::endl;
+  std::cout << "Writing benchmarks to " << file_name << '\n';
   std::ofstream file(file_name);
-  file << "inputDataSize (MB),insert time,insert throughput,scan time,scan throughput,sequential get time,sequential get throughput,random get time,random get throughput\n";
-    for (const BenchmarkResult& result : results) {
+  file << "inputDataSize (MB),insert time,insert throughput,scan time,scan "
+          "throughput,sequential get time,sequential get throughput,random get "
+          "time,random get throughput\n";
+  for (const BenchmarkResult& result : results) {
     file << std::get<0>(result) << "," << std::get<1>(result).count() << ","
-              << std::get<2>(result) << "," << std::get<3>(result).count() << ","
-              << std::get<4>(result) << "," << std::get<5>(result).count() << "," 
-              << std::get<6>(result) << "," << std::get<7>(result).count() << "," 
-              << std::get<8>(result) << std::endl;
+         << std::get<2>(result) << "," << std::get<3>(result).count() << ","
+         << std::get<4>(result) << "," << std::get<5>(result).count() << ","
+         << std::get<6>(result) << "," << std::get<7>(result).count() << ","
+         << std::get<8>(result) << '\n';
   }
   file.close();
 }
@@ -90,44 +101,49 @@ double calculate_throughput(uint64_t megabytes, std::chrono::microseconds time)
   return static_cast<double>(megabytes) / time_in_seconds;
 }
 
-void run_benchmarks(uint64_t megabytes_to_insert, std::vector<BenchmarkResult> &results)
+void run_benchmarks(uint64_t megabytes_to_insert,
+                    std::vector<BenchmarkResult>& results)
 {
-  std::cout << "Running benchmarks for " << megabytes_to_insert << "MB" << std::endl;
+  std::cout << "Running benchmarks for " << megabytes_to_insert << "MB" << '\n';
   uint64_t nodes_to_insert = megabytes_to_insert * kMegabyteSize / kKeySize;
   KvStore db {};
   Options options;
   options.overwrite = true;
-  std::string db_dir("benchmark_test_" + std::to_string(megabytes_to_insert) + ".db");
+  std::string db_dir("benchmark_test_" + std::to_string(megabytes_to_insert)
+                     + ".db");
   db.Open(db_dir, options);
 
-  std::chrono::microseconds insert_time = benchmark_inserts(db, nodes_to_insert);
-  auto insert_throughput = calculate_throughput(megabytes_to_insert, insert_time);
-  
+  std::chrono::microseconds insert_time =
+      benchmark_inserts(db, nodes_to_insert);
+  auto insert_throughput =
+      calculate_throughput(megabytes_to_insert, insert_time);
+
   std::chrono::microseconds full_scan_time =
       benchmark_scan(db, static_cast<K>(0), static_cast<K>(nodes_to_insert));
-  auto full_scan_throughput = calculate_throughput(megabytes_to_insert, full_scan_time);
+  auto full_scan_throughput =
+      calculate_throughput(megabytes_to_insert, full_scan_time);
 
   std::chrono::microseconds sequential_get_time = benchmark_get_sequential(
       db, static_cast<K>(0), static_cast<K>(nodes_to_insert));
-  auto sequential_get_throughput = calculate_throughput(megabytes_to_insert, sequential_get_time);
+  auto sequential_get_throughput =
+      calculate_throughput(megabytes_to_insert, sequential_get_time);
 
   std::chrono::microseconds random_get_time = benchmark_get_random(
       db, nodes_to_insert, static_cast<K>(0), static_cast<K>(nodes_to_insert));
-  auto random_get_throughput = calculate_throughput(megabytes_to_insert, random_get_time);
+  auto random_get_throughput =
+      calculate_throughput(megabytes_to_insert, random_get_time);
 
-  BenchmarkResult result = std::make_tuple(
-      megabytes_to_insert,
-      insert_time,
-      insert_throughput,
-      full_scan_time,
-      full_scan_throughput,
-      sequential_get_time,
-      sequential_get_throughput,
-      random_get_time,
-      random_get_throughput
-  );
+  BenchmarkResult result = std::make_tuple(megabytes_to_insert,
+                                           insert_time,
+                                           insert_throughput,
+                                           full_scan_time,
+                                           full_scan_throughput,
+                                           sequential_get_time,
+                                           sequential_get_throughput,
+                                           random_get_time,
+                                           random_get_throughput);
   results.push_back(result);
-  
+
   db.Close();
 }
 

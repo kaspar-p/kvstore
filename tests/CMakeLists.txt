@@ -25,8 +25,11 @@ add_executable(kvstore_test
   src/memtable.test.cpp
   src/sstable_naive.test.cpp
   src/evict.test.cpp
+  src/filter.test.cpp
   src/dbg.test.cpp
 )
+
+target_link_libraries(kvstore_test PRIVATE kvstore_filter)
 target_link_libraries(kvstore_test PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
 target_link_libraries(kvstore_test PRIVATE kvstore_buf)

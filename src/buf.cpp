@@ -280,9 +280,9 @@ public:
 BufPool::BufPool(const BufPoolTuning tuning,
                  std::unique_ptr<Evictor> evictor,
                  uint32_t (*hash)(const PageId&))
+    : impl_(std::make_unique<BufPoolImpl>(
+        tuning.initial_elements, tuning.max_elements, std::move(evictor), hash))
 {
-  this->impl_ = std::make_unique<BufPoolImpl>(
-      tuning.initial_elements, tuning.max_elements, std::move(evictor), hash);
 }
 
 BufPool::~BufPool() = default;

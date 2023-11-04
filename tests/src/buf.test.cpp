@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "kvstore.hpp"
-
 uint32_t test_hash(const PageId& elem)
 {
   return elem.page;
