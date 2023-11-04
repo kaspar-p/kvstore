@@ -8,13 +8,11 @@
 #include <utility>
 #include <vector>
 
-#include "sstable.hpp"
-
 #include "constants.hpp"
 #include "memtable.hpp"
+#include "sstable.hpp"
 
-void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
-{
+void SstableNaive::Flush(std::fstream& file, MemTable& memtable) {
   assert(file.is_open());
   assert(file.good());
   std::vector<std::pair<K, V>> pairs = memtable.ScanAll();
@@ -47,8 +45,7 @@ void SstableNaive::Flush(std::fstream& file, MemTable& memtable)
   assert(file.good());
 };
 
-std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
-{
+std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key) {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
@@ -100,8 +97,7 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key)
 
 std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
                                                       const K lower,
-                                                      const K upper)
-{
+                                                      const K upper) {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
@@ -127,9 +123,8 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
   // If the keys are out of bounds for the page
   K page_lower = buf[2];
   K page_upper = buf[3];
-  if ((lower < page_lower && upper < page_lower)
-      || (lower > page_upper && upper > page_upper))
-  {
+  if ((lower < page_lower && upper < page_lower) ||
+      (lower > page_upper && upper > page_upper)) {
     return l;
   }
 

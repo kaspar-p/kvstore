@@ -7,8 +7,7 @@
 #include "sstable.hpp"
 #include "xxhash.h"
 
-int main()
-{
+int main() {
   std::cout << "STARTING" << '\n';
   uint64_t k1 = 128;
   uint64_t h1 = XXH64(&k1, sizeof(k1), 100);

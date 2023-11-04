@@ -1,3 +1,5 @@
+#include "filter.hpp"
+
 #include <array>
 #include <bitset>
 #include <cassert>
@@ -7,8 +9,6 @@
 #include <iostream>
 #include <memory>
 #include <vector>
-
-#include "filter.hpp"
 
 #include "constants.hpp"
 #include "xxhash.h"
@@ -22,12 +22,10 @@ constexpr static std::size_t kNumHashFuncs = 7;  // log(2) * kBitsPerEntry;
 
 using HashFn = std::function<uint32_t(K)>;
 
-std::array<HashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed)
-{
+std::array<HashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed) {
   std::array<HashFn, kNumHashFuncs> fns;
   for (int i = 0; i < kNumHashFuncs; i++) {
-    fns.at(i) = [starting_seed, i](K key)
-    {
+    fns.at(i) = [starting_seed, i](K key) {
       return static_cast<uint64_t>(
           XXH64(&key, kKeySize, (i + 1) + starting_seed + 1));
     };
@@ -35,26 +33,21 @@ std::array<HashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed)
   return fns;
 }
 
-[[nodiscard]] uint64_t block_hash(K key, uint64_t starting_seed)
-{
+[[nodiscard]] uint64_t block_hash(K key, uint64_t starting_seed) {
   return static_cast<uint64_t>(XXH64(&key, kKeySize, starting_seed));
 }
 
-class Filter::FilterImpl
-{
-private:
+class Filter::FilterImpl {
+ private:
   const std::array<HashFn, kNumHashFuncs> bit_hashes_;
   const uint32_t max_entries_;
   const uint64_t seed;
 
   std::vector<std::bitset<kBlockBits>> blocks_;
 
-public:
+ public:
   explicit FilterImpl(uint32_t max_elems)
-      : max_entries_(max_elems)
-      , seed(0)
-      , bit_hashes_(create_hash_funcs(0))
-  {
+      : max_entries_(max_elems), seed(0), bit_hashes_(create_hash_funcs(0)) {
     assert(this->max_entries_ % kEntriesPerCacheLine == 0);
     std::uint32_t num_blocks = this->max_entries_ / kEntriesPerCacheLine;
 
@@ -65,10 +58,9 @@ public:
   }
 
   FilterImpl(uint32_t max_elems, uint64_t starting_seed)
-      : max_entries_(max_elems)
-      , seed(starting_seed)
-      , bit_hashes_(create_hash_funcs(starting_seed))
-  {
+      : max_entries_(max_elems),
+        seed(starting_seed),
+        bit_hashes_(create_hash_funcs(starting_seed)) {
     assert(this->max_entries_ % kEntriesPerCacheLine == 0);
     std::uint32_t num_blocks = this->max_entries_ / kEntriesPerCacheLine;
 
@@ -78,8 +70,7 @@ public:
     }
   }
 
-  [[nodiscard]] bool Has(K key) const
-  {
+  [[nodiscard]] bool Has(K key) const {
     uint64_t block_idx = block_hash(key, this->seed) % this->blocks_.size();
     const auto& bloom_block = this->blocks_.at(block_idx);
 
@@ -101,8 +92,7 @@ public:
   /**
    * @brief Puts the key into the set.
    */
-  void Put(K key)
-  {
+  void Put(K key) {
     uint64_t block_idx = block_hash(key, this->seed) % this->blocks_.size();
     auto& bloom_block = this->blocks_.at(block_idx);
 
@@ -113,21 +103,11 @@ public:
 };
 
 Filter::Filter(uint32_t max_elems, uint64_t starting_seed)
-    : impl_(std::make_unique<FilterImpl>(max_elems, starting_seed))
-{
-}
+    : impl_(std::make_unique<FilterImpl>(max_elems, starting_seed)) {}
 Filter::Filter(uint32_t max_elems)
-    : impl_(std::make_unique<FilterImpl>(max_elems))
-{
-}
+    : impl_(std::make_unique<FilterImpl>(max_elems)) {}
 Filter::~Filter() = default;
 
-bool Filter::Has(K key) const
-{
-  return this->impl_->Has(key);
-}
+bool Filter::Has(K key) const { return this->impl_->Has(key); }
 
-void Filter::Put(K key)
-{
-  return this->impl_->Put(key);
-}
+void Filter::Put(K key) { return this->impl_->Put(key); }

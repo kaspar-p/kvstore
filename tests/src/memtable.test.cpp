@@ -1,3 +1,7 @@
+#include "memtable.hpp"
+
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -7,14 +11,9 @@
 #include <string>
 #include <vector>
 
-#include "memtable.hpp"
-
-#include <gtest/gtest.h>
-
 #include "kvstore.hpp"
 
-TEST(MemTable, ScanIncludesEnds)
-{
+TEST(MemTable, ScanIncludesEnds) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
@@ -34,8 +33,7 @@ TEST(MemTable, ScanIncludesEnds)
   ASSERT_EQ(v[2].second, 30);
 }
 
-TEST(MemTable, ScanStopsBeforeEnd)
-{
+TEST(MemTable, ScanStopsBeforeEnd) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
@@ -49,8 +47,7 @@ TEST(MemTable, ScanStopsBeforeEnd)
   ASSERT_EQ(v[1].second, 20);
 }
 
-TEST(MemTable, ScanStopsBeforeStart)
-{
+TEST(MemTable, ScanStopsBeforeStart) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
@@ -64,8 +61,7 @@ TEST(MemTable, ScanStopsBeforeStart)
   ASSERT_EQ(v[1].second, 30);
 }
 
-TEST(MemTable, ScanGoesBeyondKeySizes)
-{
+TEST(MemTable, ScanGoesBeyondKeySizes) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(10, 10);
   table->Put(20, 20);
@@ -84,16 +80,14 @@ TEST(MemTable, ScanGoesBeyondKeySizes)
   ASSERT_EQ(v[2].second, 30);
 }
 
-TEST(MemTable, InsertTooManyThrows)
-{
+TEST(MemTable, InsertTooManyThrows) {
   auto table = std::make_unique<MemTable>(1);
   table->Put(1, 10);
 
   ASSERT_THROW({ table->Put(2, 20); }, MemTableFullException);
 }
 
-TEST(MemTable, InsertOneAndClear)
-{
+TEST(MemTable, InsertOneAndClear) {
   auto table = std::make_unique<MemTable>(1);
   table->Put(1, 10);
   table->Clear();
@@ -101,8 +95,7 @@ TEST(MemTable, InsertOneAndClear)
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 }
 
-TEST(MemTable, InsertAfterClear)
-{
+TEST(MemTable, InsertAfterClear) {
   auto table = std::make_unique<MemTable>(2);
   table->Put(1, 10);
   table->Put(2, 20);
@@ -111,16 +104,14 @@ TEST(MemTable, InsertAfterClear)
   table->Put(5, 50);
   table->Put(6, 60);
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[5] 50\n"
-                        "===={NULL}\n"
-                        "====(r)[6] 60\n"
-                        "========{NULL}\n"
-                        "========{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[5] 50\n"
+                                        "===={NULL}\n"
+                                        "====(r)[6] 60\n"
+                                        "========{NULL}\n"
+                                        "========{NULL}\n"));
 }
 
-TEST(MemTable, InsertMany)
-{
+TEST(MemTable, InsertMany) {
   auto table = std::make_unique<MemTable>(100);
 
   int nodes_to_insert = 7;
@@ -128,22 +119,21 @@ TEST(MemTable, InsertMany)
     table->Put(i, i * 100);
   }
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[2] 200\n"
-                        "====(b)[1] 100\n"
-                        "========{NULL}\n"
-                        "========{NULL}\n"
-                        "====(r)[4] 400\n"
-                        "========(b)[3] 300\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(b)[6] 600\n"
-                        "============(r)[5] 500\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(r)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[2] 200\n"
+                                        "====(b)[1] 100\n"
+                                        "========{NULL}\n"
+                                        "========{NULL}\n"
+                                        "====(r)[4] 400\n"
+                                        "========(b)[3] 300\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(b)[6] 600\n"
+                                        "============(r)[5] 500\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(r)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"));
   table->Clear();
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
@@ -152,26 +142,25 @@ TEST(MemTable, InsertMany)
     table->Put(i, i * 100);
   }
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[4] 400\n"
-                        "====(r)[2] 200\n"
-                        "========(b)[1] 100\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(b)[3] 300\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "====(r)[6] 600\n"
-                        "========(b)[5] 500\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(b)[8] 800\n"
-                        "============(r)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(r)[9] 900\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[4] 400\n"
+                                        "====(r)[2] 200\n"
+                                        "========(b)[1] 100\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(b)[3] 300\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "====(r)[6] 600\n"
+                                        "========(b)[5] 500\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(b)[8] 800\n"
+                                        "============(r)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(r)[9] 900\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"));
   table->Clear();
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
@@ -180,28 +169,27 @@ TEST(MemTable, InsertMany)
     table->Put(i, i * 100);
   }
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[4] 400\n"
-                        "====(b)[2] 200\n"
-                        "========(b)[1] 100\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(b)[3] 300\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "====(b)[6] 600\n"
-                        "========(b)[5] 500\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(r)[8] 800\n"
-                        "============(b)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[9] 900\n"
-                        "================{NULL}\n"
-                        "================(r)[10] 1000\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[4] 400\n"
+                                        "====(b)[2] 200\n"
+                                        "========(b)[1] 100\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(b)[3] 300\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "====(b)[6] 600\n"
+                                        "========(b)[5] 500\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(r)[8] 800\n"
+                                        "============(b)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[9] 900\n"
+                                        "================{NULL}\n"
+                                        "================(r)[10] 1000\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"));
   table->Clear();
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
@@ -210,32 +198,31 @@ TEST(MemTable, InsertMany)
     table->Put(i, i * 100);
   }
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[4] 400\n"
-                        "====(b)[2] 200\n"
-                        "========(b)[1] 100\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "========(b)[3] 300\n"
-                        "============{NULL}\n"
-                        "============{NULL}\n"
-                        "====(b)[8] 800\n"
-                        "========(r)[6] 600\n"
-                        "============(b)[5] 500\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "========(r)[10] 1000\n"
-                        "============(b)[9] 900\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[11] 1100\n"
-                        "================{NULL}\n"
-                        "================(r)[12] 1200\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[4] 400\n"
+                                        "====(b)[2] 200\n"
+                                        "========(b)[1] 100\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "========(b)[3] 300\n"
+                                        "============{NULL}\n"
+                                        "============{NULL}\n"
+                                        "====(b)[8] 800\n"
+                                        "========(r)[6] 600\n"
+                                        "============(b)[5] 500\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "========(r)[10] 1000\n"
+                                        "============(b)[9] 900\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[11] 1100\n"
+                                        "================{NULL}\n"
+                                        "================(r)[12] 1200\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"));
   table->Clear();
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
@@ -244,44 +231,43 @@ TEST(MemTable, InsertMany)
     table->Put(i, i * 100);
   }
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[8] 800\n"
-                        "====(r)[4] 400\n"
-                        "========(b)[2] 200\n"
-                        "============(b)[1] 100\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[3] 300\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "========(b)[6] 600\n"
-                        "============(b)[5] 500\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "====(r)[12] 1200\n"
-                        "========(b)[10] 1000\n"
-                        "============(b)[9] 900\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[11] 1100\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "========(b)[14] 1400\n"
-                        "============(b)[13] 1300\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(r)[16] 1600\n"
-                        "================(b)[15] 1500\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"
-                        "================(b)[17] 1700\n"
-                        "===================={NULL}\n"
-                        "====================(r)[18] 1800\n"
-                        "========================{NULL}\n"
-                        "========================{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[8] 800\n"
+                                        "====(r)[4] 400\n"
+                                        "========(b)[2] 200\n"
+                                        "============(b)[1] 100\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[3] 300\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "========(b)[6] 600\n"
+                                        "============(b)[5] 500\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "====(r)[12] 1200\n"
+                                        "========(b)[10] 1000\n"
+                                        "============(b)[9] 900\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[11] 1100\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "========(b)[14] 1400\n"
+                                        "============(b)[13] 1300\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(r)[16] 1600\n"
+                                        "================(b)[15] 1500\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"
+                                        "================(b)[17] 1700\n"
+                                        "===================={NULL}\n"
+                                        "====================(r)[18] 1800\n"
+                                        "========================{NULL}\n"
+                                        "========================{NULL}\n"));
   table->Clear();
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 
@@ -291,54 +277,52 @@ TEST(MemTable, InsertMany)
   }
 
   // Verified using cs.usfca.edu/~galles/visualization/RedBlack.html
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[8] 800\n"
-                        "====(r)[4] 400\n"
-                        "========(b)[2] 200\n"
-                        "============(b)[1] 100\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[3] 300\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "========(b)[6] 600\n"
-                        "============(b)[5] 500\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[7] 700\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "====(r)[12] 1200\n"
-                        "========(b)[10] 1000\n"
-                        "============(b)[9] 900\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "============(b)[11] 1100\n"
-                        "================{NULL}\n"
-                        "================{NULL}\n"
-                        "========(b)[16] 1600\n"
-                        "============(r)[14] 1400\n"
-                        "================(b)[13] 1300\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"
-                        "================(b)[15] 1500\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"
-                        "============(r)[18] 1800\n"
-                        "================(b)[17] 1700\n"
-                        "===================={NULL}\n"
-                        "===================={NULL}\n"
-                        "================(b)[20] 2000\n"
-                        "====================(r)[19] 1900\n"
-                        "========================{NULL}\n"
-                        "========================{NULL}\n"
-                        "====================(r)[21] 2100\n"
-                        "========================{NULL}\n"
-                        "========================{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[8] 800\n"
+                                        "====(r)[4] 400\n"
+                                        "========(b)[2] 200\n"
+                                        "============(b)[1] 100\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[3] 300\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "========(b)[6] 600\n"
+                                        "============(b)[5] 500\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[7] 700\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "====(r)[12] 1200\n"
+                                        "========(b)[10] 1000\n"
+                                        "============(b)[9] 900\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "============(b)[11] 1100\n"
+                                        "================{NULL}\n"
+                                        "================{NULL}\n"
+                                        "========(b)[16] 1600\n"
+                                        "============(r)[14] 1400\n"
+                                        "================(b)[13] 1300\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"
+                                        "================(b)[15] 1500\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"
+                                        "============(r)[18] 1800\n"
+                                        "================(b)[17] 1700\n"
+                                        "===================={NULL}\n"
+                                        "===================={NULL}\n"
+                                        "================(b)[20] 2000\n"
+                                        "====================(r)[19] 1900\n"
+                                        "========================{NULL}\n"
+                                        "========================{NULL}\n"
+                                        "====================(r)[21] 2100\n"
+                                        "========================{NULL}\n"
+                                        "========================{NULL}\n"));
 }
 
-TEST(MemTable, InsertAndDeleteOne)
-{
+TEST(MemTable, InsertAndDeleteOne) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Delete(1);
@@ -346,27 +330,24 @@ TEST(MemTable, InsertAndDeleteOne)
   ASSERT_EQ(table->Print(), std::string("{NULL}\n"));
 }
 
-TEST(MemTable, InsertAndDeleteAFew)
-{
+TEST(MemTable, InsertAndDeleteAFew) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);
   table->Put(3, 30);
   table->Delete(1);
 
-  ASSERT_EQ(table->Print(),
-            std::string("(b)[2] 20\n"
-                        "===={NULL}\n"
-                        "====(r)[3] 30\n"
-                        "========{NULL}\n"
-                        "========{NULL}\n"));
+  ASSERT_EQ(table->Print(), std::string("(b)[2] 20\n"
+                                        "===={NULL}\n"
+                                        "====(r)[3] 30\n"
+                                        "========{NULL}\n"
+                                        "========{NULL}\n"));
 
   auto val = table->Get(2);
   ASSERT_EQ(*val, 20);
 }
 
-TEST(MemTable, InsertAndGetOne)
-{
+TEST(MemTable, InsertAndGetOne) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
 
@@ -375,8 +356,7 @@ TEST(MemTable, InsertAndGetOne)
   ASSERT_EQ(*val, 10);
 }
 
-TEST(MemTable, InsertOneAndReplaceIt)
-{
+TEST(MemTable, InsertOneAndReplaceIt) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(1, 20);
@@ -386,8 +366,7 @@ TEST(MemTable, InsertOneAndReplaceIt)
   ASSERT_EQ(*val, 20);
 }
 
-TEST(MemTable, InsertManyAndGetMany)
-{
+TEST(MemTable, InsertManyAndGetMany) {
   auto table = std::make_unique<MemTable>(100);
   table->Put(1, 10);
   table->Put(2, 20);

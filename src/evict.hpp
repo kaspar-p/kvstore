@@ -7,9 +7,8 @@
 struct PageId;
 using DataRef = const PageId;
 
-class Evictor
-{
-public:
+class Evictor {
+ public:
   virtual ~Evictor() = default;
 
   /**
@@ -48,13 +47,12 @@ public:
   virtual void Resize(uint32_t n) = 0;
 };
 
-class ClockEvictor : public Evictor
-{
-private:
+class ClockEvictor : public Evictor {
+ private:
   class ClockEvictorImpl;
   std::unique_ptr<ClockEvictorImpl> impl_;
 
-public:
+ public:
   ClockEvictor();
   ~ClockEvictor() override;
 

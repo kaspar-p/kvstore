@@ -12,8 +12,7 @@
 
 using pageno = uint64_t;
 
-enum PageType
-{
+enum PageType {
   kBTreeLeaf = 0,
   kBTreeInternal = 1,
   kMetadata = 2,
@@ -21,8 +20,7 @@ enum PageType
 
 using Buffer = std::array<std::byte, kPageSize>;
 
-struct PageId
-{
+struct PageId {
   uint32_t level;
   uint32_t run;
   uint32_t page;
@@ -30,38 +28,33 @@ struct PageId
   [[nodiscard]] std::string str() const;
   [[nodiscard]] std::string str(uint32_t len) const;
 
-  bool operator==(const PageId& other) const
-  {
-    return this->level == other.level && this->run == other.run
-        && this->page == other.page;
+  bool operator==(const PageId& other) const {
+    return this->level == other.level && this->run == other.run &&
+           this->page == other.page;
   }
 
   bool operator!=(const PageId& other) const { return !(*this == other); }
 };
 
-struct BufferedPage
-{
+struct BufferedPage {
   PageId id;
   PageType type;
   Buffer contents;
   bool operator==(BufferedPage& other) const { return this->id == other.id; }
 };
 
-struct BufPoolTuning
-{
+struct BufPoolTuning {
   uint32_t initial_elements;
   uint32_t max_elements;
 };
 
-class BufPool
-{
-private:
+class BufPool {
+ private:
   class BufPoolImpl;
   const std::unique_ptr<BufPoolImpl> impl_;
 
-public:
-  BufPool(BufPoolTuning tuning,
-          std::unique_ptr<Evictor> evictor,
+ public:
+  BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
           uint32_t (*hash)(const PageId&));
   ~BufPool();
 

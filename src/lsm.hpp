@@ -7,13 +7,12 @@
 
 #include "constants.hpp"
 
-class LSMLevel
-{
-private:
+class LSMLevel {
+ private:
   class LSMLevelImpl;
   const std::unique_ptr<LSMLevelImpl> impl_;
 
-public:
+ public:
   /**
    * @brief Create a new LSM level manager
    *

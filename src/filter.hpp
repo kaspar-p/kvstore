@@ -5,13 +5,12 @@
 
 #include "constants.hpp"
 
-class Filter
-{
-private:
+class Filter {
+ private:
   class FilterImpl;
   const std::unique_ptr<FilterImpl> impl_;
 
-public:
+ public:
   explicit Filter(uint32_t max_elems);
   Filter(uint32_t max_elems, uint64_t seed);
   ~Filter();

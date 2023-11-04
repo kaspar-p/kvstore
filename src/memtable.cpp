@@ -1,3 +1,5 @@
+#include "memtable.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <exception>
@@ -10,28 +12,18 @@
 #include <utility>
 #include <vector>
 
-#include "memtable.hpp"
-
 #include "constants.hpp"
 #include "dbg.hpp"
 
-enum Color
-{
-  kRed = 0,
-  kBlack = 1
-};
+enum Color { kRed = 0, kBlack = 1 };
 
 class RbNode;
 RbNode* nil_sentinel_node = nullptr;
 RbNode* nil_sentinel();
 
-class RbNode
-{
-public:
-  RbNode(K key, V value)
-      : key_(key)
-      , is_nil_(false)
-  {
+class RbNode {
+ public:
+  RbNode(K key, V value) : key_(key), is_nil_(false) {
     this->data_ = value;
 
     this->color_ = kBlack;
@@ -39,10 +31,7 @@ public:
     this->left_ = this;
     this->right_ = this;
   }
-  RbNode()
-      : key_(0)
-      , is_nil_(true)
-  {
+  RbNode() : key_(0), is_nil_(true) {
     this->data_ = 0;
     this->color_ = kBlack;
 
@@ -51,16 +40,14 @@ public:
     this->right_ = this;
   }
 
-  [[nodiscard]] Color color() const
-  {
+  [[nodiscard]] Color color() const {
     if (this->is_nil_) {
       return kBlack;
     }
 
     return this->color_;
   };
-  void set_color(const Color color)
-  {
+  void set_color(const Color color) {
     if (this->is_nil_) {
       return;
     }
@@ -74,23 +61,20 @@ public:
   [[nodiscard]] const K& key() const { return this->key_; }
   [[nodiscard]] V* value() const { return const_cast<V*>(&this->data_); }
 
-  V replace_value(V new_value)
-  {
+  V replace_value(V new_value) {
     V old_data = this->data_;
     this->data_ = new_value;
     return old_data;
   }
 
   [[nodiscard]] RbNode* parent() const { return this->parent_; }
-  [[nodiscard]] RbNode* left() const
-  {
+  [[nodiscard]] RbNode* left() const {
     if (this->is_nil_) {
       return nil_sentinel();
     }
     return this->left_;
   }
-  [[nodiscard]] RbNode* right() const
-  {
+  [[nodiscard]] RbNode* right() const {
     if (this->is_nil_) {
       return nil_sentinel();
     }
@@ -98,16 +82,14 @@ public:
   }
 
   void set_parent(RbNode* parent) { this->parent_ = parent; };
-  void set_left(RbNode* left)
-  {
+  void set_left(RbNode* left) {
     if (this->is_nil_) {
       return;
     }
 
     this->left_ = left;
   };
-  void set_right(RbNode* right)
-  {
+  void set_right(RbNode* right) {
     if (this->is_nil_) {
       return;
     }
@@ -116,25 +98,21 @@ public:
   };
 
   bool operator<(const RbNode& other) const { return this->key_ < other.key_; }
-  bool operator<=(const RbNode& other) const
-  {
+  bool operator<=(const RbNode& other) const {
     return this->key_ <= other.key_;
   }
   bool operator>(const RbNode& other) const { return this->key_ > other.key_; }
-  bool operator>=(const RbNode& other) const
-  {
+  bool operator>=(const RbNode& other) const {
     return this->key_ >= other.key_;
   }
-  bool operator==(const RbNode& other) const
-  {
-    return (
-        (this->is_none() && other.is_none())
-        || (this->is_some() && other.is_some() && this->key_ == other.key_));
+  bool operator==(const RbNode& other) const {
+    return ((this->is_none() && other.is_none()) ||
+            (this->is_some() && other.is_some() && this->key_ == other.key_));
   }
 
   [[nodiscard]] std::string print() const { return this->print(1); }
 
-private:
+ private:
   const bool is_nil_;
   const K key_;
   V data_;
@@ -143,8 +121,7 @@ private:
   RbNode* left_;
   RbNode* right_;
 
-  [[nodiscard]] std::string print(int depth) const
-  {
+  [[nodiscard]] std::string print(int depth) const {
     if (this->is_nil_) {
       return std::string("{NULL}\n");
     }
@@ -162,23 +139,20 @@ private:
   }
 };
 
-RbNode* nil_sentinel()
-{
+RbNode* nil_sentinel() {
   if (nil_sentinel_node == nullptr) {
     nil_sentinel_node = new RbNode();
   }
   return nil_sentinel_node;
 }
 
-const char* MemTableFullException::what() const noexcept
-{
+const char* MemTableFullException::what() const noexcept {
   return "MemTable is full! Can not insert any more elements, please flush "
          "the contents into a file!";
 }
 
-class MemTable::MemTableImpl
-{
-private:
+class MemTable::MemTableImpl {
+ private:
   uint64_t capacity_;
   uint64_t size_;
   std::optional<K> least_key_;
@@ -194,11 +168,9 @@ private:
    * @param upper_bound The upper bound on keys to return.
    * @return std::vector<std::pair<K,V>> A list of ordered pairs.
    */
-  std::vector<RbNode*> rb_in_order(RbNode* node,
-                                   const K lower_bound,
-                                   const K upper_bound) const
-  {
-    std::vector<RbNode*> l {};
+  std::vector<RbNode*> rb_in_order(RbNode* node, const K lower_bound,
+                                   const K upper_bound) const {
+    std::vector<RbNode*> l{};
     if (node->is_none()) {
       return l;
     }
@@ -233,8 +205,7 @@ private:
    * @return RbNode* The node with matching key.
    * If no such node, returns a nil sentinel.
    */
-  static RbNode* rb_search(RbNode* node, const K key)
-  {
+  static RbNode* rb_search(RbNode* node, const K key) {
     while (node->is_some() && key != node->key()) {
       if (key < node->key()) {
         node = node->left();
@@ -255,8 +226,7 @@ private:
    * @return RbNode* The resulting minimum node.
    * If there are no such nodes, returns a nil sentinel.
    */
-  static RbNode* rb_minimum(RbNode* node)
-  {
+  static RbNode* rb_minimum(RbNode* node) {
     while (node->left()->is_some()) {
       node = node->left();
     }
@@ -273,8 +243,7 @@ private:
    * @return RbNode* The resulting maximum node.
    * If there are no such nodes, returns a nil sentinel.
    */
-  static RbNode* rb_maximum(RbNode* node)
-  {
+  static RbNode* rb_maximum(RbNode* node) {
     while (node->right()->is_some()) {
       node = node->right();
     }
@@ -287,8 +256,7 @@ private:
    *
    * @param node The node to delete.
    */
-  void rb_delete(RbNode* z)
-  {
+  void rb_delete(RbNode* z) {
     RbNode* y = z;
     Color y_original_color = y->color();
 
@@ -327,8 +295,7 @@ private:
    *
    * @param node The node to fix the balancing property around.
    */
-  void rb_delete_fixup(RbNode* x)
-  {
+  void rb_delete_fixup(RbNode* x) {
     while (x->is_some() && x->color() == kBlack) {
       if (*x == *x->parent()->left()) {
         RbNode* w = x->parent()->right();
@@ -384,8 +351,7 @@ private:
     x->set_color(kBlack);
   }
 
-  void rb_transplant(RbNode* u, RbNode* v)
-  {
+  void rb_transplant(RbNode* u, RbNode* v) {
     if (u->parent()->is_none()) {
       this->root_ = v;
     } else if (u == u->parent()->left()) {
@@ -406,8 +372,7 @@ private:
    *
    * @param node The node to rotate around.
    */
-  void rb_left_rotate(RbNode* x)
-  {
+  void rb_left_rotate(RbNode* x) {
     if (x->is_none()) {
       return;
     }
@@ -437,8 +402,7 @@ private:
    *
    * @param node The node to rotate around.
    */
-  void rb_right_rotate(RbNode* x)
-  {
+  void rb_right_rotate(RbNode* x) {
     if (x->is_none()) {
       return;
     }
@@ -467,8 +431,7 @@ private:
    *
    * @param node The node to insert.
    */
-  void rb_insert(RbNode* z)
-  {
+  void rb_insert(RbNode* z) {
     RbNode* y = nil_sentinel();
     RbNode* x = this->root_;
     while (x->is_some()) {
@@ -501,8 +464,7 @@ private:
    *
    * @param node The node to fix around.
    */
-  void rb_insert_fixup(RbNode* z)
-  {
+  void rb_insert_fixup(RbNode* z) {
     while (z->parent()->color() == kRed) {
       if (*z->parent() == *z->parent()->parent()->left()) {
         RbNode* y = z->parent()->parent()->right();
@@ -543,9 +505,8 @@ private:
     this->root_->set_color(kBlack);
   }
 
-public:
-  explicit MemTableImpl(uint64_t capacity)
-  {
+ public:
+  explicit MemTableImpl(uint64_t capacity) {
     this->capacity_ = capacity;
     this->size_ = 0;
     this->root_ = nil_sentinel();
@@ -556,8 +517,7 @@ public:
 
   [[nodiscard]] std::string Print() const { return this->root_->print(); }
 
-  [[nodiscard]] V* Get(const K key) const
-  {
+  [[nodiscard]] V* Get(const K key) const {
     RbNode* node = rb_search(this->root_, key);
     if (node->is_some()) {
       return node->value();
@@ -565,8 +525,7 @@ public:
     return nullptr;
   }
 
-  std::optional<V> Put(const K key, const V value)
-  {
+  std::optional<V> Put(const K key, const V value) {
     RbNode* preexisting_node = rb_search(this->root_, key);
     if (preexisting_node->is_some()) {
       return std::make_optional(preexisting_node->replace_value(value));
@@ -591,22 +550,19 @@ public:
   }
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower_bound,
-                                                  const K upper_bound) const
-  {
+                                                  const K upper_bound) const {
     std::vector<RbNode*> nodes =
         this->rb_in_order(this->root_, lower_bound, upper_bound);
 
     std::vector<std::pair<K, V>> pairs;
-    std::transform(nodes.begin(),
-                   nodes.end(),
-                   std::back_inserter(pairs),
-                   [](RbNode* elem)
-                   { return std::make_pair(elem->key(), *elem->value()); });
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(pairs),
+                   [](RbNode* elem) {
+                     return std::make_pair(elem->key(), *elem->value());
+                   });
     return pairs;
   }
 
-  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const
-  {
+  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const {
     std::vector<std::pair<K, V>> pairs;
     if (!this->least_key_.has_value() || !this->most_key_.has_value()) {
       return pairs;
@@ -615,16 +571,14 @@ public:
     std::vector<RbNode*> nodes = this->rb_in_order(
         this->root_, this->least_key_.value(), this->most_key_.value());
 
-    std::transform(nodes.begin(),
-                   nodes.end(),
-                   std::back_inserter(pairs),
-                   [](RbNode* elem)
-                   { return std::make_pair(elem->key(), *elem->value()); });
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(pairs),
+                   [](RbNode* elem) {
+                     return std::make_pair(elem->key(), *elem->value());
+                   });
     return pairs;
   }
 
-  V* Delete(const K key)
-  {
+  V* Delete(const K key) {
     RbNode* node = rb_search(this->root_, key);
 
     this->rb_delete(node);
@@ -640,12 +594,10 @@ public:
     return ret;
   }
 
-  void Clear()
-  {
-    for (RbNode* node : this->rb_in_order(this->root_,
-                                          rb_minimum(this->root_)->key(),
-                                          rb_maximum(this->root_)->key()))
-    {
+  void Clear() {
+    for (RbNode* node :
+         this->rb_in_order(this->root_, rb_minimum(this->root_)->key(),
+                           rb_maximum(this->root_)->key())) {
       if (node == this->root_) {
         this->root_ = nil_sentinel();
       }
@@ -656,60 +608,39 @@ public:
   }
 };
 
-MemTable::MemTable(uint64_t capacity)
-{
+MemTable::MemTable(uint64_t capacity) {
   this->impl_ = std::make_unique<MemTableImpl>(capacity);
 }
 
-MemTable::MemTable(const MemTable& t)
-    : impl_(new MemTableImpl(*t.impl_))
-{
-}
+MemTable::MemTable(const MemTable& t) : impl_(new MemTableImpl(*t.impl_)) {}
 
-MemTable& MemTable::operator=(const MemTable& t)
-{
+MemTable& MemTable::operator=(const MemTable& t) {
   *this->impl_ = *t.impl_;
   return *this;
 }
 
-std::string MemTable::Print() const
-{
-  return this->impl_->Print();
-}
+std::string MemTable::Print() const { return this->impl_->Print(); }
 
-V* MemTable::Get(const K key) const
-{
-  return this->impl_->Get(key);
-}
+V* MemTable::Get(const K key) const { return this->impl_->Get(key); }
 
-std::optional<V> MemTable::Put(const K key, const V value)
-{
+std::optional<V> MemTable::Put(const K key, const V value) {
   return this->impl_->Put(key, value);
 }
 
 std::vector<std::pair<K, V>> MemTable::Scan(const K lower_bound,
-                                            const K upper_bound) const
-{
+                                            const K upper_bound) const {
   return this->impl_->Scan(lower_bound, upper_bound);
 }
 
-V* MemTable::Delete(const K key)
-{
-  return this->impl_->Delete(key);
-}
+V* MemTable::Delete(const K key) { return this->impl_->Delete(key); }
 
-std::vector<std::pair<K, V>> MemTable::ScanAll() const
-{
+std::vector<std::pair<K, V>> MemTable::ScanAll() const {
   return this->impl_->ScanAll();
 }
 
-void MemTable::Clear()
-{
-  this->impl_->Clear();
-}
+void MemTable::Clear() { this->impl_->Clear(); }
 
-MemTable::~MemTable()
-{
+MemTable::~MemTable() {
   try {
     this->impl_->Clear();
   } catch (std::exception& e) {

@@ -2,13 +2,11 @@
 
 #include <gtest/gtest.h>
 
-TEST(AddBitToPrefix, Works)
-{
+TEST(AddBitToPrefix, Works) {
   ASSERT_EQ(add_bit_to_prefix(0, 1, 1), 0x40000000);
 }
 
-TEST(PrefixBit, WorksAlternating)
-{
+TEST(PrefixBit, WorksAlternating) {
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 0), 0);
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 1), 0);
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 2), 0);
@@ -50,16 +48,14 @@ TEST(PrefixBit, WorksAlternating)
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 31), 1);
 }
 
-TEST(PrefixBit, FromStart)
-{
+TEST(PrefixBit, FromStart) {
   ASSERT_EQ(prefix_bit(0b10101010101010101010101010101010, 0), 1);
   ASSERT_EQ(prefix_bit(0b10101010101010101010101010101010, 1), 0);
   ASSERT_EQ(prefix_bit(0b10101010101010101010101010101010, 2), 1);
   ASSERT_EQ(prefix_bit(0b10101010101010101010101010101010, 3), 0);
 }
 
-TEST(PrefixBit, Partial)
-{
+TEST(PrefixBit, Partial) {
   ASSERT_EQ(prefix_bit(0b11, 0), 0);
   ASSERT_EQ(prefix_bit(0b11, 1), 0);
   ASSERT_EQ(prefix_bit(0b11, 2), 0);
@@ -71,8 +67,7 @@ TEST(PrefixBit, Partial)
   ASSERT_EQ(prefix_bit(0b11, 31), 1);
 }
 
-TEST(PrefixBit, WorksRandom)
-{
+TEST(PrefixBit, WorksRandom) {
   ASSERT_EQ(prefix_bit(0xaaaaaaaa, 0), 1);
   ASSERT_EQ(prefix_bit(0xaaaaaaaa, 1), 0);
 

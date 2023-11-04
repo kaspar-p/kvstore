@@ -1,3 +1,7 @@
+#include "kvstore.hpp"
+
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -7,14 +11,9 @@
 #include <string>
 #include <vector>
 
-#include "kvstore.hpp"
-
-#include <gtest/gtest.h>
-
 #include "memtable.hpp"
 
-TEST(KvStore, ScanIncludesEnds)
-{
+TEST(KvStore, ScanIncludesEnds) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Put(2, 20);
@@ -34,8 +33,7 @@ TEST(KvStore, ScanIncludesEnds)
   ASSERT_EQ(v[2].second, 30);
 }
 
-TEST(KvStore, ScanStopsBeforeEnd)
-{
+TEST(KvStore, ScanStopsBeforeEnd) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Put(2, 20);
@@ -49,8 +47,7 @@ TEST(KvStore, ScanStopsBeforeEnd)
   ASSERT_EQ(v[1].second, 20);
 }
 
-TEST(KvStore, ScanStopsBeforeStart)
-{
+TEST(KvStore, ScanStopsBeforeStart) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Put(2, 20);
@@ -64,8 +61,7 @@ TEST(KvStore, ScanStopsBeforeStart)
   ASSERT_EQ(v[1].second, 30);
 }
 
-TEST(KvStore, ScanGoesBeyondKeySizes)
-{
+TEST(KvStore, ScanGoesBeyondKeySizes) {
   auto table = std::make_unique<KvStore>();
   table->Put(10, 10);
   table->Put(20, 20);
@@ -84,8 +80,7 @@ TEST(KvStore, ScanGoesBeyondKeySizes)
   ASSERT_EQ(v[2].second, 30);
 }
 
-TEST(KvStore, InsertAndDeleteOne)
-{
+TEST(KvStore, InsertAndDeleteOne) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Delete(1);
@@ -94,8 +89,7 @@ TEST(KvStore, InsertAndDeleteOne)
   ASSERT_EQ(v, std::nullopt);
 }
 
-TEST(KvStore, InsertAndDeleteAFew)
-{
+TEST(KvStore, InsertAndDeleteAFew) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Put(2, 20);
@@ -110,8 +104,7 @@ TEST(KvStore, InsertAndDeleteAFew)
   ASSERT_EQ(val2, std::nullopt);
 }
 
-TEST(KvStore, InsertAndGetOne)
-{
+TEST(KvStore, InsertAndGetOne) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   const std::optional<V> val = table->Get(1);
@@ -119,8 +112,7 @@ TEST(KvStore, InsertAndGetOne)
   ASSERT_EQ(val.value(), 10);
 }
 
-TEST(KvStore, InsertOneAndReplaceIt)
-{
+TEST(KvStore, InsertOneAndReplaceIt) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 100);
   table->Put(1, 200);
@@ -129,8 +121,7 @@ TEST(KvStore, InsertOneAndReplaceIt)
   ASSERT_EQ(val.value(), 200);
 }
 
-TEST(KvStore, InsertManyAndGetMany)
-{
+TEST(KvStore, InsertManyAndGetMany) {
   auto table = std::make_unique<KvStore>();
   table->Put(1, 10);
   table->Put(2, 20);

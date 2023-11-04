@@ -1,3 +1,5 @@
+#include "kvstore.hpp"
+
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -13,24 +15,19 @@
 #include <utility>
 #include <vector>
 
-#include "kvstore.hpp"
-
 #include "constants.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
 
-const char* DatabaseClosedException::what() const noexcept
-{
+const char* DatabaseClosedException::what() const noexcept {
   return "Database is closed, please Open() it first!";
 };
 
-const char* FailedToOpenException::what() const noexcept
-{
+const char* FailedToOpenException::what() const noexcept {
   return "Failed to open database directory!";
 };
 
-std::vector<std::string> split_string(std::string s, std::string&& delimiter)
-{
+std::vector<std::string> split_string(std::string s, std::string&& delimiter) {
   size_t pos = 0;
   std::vector<std::string> tokens;
   while (pos < s.size()) {
@@ -43,8 +40,7 @@ std::vector<std::string> split_string(std::string s, std::string&& delimiter)
   return tokens;
 }
 
-struct KvStore::KvStoreImpl
-{
+struct KvStore::KvStoreImpl {
   // Necessary
   std::unique_ptr<MemTable> memtable;
   bool open;
@@ -54,8 +50,7 @@ struct KvStore::KvStoreImpl
   uint64_t blocks;
   std::filesystem::path dir;
 
-  KvStoreImpl()
-  {
+  KvStoreImpl() {
     int max_elems = kPageSize / (kKeySize + kValSize);
     int other_elems = 4;  // [ magic number, num elements, min key, max key ]
     this->memtable = std::make_unique<MemTable>(max_elems - other_elems);
@@ -65,11 +60,10 @@ struct KvStore::KvStoreImpl
 
   ~KvStoreImpl() = default;
 
-  void flush_memtable()
-  {
-    std::fstream file(
-        this->datafile(this->blocks),
-        std::fstream::binary | std::fstream::out | std::fstream::trunc);
+  void flush_memtable() {
+    std::fstream file(this->datafile(this->blocks), std::fstream::binary |
+                                                        std::fstream::out |
+                                                        std::fstream::trunc);
 
     SstableNaive::Flush(file, *this->memtable);
     if (!file.good()) {
@@ -81,13 +75,11 @@ struct KvStore::KvStoreImpl
     this->memtable->Clear();
   };
 
-  [[nodiscard]] std::string datafile(const unsigned int block_num) const
-  {
+  [[nodiscard]] std::string datafile(const unsigned int block_num) const {
     return this->dir / ("__datafile." + std::to_string(block_num));
   }
 
-  void ensure_fs(const Options options) const
-  {
+  void ensure_fs(const Options options) const {
     bool dir_exists = std::filesystem::is_directory(this->dir);
     if (dir_exists && options.overwrite) {
       std::filesystem::remove_all(this->dir);
@@ -110,8 +102,7 @@ struct KvStore::KvStoreImpl
             << "created=" << created_time << '\n';
   }
 
-  void Open(const std::string& name, const Options options)
-  {
+  void Open(const std::string& name, const Options options) {
     this->open = true;
     this->dir = name;
 
@@ -121,8 +112,7 @@ struct KvStore::KvStoreImpl
   void Close() { this->open = false; }
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower,
-                                                  const K upper) const
-  {
+                                                  const K upper) const {
     std::vector<std::pair<K, V>> memtable_l =
         this->memtable->Scan(lower, upper);
 
@@ -130,8 +120,7 @@ struct KvStore::KvStoreImpl
   }
 
   [[nodiscard]] std::optional<V> level_get(const std::size_t level,
-                                           const K /*key*/) const
-  {
+                                           const K /*key*/) const {
     assert(level < this->levels.size());
     this->levels.at(level)->open("test.txt");
     // levelf.open("test.txt", std::fstream::in | std::fstream::out);
@@ -139,12 +128,11 @@ struct KvStore::KvStoreImpl
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<V> sst_get(const K key) const
-  {
+  [[nodiscard]] std::optional<V> sst_get(const K key) const {
     for (int i = 0; i < this->blocks; i++) {
       // std::cout << "processing block file: " << i << std::endl;
 
-      std::ifstream file {this->datafile(i)};
+      std::ifstream file{this->datafile(i)};
       std::stringstream buf;
       buf << file.rdbuf();
       std::vector<std::string> pair_strs =
@@ -152,7 +140,7 @@ struct KvStore::KvStoreImpl
       for (std::string pair_str : pair_strs) {
         // std::cout << "processing pair str: " + pair_str << std::endl;
 
-        pair_str.erase(0, 1);  // Remove first elem '('
+        pair_str.erase(0, 1);                 // Remove first elem '('
         pair_str.erase(pair_str.size() - 1);  // Remove last elem ')'
         std::vector<std::string> pair =
             split_string(pair_str, std::string(","));
@@ -166,8 +154,7 @@ struct KvStore::KvStoreImpl
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<V> Get(const K key) const
-  {
+  [[nodiscard]] std::optional<V> Get(const K key) const {
     V* mem_val = this->memtable->Get(key);
     if (mem_val != nullptr) {
       return std::make_optional(*mem_val);
@@ -183,8 +170,7 @@ struct KvStore::KvStoreImpl
     return std::nullopt;
   }
 
-  void Put(const K key, const K value)
-  {
+  void Put(const K key, const K value) {
     if (!this->open) {
       throw DatabaseClosedException();
     }
@@ -198,8 +184,7 @@ struct KvStore::KvStoreImpl
     }
   }
 
-  void Delete(const K key) const
-  {
+  void Delete(const K key) const {
     (void)key;
     std::cout << this->blocks << '\n';
   };
@@ -207,39 +192,26 @@ struct KvStore::KvStoreImpl
 
 /* Connect the pImpl (pointer-to-implementation) to the actual class */
 
-KvStore::KvStore()
-{
-  this->impl_ = std::make_unique<KvStoreImpl>();
-}
+KvStore::KvStore() { this->impl_ = std::make_unique<KvStoreImpl>(); }
 
 KvStore::~KvStore() = default;
 
-void KvStore::Open(const std::string& name, Options options)
-{
+void KvStore::Open(const std::string& name, Options options) {
   return this->impl_->Open(name, options);
 }
 
-void KvStore::Close()
-{
-  return this->impl_->Close();
-}
+void KvStore::Close() { return this->impl_->Close(); }
 
-std::vector<std::pair<K, V>> KvStore::Scan(const K lower, const K upper) const
-{
+std::vector<std::pair<K, V>> KvStore::Scan(const K lower, const K upper) const {
   return this->impl_->Scan(lower, upper);
 }
 
-std::optional<V> KvStore::Get(const K key) const
-{
+std::optional<V> KvStore::Get(const K key) const {
   return this->impl_->Get(key);
 }
 
-void KvStore::Put(const K key, const V value)
-{
+void KvStore::Put(const K key, const V value) {
   return this->impl_->Put(key, value);
 }
 
-void KvStore::Delete(const K key)
-{
-  return this->impl_->Delete(key);
-}
+void KvStore::Delete(const K key) { return this->impl_->Delete(key); }

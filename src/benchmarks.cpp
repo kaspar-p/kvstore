@@ -16,18 +16,12 @@
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 using std::chrono::microseconds;
-using BenchmarkResult = std::tuple<uint64_t,
-                                   std::chrono::microseconds,
-                                   double,
-                                   std::chrono::microseconds,
-                                   double,
-                                   std::chrono::microseconds,
-                                   double,
-                                   std::chrono::microseconds,
-                                   double>;
+using BenchmarkResult =
+    std::tuple<uint64_t, std::chrono::microseconds, double,
+               std::chrono::microseconds, double, std::chrono::microseconds,
+               double, std::chrono::microseconds, double>;
 
-auto benchmark_inserts(KvStore& db, uint64_t nodes_to_insert)
-{
+auto benchmark_inserts(KvStore& db, uint64_t nodes_to_insert) {
   auto t1 = high_resolution_clock::now();
   for (K i = 0; i < nodes_to_insert; i++) {
     db.Put(i, i);
@@ -37,8 +31,7 @@ auto benchmark_inserts(KvStore& db, uint64_t nodes_to_insert)
   return ms_int;
 }
 
-auto benchmark_scan(KvStore& db, K lower, K upper)
-{
+auto benchmark_scan(KvStore& db, K lower, K upper) {
   auto t1 = high_resolution_clock::now();
   std::vector<std::pair<K, V>> result = db.Scan(lower, upper);
   auto t2 = high_resolution_clock::now();
@@ -46,8 +39,7 @@ auto benchmark_scan(KvStore& db, K lower, K upper)
   return ms_int;
 }
 
-auto benchmark_get_sequential(KvStore& db, K lower, K upper)
-{
+auto benchmark_get_sequential(KvStore& db, K lower, K upper) {
   auto t1 = high_resolution_clock::now();
   for (K i = lower; i < upper; i++) {
     const std::optional<V> v = db.Get(i);
@@ -57,8 +49,8 @@ auto benchmark_get_sequential(KvStore& db, K lower, K upper)
   return ms_int;
 }
 
-auto benchmark_get_random(KvStore& db, uint64_t nodes_to_get, K lower, K upper)
-{
+auto benchmark_get_random(KvStore& db, uint64_t nodes_to_get, K lower,
+                          K upper) {
   std::random_device r;
   std::mt19937 eng(r());
   std::uniform_int_distribution<K> dist(lower, upper);
@@ -78,8 +70,7 @@ auto benchmark_get_random(KvStore& db, uint64_t nodes_to_get, K lower, K upper)
 }
 
 void write_to_csv(const std::string& file_name,
-                  std::vector<BenchmarkResult>& results)
-{
+                  std::vector<BenchmarkResult>& results) {
   std::cout << "Writing benchmarks to " << file_name << '\n';
   std::ofstream file(file_name);
   file << "inputDataSize (MB),insert time,insert throughput,scan time,scan "
@@ -95,22 +86,21 @@ void write_to_csv(const std::string& file_name,
   file.close();
 }
 
-double calculate_throughput(uint64_t megabytes, std::chrono::microseconds time)
-{
+double calculate_throughput(uint64_t megabytes,
+                            std::chrono::microseconds time) {
   double time_in_seconds = static_cast<double>(time.count()) / 1000000.0;
   return static_cast<double>(megabytes) / time_in_seconds;
 }
 
 void run_benchmarks(uint64_t megabytes_to_insert,
-                    std::vector<BenchmarkResult>& results)
-{
+                    std::vector<BenchmarkResult>& results) {
   std::cout << "Running benchmarks for " << megabytes_to_insert << "MB" << '\n';
   uint64_t nodes_to_insert = megabytes_to_insert * kMegabyteSize / kKeySize;
-  KvStore db {};
+  KvStore db{};
   Options options;
   options.overwrite = true;
-  std::string db_dir("benchmark_test_" + std::to_string(megabytes_to_insert)
-                     + ".db");
+  std::string db_dir("benchmark_test_" + std::to_string(megabytes_to_insert) +
+                     ".db");
   db.Open(db_dir, options);
 
   std::chrono::microseconds insert_time =
@@ -133,22 +123,16 @@ void run_benchmarks(uint64_t megabytes_to_insert,
   auto random_get_throughput =
       calculate_throughput(megabytes_to_insert, random_get_time);
 
-  BenchmarkResult result = std::make_tuple(megabytes_to_insert,
-                                           insert_time,
-                                           insert_throughput,
-                                           full_scan_time,
-                                           full_scan_throughput,
-                                           sequential_get_time,
-                                           sequential_get_throughput,
-                                           random_get_time,
-                                           random_get_throughput);
+  BenchmarkResult result = std::make_tuple(
+      megabytes_to_insert, insert_time, insert_throughput, full_scan_time,
+      full_scan_throughput, sequential_get_time, sequential_get_throughput,
+      random_get_time, random_get_throughput);
   results.push_back(result);
 
   db.Close();
 }
 
-int main()
-{
+int main() {
   uint64_t megabytes_to_insert = 1;
   uint64_t max_size = 128;
   std::vector<BenchmarkResult> results;
