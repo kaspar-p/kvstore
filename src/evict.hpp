@@ -4,12 +4,13 @@
 #include <memory>
 #include <optional>
 
-class ChainedPage;
+struct PageId;
+using DataRef = const PageId;
 
 class Evictor
 {
 public:
-  // virtual ~Evictor() = 0;
+  virtual ~Evictor() = default;
 
   /**
    * @brief Insert a new entry into the cache. Marks the entry as used, that is,
@@ -26,7 +27,7 @@ public:
    * @return std::optional<std::shared_ptr<BufferedPage>> The page evicted if
    * present, std::nullopt if not.
    */
-  virtual std::optional<ChainedPage*> Insert(ChainedPage* page) = 0;
+  virtual std::optional<DataRef> Insert(DataRef page) = 0;
 
   /**
    * @brief Mark a page as dirty/used if it gets accessed.
@@ -39,7 +40,7 @@ public:
    *
    * @param page The page that was accessed.
    */
-  virtual void MarkUsed(ChainedPage* page) = 0;
+  virtual void MarkUsed(DataRef page) = 0;
 
   /**
    * @brief Resize the eviction data to now have @param n elements
@@ -55,9 +56,9 @@ private:
 
 public:
   ClockEvictor();
-  ~ClockEvictor();
+  ~ClockEvictor() override;
 
-  std::optional<ChainedPage*> Insert(ChainedPage* page) override;
-  void MarkUsed(ChainedPage* page) override;
+  std::optional<DataRef> Insert(DataRef page) override;
+  void MarkUsed(DataRef page) override;
   void Resize(uint32_t n) override;
 };

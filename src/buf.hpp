@@ -1,3 +1,5 @@
+#pragma once
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +27,9 @@ struct PageId
   uint32_t run;
   uint32_t page;
 
+  [[nodiscard]] std::string str() const;
+  [[nodiscard]] std::string str(uint32_t len) const;
+
   bool operator==(const PageId& other) const
   {
     return this->level == other.level && this->run == other.run
@@ -39,13 +44,7 @@ struct BufferedPage
   PageId id;
   PageType type;
   Buffer contents;
-};
-
-struct ChainedPage
-{
-  BufferedPage page;
-  ChainedPage* prev;
-  ChainedPage* next;
+  bool operator==(BufferedPage& other) const { return this->id == other.id; }
 };
 
 struct BufPoolTuning
@@ -61,11 +60,15 @@ private:
   std::unique_ptr<BufPoolImpl> impl_;
 
 public:
-  BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor);
+  BufPool(BufPoolTuning tuning,
+          std::unique_ptr<Evictor> evictor,
+          uint32_t (*hash)(const PageId&));
   ~BufPool();
 
   [[nodiscard]] bool HasPage(PageId& page) const;
   [[nodiscard]] std::optional<BufferedPage> GetPage(PageId& page) const;
   void PutPage(PageId& page, PageType type, Buffer contents);
+
+  std::string DebugPrint(uint32_t);
   std::string DebugPrint();
 };

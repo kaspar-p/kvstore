@@ -2,8 +2,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "evict.hpp"
@@ -13,7 +11,7 @@
 struct ClockMetadata
 {
   bool dirty;
-  ChainedPage* page;
+  DataRef page;
 };
 
 class ClockEvictor::ClockEvictorImpl : Evictor
@@ -21,14 +19,12 @@ class ClockEvictor::ClockEvictorImpl : Evictor
 private:
   uint32_t head_;
   std::vector<std::optional<ClockMetadata>> clock_;
-  std::unordered_map<ChainedPage*, uint32_t> indices_;
 
 public:
   ClockEvictorImpl() { this->head_ = 0; };
+  ~ClockEvictorImpl() override = default;
 
-  ~ClockEvictorImpl() = default;
-
-  std::optional<ChainedPage*> Insert(ChainedPage* page) override
+  std::optional<DataRef> Insert(DataRef page_id) override
   {
     assert(this->head_ < this->clock_.capacity());
 
@@ -40,27 +36,27 @@ public:
     }
 
     std::optional<ClockMetadata> old = this->clock_.at(this->head_);
-    this->clock_.at(this->head_) = std::make_optional(ClockMetadata {
-        .dirty = false,
-        .page = page,
-    });
-    this->indices_.insert(std::make_pair(page, this->head_));
+    this->clock_.at(this->head_)
+        .emplace(ClockMetadata {
+            .dirty = false,
+            .page = page_id,
+        });
+
     this->head_ = (this->head_ + 1) % this->clock_.capacity();
 
     if (old.has_value()) {
-      this->indices_.erase(old.value().page);
-      return std::make_optional(old.value().page);
+      return std::make_optional<DataRef>(old.value().page);
     }
     return std::nullopt;
   }
 
-  void MarkUsed(ChainedPage* page) override
+  void MarkUsed(DataRef page_id) override
   {
-    if (this->indices_.find(page) != this->indices_.end()) {
-      uint32_t index = this->indices_.at(page);
-      assert(index < this->clock_.capacity());
-
-      this->clock_.at(index).value().dirty = true;
+    for (auto& elem : this->clock_) {
+      if (elem.has_value() && elem.value().page == page_id) {
+        elem.value().dirty = true;
+        return;
+      }
     }
   };
 
@@ -79,12 +75,12 @@ void ClockEvictor::Resize(const uint32_t n)
   return this->impl_->Resize(n);
 }
 
-void ClockEvictor::MarkUsed(ChainedPage* page)
+void ClockEvictor::MarkUsed(DataRef page)
 {
   return this->impl_->MarkUsed(page);
 };
 
-std::optional<ChainedPage*> ClockEvictor::Insert(ChainedPage* page)
+std::optional<DataRef> ClockEvictor::Insert(DataRef page)
 {
   return this->impl_->Insert(page);
 }

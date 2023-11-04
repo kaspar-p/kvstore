@@ -21,6 +21,15 @@ add_subdirectory(tests)
 
 # ---- Declare libraries ----
 
+# dbg.cpp
+add_library(kvstore_dbg OBJECT src/dbg.cpp)
+target_include_directories(
+  kvstore_dbg ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_dbg PUBLIC cxx_std_17)
+
 # memtable.cpp
 add_library(kvstore_memtable OBJECT src/memtable.cpp)
 target_include_directories(
@@ -93,11 +102,13 @@ target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_exe PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_exe PRIVATE kvstore_buf)
 target_link_libraries(kvstore_exe PRIVATE kvstore_evict)
+target_link_libraries(kvstore_exe PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_sstable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_buf)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_evict)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_dbg)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)
 
 # ---- Install rules ----
