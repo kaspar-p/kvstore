@@ -1,5 +1,7 @@
 # SSTable format
 
+This document describes the format of the SSTables on the disk.
+
 ## ptr (8 bytes)
 
 - Most significant 4 bytes are the offset within the file where the block starts. 
