@@ -65,16 +65,34 @@ struct KvStore::KvStoreImpl
 
   ~KvStoreImpl() = default;
 
+  /**
+   * This method serializes in a TEXT format right now. Figure out how to solve
+   * endian-ness and then save in a binary format, since right now it's O(n) for
+   * searching through the table, even though the keys are sorted. It could be
+   * O(log(n)), but we can't immediately jump to the right offsets, since it's
+   * a text format.
+   */
+  std::vector<uint64_t> serialize_memtable()
+  {
+    std::vector<std::pair<K, V>> pairs =
+        this->memtable->Scan(this->least_key, this->most_key);
+    std::vector<uint64_t> serialized_be;
+    serialized_be.reserve(pairs.size()*2);
+
+    for (const auto [key, value] : pairs) {
+      serialized_be.push_back(htobe64(key));
+      serialized_be.push_back(htobe64(value));
+    }
+    return serialized_be;
+  }
+
   void flush_memtable()
   {
-    std::fstream file(
-        this->datafile(this->blocks),
-        std::fstream::binary | std::fstream::out | std::fstream::trunc);
+    std::vector<uint64_t> ser = this->serialize_memtable();
 
     SstableNaive::Flush(file, *this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
-      exit(1);
     }
 
     this->blocks++;
