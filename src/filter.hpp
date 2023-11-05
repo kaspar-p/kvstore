@@ -6,6 +6,7 @@
 
 #include "buf.hpp"
 #include "constants.hpp"
+#include "naming.hpp"
 
 class Filter {
  private:
@@ -24,8 +25,8 @@ class Filter {
    * support.
    * @param buf A buffer pool cache for accessing pages in the filesystem.
    */
-  Filter(std::string dbname, uint32_t level, uint32_t max_elems, BufPool& buf,
-         uint64_t seed);
+  Filter(const DbNaming& dbname, uint32_t level, uint32_t max_elems,
+         BufPool& buf, uint64_t seed);
   ~Filter();
 
   /**

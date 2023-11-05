@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "filter.hpp"
+#include "naming.hpp"
 
 class LSMLevel::LSMLevelImpl {
  private:
@@ -13,13 +14,13 @@ class LSMLevel::LSMLevelImpl {
   const uint32_t level_;
   const std::size_t memory_buffer_size_;
   const bool is_final_;
-  const std::string dbname;
+  const DbNaming& dbname;
 
   BufPool& buf;
   Filter filter_;
 
  public:
-  LSMLevelImpl(std::string dbname, uint32_t level, bool is_final,
+  LSMLevelImpl(const DbNaming& dbname, uint32_t level, bool is_final,
                std::size_t memory_buffer_size, BufPool& buf)
       : max_entries_(pow(2, level) * memory_buffer_size),
         level_(level),
@@ -52,7 +53,7 @@ class LSMLevel::LSMLevelImpl {
   };
 };
 
-LSMLevel::LSMLevel(std::string dbname, int level, bool is_final,
+LSMLevel::LSMLevel(const DbNaming& dbname, int level, bool is_final,
                    std::size_t memory_buffer_size, BufPool& Buf)
     : impl_(std::make_unique<LSMLevelImpl>(dbname, level, is_final,
                                            memory_buffer_size, Buf)) {}

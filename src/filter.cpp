@@ -5,6 +5,8 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -13,14 +15,19 @@
 
 #include "buf.hpp"
 #include "constants.hpp"
+#include "fileutil.hpp"
 #include "naming.hpp"
 #include "xxhash.h"
 
 constexpr static std::size_t kCacheLineBytes = 128;
-constexpr static std::size_t kEntriesPerCacheLine =
-    (kCacheLineBytes / kKeySize);
-constexpr static std::size_t kFiltersPerPage = kPageSize / kCacheLineBytes;
-constexpr static std::size_t kFilterBits = kCacheLineBytes * 8;
+constexpr static std::size_t kFilterBytes = 128;
+static_assert(kCacheLineBytes >= kFilterBytes);
+
+constexpr static std::size_t kDataTypePerFilter =
+    kFilterBytes / sizeof(unsigned long long);
+constexpr static std::size_t kEntriesPerFilter = (kFilterBytes / kKeySize);
+constexpr static std::size_t kFiltersPerPage = kPageSize / kFilterBytes;
+constexpr static std::size_t kFilterBits = kFilterBytes * 8;
 constexpr static std::size_t kBitsPerEntry = 10;
 constexpr static std::size_t kNumHashFuncs = 7;  // log(2) * kBitsPerEntry;
 
@@ -40,6 +47,15 @@ std::array<HashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed) {
 
 [[nodiscard]] uint64_t block_hash(K key, uint64_t starting_seed) {
   return static_cast<uint64_t>(XXH64(&key, kKeySize, starting_seed));
+}
+
+uint64_t calc_page_idx(uint64_t global_page_idx) {
+  uint64_t page_idx = global_page_idx / kPageSize;
+  return page_idx + 1;  // First page is always metadata page
+}
+
+uint64_t calc_page_offset(uint64_t global_page_idx) {
+  return global_page_idx % kPageSize;
 }
 
 class Filter::FilterImpl {
@@ -68,55 +84,123 @@ class Filter::FilterImpl {
     return true;
   }
 
-  Buffer to_buf(std::array<BloomFilter, kFiltersPerPage> filters) const {
+  std::array<uint8_t, kFilterBytes> ser_filter(BloomFilter& filter) const {
+    std::array<uint8_t, kFilterBytes> data{};
+    for (int i = 0; i < kFilterBytes; i++) {
+      uint8_t byte = 0;
+      for (int j = 0; j < 8; j++) {
+        std::size_t idx = 8 * i + j;
+        bool bit = filter.test((8 * i) + j);
+        byte = byte | (bit << (7 - j));
+      }
+      data.at(i) = byte;
+    }
+    return data;
+  }
+
+  BloomFilter de_filter(std::array<uint8_t, kFilterBytes>& data) const {
+    BloomFilter filter;
+    for (int i = 0; i < kFilterBytes; i++) {
+      uint8_t byte = data.at(i);
+      for (int j = 0; j < 8; j++) {
+        std::size_t idx = 8 * i + j;
+        bool bit = (byte << j) >> 7;
+        filter.set(idx, bit);
+      }
+    }
+    return filter;
+  }
+
+  Buffer to_buf(std::array<BloomFilter, kFiltersPerPage>& filters) const {
     Buffer buffer;
-    for (int i = 0; i < filters.size(); i++) {
-      uint64_t data = htonll(filters.at(i).to_ullong());
-      int factor = sizeof(uint64_t) / sizeof(std::byte);
-      for (int j = 0; j < factor; j++) {
-        uint8_t octet = (data >> (j * 8));
-        buffer.at(i * factor + j) = std::byte{octet};
+    for (int filt = 0; filt < filters.size(); filt++) {
+      std::array<uint8_t, kFilterBytes> data_vec =
+          this->ser_filter(filters.at(filt));
+      for (int data_offset = 0; data_offset < data_vec.size(); data_offset++) {
+        std::byte data = std::byte{data_vec.at(data_offset)};
+        buffer.at(filt * kFilterBytes + data_offset) = data;
       }
     }
 
     return buffer;
   }
 
-  std::array<BloomFilter, kFiltersPerPage> from_buf(Buffer buffer) const {
+  std::array<BloomFilter, kFiltersPerPage> from_buf(Buffer& buffer) const {
     std::array<BloomFilter, kFiltersPerPage> filters;
     for (int i = 0; i < kFiltersPerPage; i++) {
-      uint64_t data = 0;
-      int factor = sizeof(uint64_t) / sizeof(std::byte);
-      for (int j = 0; j < factor; j++) {
-        data |= static_cast<uint8_t>(buffer.at(i * factor + j)) << (j * 8);
+      std::array<uint8_t, kFilterBytes> filter_buf;
+      for (int data_offset = 0; data_offset < kFilterBytes; data_offset++) {
+        filter_buf.at(data_offset) =
+            static_cast<uint8_t>(buffer.at(i * kFilterBytes + data_offset));
       }
-      BloomFilter filter(data);
-      filters.at(i) = filter;
+
+      filters.at(i) = this->de_filter(filter_buf);
     }
     return filters;
   }
 
+  void initialize_filter_file() {
+    // Read the file, if the magic number exists then it's already there
+    // If not, write it entirely new.
+    if (std::filesystem::file_size(this->filename) > kPageSize) {
+      // If there is at least a page in the file, we assume it's correct
+      char firstPage[kPageSize];
+      this->file.seekg(0);
+      this->file.read(firstPage, kPageSize);
+      bool has_magic = has_magic_numbers(firstPage, FileType::kFilter);
+      if (has_magic) {
+        return;
+      } else {
+        // overwrite the file, it's likely garbage
+      }
+    }
+
+    assert(this->file.good());
+    char metadata_block[kPageSize]{};
+    put_magic_numbers(metadata_block, FileType::kFilter);
+    this->file.write(metadata_block, kPageSize);
+    assert(this->file.good());
+
+    for (int filter_idx = 0; filter_idx < this->num_filters; filter_idx++) {
+      int page = (filter_idx * kFilterBytes) / kPageSize;
+
+      char zeroes[kFilterBytes]{};
+      this->file.write(zeroes, kFilterBytes);
+    }
+
+    int pad =
+        kPageSize - ((this->num_filters % kFiltersPerPage) * kFilterBytes);
+    char buf_pad[pad];
+    std::memset(buf_pad, 0, pad);
+
+    this->file.write(buf_pad, pad);
+    assert(this->file.good());
+  }
+
  public:
-  FilterImpl(std::string dbname, uint32_t level, uint32_t max_elems,
-             BufPool& buf, uint64_t starting_seed)
+  FilterImpl(const DbNaming& dbname, const uint32_t level,
+             const uint32_t max_elems, BufPool& buf,
+             const uint64_t starting_seed)
       : max_entries(max_elems),
-        num_filters(this->max_entries / kEntriesPerCacheLine),
+        num_filters(this->max_entries / kEntriesPerFilter),
         seed(starting_seed),
         buf(buf),
         bit_hashes(create_hash_funcs(starting_seed)),
         filename(filter_file(dbname, level)) {
-    assert(this->max_entries % kEntriesPerCacheLine == 0);
-    std::uint32_t num_blocks = this->max_entries / kEntriesPerCacheLine;
+    assert(this->max_entries % kEntriesPerFilter == 0);
 
-    this->file.open(this->filename,
-                    std::ios::binary | std::ios::out | std::ios::in);
+    this->file = std::fstream(this->filename,
+                              std::fstream::binary | std::fstream::out |
+                                  std::fstream::in | std::fstream::trunc);
+    assert(this->file.is_open());
+    this->initialize_filter_file();
   }
 
   [[nodiscard]] bool Has(K key) {
     uint64_t global_filter_idx =
         block_hash(key, this->seed) % this->num_filters;
-    uint32_t page_idx = global_filter_idx / kPageSize;
-    uint64_t page_filter_idx = global_filter_idx % kPageSize;
+    uint32_t page_idx = calc_page_idx(global_filter_idx);
+    uint64_t page_offset = calc_page_offset(global_filter_idx);
 
     const BloomFilter filter;
 
@@ -125,21 +209,22 @@ class Filter::FilterImpl {
     std::optional<BufferedPage> buf_page = buf.GetPage(page_id);
     if (buf_page.has_value()) {
       auto filters = this->from_buf(buf_page.value().contents);
-      return this->bloom_has(filters.at(page_filter_idx), key);
+      return this->bloom_has(filters.at(page_offset), key);
     } else {
       // Or read it ourselves.
       this->file.seekg(page_idx * kPageSize);
-      // std::array<BloomFilter, kFiltersPerPage> filters;
-      Buffer buf;
+      char buf[kPageSize];
       assert(this->file.good());
-      this->file.read((char*)&buf, kPageSize);
+      this->file.read(buf, kPageSize);
       assert(this->file.good());
 
       // Put the page back in the buffer
-      this->buf.PutPage(page_id, PageType::kFilters, buf);
+      Buffer byte_buf = FromRaw(buf);
+      this->buf.PutPage(page_id, PageType::kFilters, byte_buf);
 
-      std::array<BloomFilter, kFiltersPerPage> filters = this->from_buf(buf);
-      return this->bloom_has(filters.at(page_filter_idx), key);
+      std::array<BloomFilter, kFiltersPerPage> filters =
+          this->from_buf(byte_buf);
+      return this->bloom_has(filters.at(page_offset), key);
     }
   }
 
@@ -147,30 +232,53 @@ class Filter::FilterImpl {
    * @brief Puts the key into the set.
    */
   void Put(K key) {
-    uint64_t global_block_idx = block_hash(key, this->seed) % this->num_filters;
-    uint64_t page = global_block_idx / kPageSize;
-    uint64_t page_block_idx = global_block_idx % kPageSize;
+    uint64_t global_filter_idx =
+        block_hash(key, this->seed) % this->num_filters;
+    uint32_t page_idx = calc_page_idx(global_filter_idx);
+    uint64_t page_offset = calc_page_offset(global_filter_idx);
 
-    this->file.seekg(global_block_idx * kCacheLineBytes);
-    uint64_t block_data;
+    // Read the page out of buffer
+    PageId page_id = PageId{.filename = this->filename, .page = page_idx};
+    std::optional<BufferedPage> page = this->buf.GetPage(page_id);
+    std::array<BloomFilter, kFiltersPerPage> filters{};
+    if (page.has_value()) {
+      Buffer byte_buf = page.value().contents;
+      filters = this->from_buf(byte_buf);
+    } else {
+      // Or fetch it ourselves
+      char buf[kPageSize];
+      this->file.seekg(page_idx * kPageSize);
+      assert(this->file.is_open());
+      assert(this->file.good());
+      this->file.read(buf, kPageSize);
+      assert(this->file.good());
 
-    assert(this->file.good());
-    this->file.read(reinterpret_cast<char*>(block_data), kCacheLineBytes);
-    assert(this->file.good());
-
-    BloomFilter block(block_data);
-
-    for (const auto& fn : this->bit_hashes) {
-      block.set(fn(key) % kFilterBits);
+      Buffer byte_buf = FromRaw(buf);
+      filters = this->from_buf(byte_buf);
     }
 
-    this->file.seekp(global_block_idx * kCacheLineBytes);
-    this->file.write(reinterpret_cast<char*>(block.to_ullong()),
-                     sizeof(unsigned long long));
+    BloomFilter& filter = filters.at(page_offset);
+
+    for (const auto& fn : this->bit_hashes) {
+      filter.set(fn(key) % kFilterBits);
+    }
+
+    Buffer byte_buf = this->to_buf(filters);
+
+    // Write the file data back
+    assert(this->file.good());
+    this->file.seekp(page_idx * kPageSize);
+    char output[kPageSize];
+    ToRaw(byte_buf, output);
+    this->file.write(output, kPageSize);
+    assert(this->file.good());
+
+    // Put the buffer back in the cache
+    this->buf.PutPage(page_id, PageType::kFilters, byte_buf);
   }
 };
 
-Filter::Filter(std::string dbname, uint32_t level, uint32_t max_elems,
+Filter::Filter(const DbNaming& dbname, uint32_t level, uint32_t max_elems,
                BufPool& buf, uint64_t starting_seed)
     : impl_(std::make_unique<FilterImpl>(dbname, level, max_elems, buf,
                                          starting_seed)) {}

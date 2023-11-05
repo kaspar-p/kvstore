@@ -2,10 +2,6 @@
 
 #include <gtest/gtest.h>
 
-TEST(AddBitToPrefix, Works) {
-  ASSERT_EQ(add_bit_to_prefix(0, 1, 1), 0x40000000);
-}
-
 TEST(PrefixBit, WorksAlternating) {
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 0), 0);
   ASSERT_EQ(prefix_bit(0x0f0f0f0f, 1), 0);

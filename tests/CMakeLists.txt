@@ -27,8 +27,11 @@ add_executable(kvstore_test
   src/evict.test.cpp
   src/filter.test.cpp
   src/dbg.test.cpp
+  src/fileutil.test.cpp
 )
 
+target_link_libraries(kvstore_test PRIVATE kvstore_naming)
+target_link_libraries(kvstore_test PRIVATE kvstore_file)
 target_link_libraries(kvstore_test PRIVATE kvstore_filter)
 target_link_libraries(kvstore_test PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)

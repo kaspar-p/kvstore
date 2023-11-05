@@ -34,6 +34,25 @@ TEST(BufPool, GetNonExistantPage) {
   ASSERT_EQ(page, std::nullopt);
 }
 
+TEST(BufPool, ReplaceDuplicates) {
+  BufPool buf(
+      BufPoolTuning{
+          .initial_elements = 4,
+          .max_elements = 4,
+      },
+      std::make_unique<ClockEvictor>(), &Hash);
+
+  PageId id = {.filename = std::string("unique_file"), .page = 2};
+  for (int i = 0; i < 10; i++) {
+    buf.PutPage(id, PageType::kFilters, Buffer{std::byte{(uint8_t)i}});
+  }
+
+  std::optional<BufferedPage> page = buf.GetPage(id);
+  ASSERT_TRUE(page.has_value());
+  ASSERT_EQ(page.value().type, PageType::kFilters);
+  ASSERT_EQ(page.value().contents, Buffer{std::byte{9}});
+}
+
 TEST(BufPool, GetRealPage) {
   BufPool buf(
       BufPoolTuning{
@@ -43,13 +62,13 @@ TEST(BufPool, GetRealPage) {
       std::make_unique<ClockEvictor>(), &test_hash);
 
   PageId id = {.filename = std::string("file"), .page = 3};
-  buf.PutPage(id, kBTreeInternal, Buffer{});
+  buf.PutPage(id, PageType::kBTreeInternal, Buffer{});
   std::optional<BufferedPage> page = buf.GetPage(id);
 
   ASSERT_TRUE(page.has_value());
   ASSERT_EQ(page.value().id.filename, std::string("file"));
   ASSERT_EQ(page.value().id.page, 3);
-  ASSERT_EQ(page.value().type, kBTreeInternal);
+  ASSERT_EQ(page.value().type, PageType::kBTreeInternal);
   ASSERT_EQ(page.value().contents, Buffer{});
 }
 
@@ -76,7 +95,7 @@ TEST(BufPool, Evolution) {
                                            "bits: 2\n"
                                            "capacity: 4\n"
                                            "[]:\n"
-                                           "..[0]: (0,0,0111) -> ()\n"
+                                           "..[0]: (file,0111) -> ()\n"
                                            "..[1]: ()\n"));
 
   id = make_test_id(0b1010, 4);
@@ -86,8 +105,8 @@ TEST(BufPool, Evolution) {
                                            "bits: 2\n"
                                            "capacity: 4\n"
                                            "[]:\n"
-                                           "..[0]: (0,0,0111) -> ()\n"
-                                           "..[1]: (0,0,1010) -> ()\n"));
+                                           "..[0]: (file,0111) -> ()\n"
+                                           "..[1]: (file,1010) -> ()\n"));
 
   id = make_test_id(0b1101, 4);
   buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)2}});
@@ -98,10 +117,10 @@ TEST(BufPool, Evolution) {
                                            "[]:\n"
                                            "..[0]:\n"
                                            "....[00]: ()\n"
-                                           "....[01]: (0,0,0111) -> ()\n"
+                                           "....[01]: (file,0111) -> ()\n"
                                            "..[1]:\n"
-                                           "....[10]: (0,0,1010) -> ()\n"
-                                           "....[11]: (0,0,1101) -> ()\n"));
+                                           "....[10]: (file,1010) -> ()\n"
+                                           "....[11]: (file,1101) -> ()\n"));
 
   id = make_test_id(0b1001, 4);
   buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)3}});
@@ -113,10 +132,10 @@ TEST(BufPool, Evolution) {
       "[]:\n"
       "..[0]:\n"
       "....[00]: ()\n"
-      "....[01]: (0,0,0111) -> ()\n"
+      "....[01]: (file,0111) -> ()\n"
       "..[1]:\n"
-      "....[10]: (0,0,1001) -> (0,0,1010) -> ()\n"
-      "....[11]: (0,0,1101) -> ()\n");
+      "....[10]: (file,1001) -> (file,1010) -> ()\n"
+      "....[11]: (file,1101) -> ()\n");
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b0010, 4);
@@ -128,11 +147,11 @@ TEST(BufPool, Evolution) {
       "capacity: 8\n"
       "[]:\n"
       "..[0]:\n"
-      "....[00]: (0,0,0010) -> ()\n"
-      "....[01]: (0,0,0111) -> ()\n"
+      "....[00]: (file,0010) -> ()\n"
+      "....[01]: (file,0111) -> ()\n"
       "..[1]:\n"
-      "....[10]: (0,0,1001) -> (0,0,1010) -> ()\n"
-      "....[11]: (0,0,1101) -> ()\n");
+      "....[10]: (file,1001) -> (file,1010) -> ()\n"
+      "....[11]: (file,1101) -> ()\n");
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b0110, 4);
@@ -144,11 +163,11 @@ TEST(BufPool, Evolution) {
       "capacity: 16\n"
       "[]:\n"
       "..[0]:\n"
-      "....[00]: (0,0,0010) -> ()\n"
-      "....[01]: (0,0,0110) -> (0,0,0111) -> ()\n"
+      "....[00]: (file,0010) -> ()\n"
+      "....[01]: (file,0110) -> (file,0111) -> ()\n"
       "..[1]:\n"
-      "....[10]: (0,0,1001) -> (0,0,1010) -> ()\n"
-      "....[11]: (0,0,1101) -> ()\n");
+      "....[10]: (file,1001) -> (file,1010) -> ()\n"
+      "....[11]: (file,1101) -> ()\n");
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b1011, 4);
@@ -160,11 +179,11 @@ TEST(BufPool, Evolution) {
       "capacity: 16\n"
       "[]:\n"
       "..[0]:\n"
-      "....[00]: (0,0,0010) -> ()\n"
-      "....[01]: (0,0,0110) -> (0,0,0111) -> ()\n"
+      "....[00]: (file,0010) -> ()\n"
+      "....[01]: (file,0110) -> (file,0111) -> ()\n"
       "..[1]:\n"
-      "....[10]: (0,0,1011) -> (0,0,1001) -> (0,0,1010) -> ()\n"
-      "....[11]: (0,0,1101) -> ()\n");
+      "....[10]: (file,1011) -> (file,1001) -> (file,1010) -> ()\n"
+      "....[11]: (file,1101) -> ()\n");
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   for (int i = 0; i < 9; i++) {
@@ -174,18 +193,18 @@ TEST(BufPool, Evolution) {
 
   exp = std::string(
       "max: 16\n"
-      "elements: 16\n"
+      "elements: 11\n"
       "bits: 4\n"
       "capacity: 16\n"
       "[]:\n"
       "..[0]:\n"
-      "....[00]: (0,0,0010) -> ()\n"
-      "....[01]: (0,0,0111) -> (0,0,0110) -> (0,0,0111) -> ()\n"
+      "....[00]: (file,0010) -> ()\n"
+      "....[01]: (file,0111) -> (file,0110) -> ()\n"
       "..[1]:\n"
-      "....[10]: (0,0,1011) -> (0,0,1010) -> (0,0,1001) -> (0,0,1000) -> "
-      "(0,0,1011) -> (0,0,1001) -> (0,0,1010) -> ()\n"
-      "....[11]: (0,0,1111) -> (0,0,1110) -> (0,0,1101) -> (0,0,1100) -> "
-      "(0,0,1101) -> ()\n");
+      "....[10]: (file,1011) -> (file,1010) -> (file,1001) -> (file,1000) -> "
+      "()\n"
+      "....[11]: (file,1111) -> (file,1110) -> (file,1101) -> (file,1100) -> "
+      "()\n");
   ASSERT_EQ(buf.DebugPrint(4), exp);
 }
 
@@ -246,7 +265,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
                         "elements: 2\n"
                         "bits: 1\n"
                         "capacity: 2\n"
-                        "[]: (0,0,1010) -> (0,0,0010) -> ()\n"));
+                        "[]: (file,1010) -> (file,0010) -> ()\n"));
 
   ASSERT_EQ(buf.GetPage(id0).has_value(), true);
   ASSERT_EQ(buf.GetPage(id1).has_value(), true);
@@ -260,7 +279,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
                         "elements: 2\n"
                         "bits: 1\n"
                         "capacity: 2\n"
-                        "[]: (0,0,0100) -> (0,0,1010) -> ()\n"));
+                        "[]: (file,0100) -> (file,1010) -> ()\n"));
 
   PageId id3 = make_test_id(0b110, 3);
   buf.PutPage(id3, kBTreeInternal, {std::byte{0x03}});
@@ -270,7 +289,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
                         "elements: 2\n"
                         "bits: 1\n"
                         "capacity: 2\n"
-                        "[]: (0,0,1100) -> (0,0,0100) -> ()\n"));
+                        "[]: (file,1100) -> (file,0100) -> ()\n"));
 
   ASSERT_EQ(buf.GetPage(id0).has_value(), false);
   ASSERT_EQ(buf.GetPage(id1).has_value(), false);

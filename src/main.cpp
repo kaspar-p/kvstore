@@ -1,4 +1,6 @@
+#include <cassert>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 
 #include "dbg.hpp"
@@ -8,19 +10,26 @@
 #include "xxhash.h"
 
 int main() {
-  std::cout << "STARTING" << '\n';
-  uint64_t k1 = 128;
-  uint64_t h1 = XXH64(&k1, sizeof(k1), 100);
-  std::cout << "h1: " << h1 << ' ' << bit_string(h1, 64) << '\n';
+  BufPool buf(
+      BufPoolTuning{
+          .initial_elements = 4,
+          .max_elements = 4,
+      },
+      std::make_unique<ClockEvictor>(), &Hash);
 
-  uint64_t k2 = 129;
-  uint64_t h2 = XXH64(&k2, sizeof(k2), 100);
-  std::cout << "h2: " << h2 << ' ' << bit_string(h2, 64) << '\n';
+  PageId id = {.filename = std::string("unique_file"), .page = 2};
+  std::cout << Hash(id) << "\n";
 
-  BufPool buf(BufPoolTuning{.initial_elements = 16, .max_elements = 16},
-              std::make_unique<ClockEvictor>(), &Hash);
-  Filter f("name", 1, 64, buf, 100);
-  f.Put(100);
-  bool val = f.Has(100);
-  std::cout << val << "\n";
+  bool exists = std::filesystem::exists("/tmp/MAIN_UNIQUE");
+  if (!exists) {
+    bool created = std::filesystem::create_directory("/tmp/MAIN_UNIQUE");
+    assert(created);
+  }
+
+  auto naming = DbNaming{.dirpath = "/tmp/MAIN_UNIQUE", .name = "MAIN_UNIQUE"};
+  std::filesystem::remove(filter_file(naming, 1));
+
+  Filter f(naming, 1, 128, buf, 0);
+  f.Put(0);
+  assert(f.Has(0) == true);
 }

@@ -7,6 +7,7 @@
 
 #include "buf.hpp"
 #include "constants.hpp"
+#include "naming.hpp"
 
 class LSMLevel {
  private:
@@ -23,7 +24,7 @@ class LSMLevel {
    * @param memory_buffer_size The size of the memtable, or level 0. Each level
    * is 2x the size of the previous level.
    */
-  LSMLevel(std::string dbname, int level, bool is_final,
+  LSMLevel(const DbNaming& dbname, int level, bool is_final,
            std::size_t memory_buffer_size, BufPool& buf);
   ~LSMLevel();
 

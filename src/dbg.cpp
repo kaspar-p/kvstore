@@ -35,11 +35,3 @@ std::string bit_string(uint32_t num, uint32_t bits) {
   assert(bit == 0 || bit == 1);
   return bit;
 }
-
-[[nodiscard]] uint32_t add_bit_to_prefix(uint32_t hash, uint32_t prefix_length,
-                                         uint8_t new_bit) {
-  assert(new_bit == 0 || new_bit == 1);
-  uint32_t mask = UINT32_MAX << (32 - prefix_length);
-  uint32_t smaller = ((hash & mask) >> (32 - prefix_length - 1)) + new_bit;
-  return smaller << (32 - prefix_length - 1);
-}
