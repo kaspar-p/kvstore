@@ -30,10 +30,7 @@ Buffer FromRaw(char buf[kPageSize]) {
 }
 
 char* ToRaw(Buffer& in, char out[kPageSize]) {
-  for (int i = 0; i < kPageSize; i++) {
-    out[i] = (uint8_t)in[i];
-  }
-  return out;
+  return reinterpret_cast<char*>(in.data());
 }
 
 [[nodiscard]] std::string PageId::str() const { return this->str(32); }
