@@ -212,6 +212,7 @@ class Filter::FilterImpl {
       return this->bloom_has(filters.at(page_offset), key);
     } else {
       // Or read it ourselves.
+      // std::cout << "HAS: getting page ourselves\n";
       this->file.seekg(page_idx * kPageSize);
       char buf[kPageSize];
       assert(this->file.good());
@@ -246,6 +247,8 @@ class Filter::FilterImpl {
       filters = this->from_buf(byte_buf);
     } else {
       // Or fetch it ourselves
+      // std::cout << "PUT: getting page ourselves"
+      // << "\n";
       char buf[kPageSize];
       this->file.seekg(page_idx * kPageSize);
       assert(this->file.is_open());
