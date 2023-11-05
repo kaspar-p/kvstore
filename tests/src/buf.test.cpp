@@ -10,16 +10,14 @@ uint32_t test_hash(const PageId& elem) { return elem.page; }
 
 PageId make_test_id(uint32_t prefix, uint32_t prefix_length) {
   return PageId{
-      .level = 0,
-      .run = 0,
+      .filename = std::string("file"),
       .page = prefix << (32 - prefix_length),
   };
 }
 
 PageId make_test_id(uint32_t num) {
   return PageId{
-      .level = 0,
-      .run = 0,
+      .filename = std::string("file"),
       .page = num,
   };
 }
@@ -31,7 +29,7 @@ TEST(BufPool, GetNonExistantPage) {
           .max_elements = 1,
       },
       std::make_unique<ClockEvictor>(), &test_hash);
-  PageId id = {.level = 0, .run = 1, .page = 2};
+  PageId id = {.filename = std::string("file"), .page = 2};
   std::optional<BufferedPage> page = buf.GetPage(id);
   ASSERT_EQ(page, std::nullopt);
 }
@@ -44,13 +42,12 @@ TEST(BufPool, GetRealPage) {
       },
       std::make_unique<ClockEvictor>(), &test_hash);
 
-  PageId id = {.level = 1, .run = 2, .page = 3};
+  PageId id = {.filename = std::string("file"), .page = 3};
   buf.PutPage(id, kBTreeInternal, Buffer{});
   std::optional<BufferedPage> page = buf.GetPage(id);
 
   ASSERT_TRUE(page.has_value());
-  ASSERT_EQ(page.value().id.level, 1);
-  ASSERT_EQ(page.value().id.run, 2);
+  ASSERT_EQ(page.value().id.filename, std::string("file"));
   ASSERT_EQ(page.value().id.page, 3);
   ASSERT_EQ(page.value().type, kBTreeInternal);
   ASSERT_EQ(page.value().contents, Buffer{});

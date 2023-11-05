@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "constants.hpp"
+#include "lsm.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
 
@@ -41,19 +42,15 @@ std::vector<std::string> split_string(std::string s, std::string&& delimiter) {
 }
 
 struct KvStore::KvStoreImpl {
-  // Necessary
-  std::unique_ptr<MemTable> memtable;
+  MemTable memtable;
   bool open;
-  std::vector<std::unique_ptr<std::fstream>> levels;
+  std::vector<LSMLevel> levels;
 
   // Might not be necessary
   uint64_t blocks;
   std::filesystem::path dir;
 
-  KvStoreImpl() {
-    int max_elems = kPageSize / (kKeySize + kValSize);
-    int other_elems = 4;  // [ magic number, num elements, min key, max key ]
-    this->memtable = std::make_unique<MemTable>(max_elems - other_elems);
+  KvStoreImpl() : memtable((kPageSize / (kKeySize + kValSize)) - 4) {
     this->open = false;
     this->blocks = 0;
   };
@@ -65,14 +62,14 @@ struct KvStore::KvStoreImpl {
                                                         std::fstream::out |
                                                         std::fstream::trunc);
 
-    SstableNaive::Flush(file, *this->memtable);
+    SstableNaive::Flush(file, this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
       exit(1);
     }
 
     this->blocks++;
-    this->memtable->Clear();
+    this->memtable.Clear();
   };
 
   [[nodiscard]] std::string datafile(const unsigned int block_num) const {
@@ -113,55 +110,30 @@ struct KvStore::KvStoreImpl {
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower,
                                                   const K upper) const {
-    std::vector<std::pair<K, V>> memtable_l =
-        this->memtable->Scan(lower, upper);
+    // Scan through the memtable
+    std::vector<std::pair<K, V>> memtable_range =
+        this->memtable.Scan(lower, upper);
 
-    return memtable_l;
-  }
-
-  [[nodiscard]] std::optional<V> level_get(const std::size_t level,
-                                           const K /*key*/) const {
-    assert(level < this->levels.size());
-    this->levels.at(level)->open("test.txt");
-    // levelf.open("test.txt", std::fstream::in | std::fstream::out);
-
-    return std::nullopt;
-  }
-
-  [[nodiscard]] std::optional<V> sst_get(const K key) const {
-    for (int i = 0; i < this->blocks; i++) {
-      // std::cout << "processing block file: " << i << std::endl;
-
-      std::ifstream file{this->datafile(i)};
-      std::stringstream buf;
-      buf << file.rdbuf();
-      std::vector<std::string> pair_strs =
-          split_string(buf.str(), std::string("."));
-      for (std::string pair_str : pair_strs) {
-        // std::cout << "processing pair str: " + pair_str << std::endl;
-
-        pair_str.erase(0, 1);                 // Remove first elem '('
-        pair_str.erase(pair_str.size() - 1);  // Remove last elem ')'
-        std::vector<std::string> pair =
-            split_string(pair_str, std::string(","));
-        assert(pair.size() == 2);
-        if (std::stoull(pair[0]) == key) {
-          return std::make_optional(std::stoull(pair[1]));
-        };
-      }
+    // And each level
+    for (const auto& level : this->levels) {
+      std::vector<std::pair<K, V>> level_range = level.Scan(lower, upper);
+      memtable_range.insert(memtable_range.end(), level_range.begin(),
+                            level_range.end());
     }
 
-    return std::nullopt;
+    return memtable_range;
   }
 
   [[nodiscard]] std::optional<V> Get(const K key) const {
-    V* mem_val = this->memtable->Get(key);
+    // First search the memtable
+    V* mem_val = this->memtable.Get(key);
     if (mem_val != nullptr) {
       return std::make_optional(*mem_val);
     }
 
-    for (int level = 0; level < this->levels.size(); level++) {
-      std::optional<V> val = this->level_get(level, key);
+    // Then search through each level, starting at the smallest
+    for (const auto& level : this->levels) {
+      std::optional<V> val = level.Get(key);
       if (val.has_value()) {
         return val.value();
       }
@@ -176,11 +148,11 @@ struct KvStore::KvStoreImpl {
     }
 
     try {
-      this->memtable->Put(key, value);
+      this->memtable.Put(key, value);
     } catch (MemTableFullException& e) {
       this->flush_memtable();
-      this->memtable->Clear();
-      this->memtable->Put(key, value);
+      this->memtable.Clear();
+      this->memtable.Put(key, value);
     }
   }
 

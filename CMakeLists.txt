@@ -60,6 +60,17 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
 target_compile_features(kvstore_evict PUBLIC cxx_std_17)
+target_link_libraries(kvstore_evict PRIVATE xxHash::xxhash)
+
+# lsm.cpp
+add_library(kvstore_lsm OBJECT src/lsm.cpp)
+target_include_directories(
+  kvstore_lsm ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_lsm PUBLIC cxx_std_17)
+target_link_libraries(kvstore_lsm PRIVATE xxHash::xxhash)
 
 # buf.cpp
 add_library(kvstore_buf OBJECT src/buf.cpp)
@@ -89,6 +100,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
 target_compile_features(kvstore_kvstore PUBLIC cxx_std_17)
+target_link_libraries(kvstore_kvstore PRIVATE xxHash::xxhash)
 
 # benchmarks.cpp
 add_library(kvstore_benchmarks OBJECT src/benchmarks.cpp)
@@ -124,6 +136,7 @@ target_link_libraries(kvstore_exe PRIVATE kvstore_evict)
 target_link_libraries(kvstore_exe PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_exe PRIVATE kvstore_memtable)
 target_link_libraries(kvstore_exe PRIVATE kvstore_filter)
+target_link_libraries(kvstore_exe PRIVATE kvstore_lsm)
 
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_sstable)
@@ -132,6 +145,7 @@ target_link_libraries(benchmarks_exe PRIVATE kvstore_evict)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_dbg)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_memtable)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_filter)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_lsm)
 
 # ---- Install rules ----
 if(NOT CMAKE_SKIP_INSTALL_RULES)

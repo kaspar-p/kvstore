@@ -14,12 +14,16 @@
 
 #include "dbg.hpp"
 #include "evict.hpp"
+#include "xxhash.h"
+
+uint32_t Hash(const PageId& page_id) {
+  return XXH32(&page_id.page, sizeof(uint32_t), 99);
+};
 
 [[nodiscard]] std::string PageId::str() const { return this->str(32); }
 [[nodiscard]] std::string PageId::str(uint32_t len) const {
   std::ostringstream s;
-  s << "(" << this->level << "," << this->run << ","
-    << bit_string(this->page, len) << ")";
+  s << "(" << this->filename << "," << bit_string(this->page, len) << ")";
   return s.str();
 }
 

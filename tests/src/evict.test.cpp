@@ -1,25 +1,17 @@
-#include <cstdint>
-#include <optional>
-
 #include "evict.hpp"
 
 #include <gtest/gtest.h>
 
-
-
-
-
-
+#include <cstdint>
+#include <optional>
 
 #include "buf.hpp"
 
-PageId make_test_page(uint32_t d)
-{
-  return PageId {.level = 0, .run = 0, .page = d};
+PageId make_test_page(uint32_t d) {
+  return PageId{.filename = std::string("file"), .page = d};
 }
 
-TEST(ClockEviction, NonDirtyMembersEvicted)
-{
+TEST(ClockEviction, NonDirtyMembersEvicted) {
   ClockEvictor evictor;
   evictor.Resize(1);
 
@@ -30,8 +22,7 @@ TEST(ClockEviction, NonDirtyMembersEvicted)
   ASSERT_EQ(evictor.Insert(page2).value(), page1);
 }
 
-TEST(ClockEviction, DirtyMembersAllKept)
-{
+TEST(ClockEviction, DirtyMembersAllKept) {
   ClockEvictor evictor;
   evictor.Resize(3);
 
@@ -53,8 +44,7 @@ TEST(ClockEviction, DirtyMembersAllKept)
   ASSERT_EQ(evictor.Insert(page6).value(), page3);
 }
 
-TEST(ClockEviction, SomeDirtyMembersKeptOne)
-{
+TEST(ClockEviction, SomeDirtyMembersKeptOne) {
   ClockEvictor evictor;
   evictor.Resize(3);
 
@@ -71,8 +61,7 @@ TEST(ClockEviction, SomeDirtyMembersKeptOne)
   ASSERT_EQ(evictor.Insert(page3).value(), page1);
 }
 
-TEST(ClockEviction, PutGetPattern)
-{
+TEST(ClockEviction, PutGetPattern) {
   ClockEvictor evictor;
   evictor.Resize(2);
 
@@ -90,8 +79,7 @@ TEST(ClockEviction, PutGetPattern)
   ASSERT_EQ(evictor.Insert(page3).value(), page1);
 }
 
-TEST(ClockEviction, SomeDirtyMembersKeptTwo)
-{
+TEST(ClockEviction, SomeDirtyMembersKeptTwo) {
   ClockEvictor evictor;
   evictor.Resize(2);
 
@@ -107,8 +95,7 @@ TEST(ClockEviction, SomeDirtyMembersKeptTwo)
   ASSERT_EQ(evictor.Insert(page3).value(), page1);
 }
 
-TEST(ClockEviction, MarkUnknownUsed)
-{
+TEST(ClockEviction, MarkUnknownUsed) {
   ClockEvictor evictor;
   evictor.Resize(3);
 

@@ -9,6 +9,7 @@
 
 #include "constants.hpp"
 #include "evict.hpp"
+#include "xxhash.h"
 
 using pageno = uint64_t;
 
@@ -16,21 +17,20 @@ enum PageType {
   kBTreeLeaf = 0,
   kBTreeInternal = 1,
   kMetadata = 2,
+  kFilters = 3
 };
 
 using Buffer = std::array<std::byte, kPageSize>;
 
 struct PageId {
-  uint32_t level;
-  uint32_t run;
+  std::string filename;
   uint32_t page;
 
   [[nodiscard]] std::string str() const;
   [[nodiscard]] std::string str(uint32_t len) const;
 
   bool operator==(const PageId& other) const {
-    return this->level == other.level && this->run == other.run &&
-           this->page == other.page;
+    return this->filename == other.filename && this->page == other.page;
   }
 
   bool operator!=(const PageId& other) const { return !(*this == other); }
@@ -47,6 +47,8 @@ struct BufPoolTuning {
   uint32_t initial_elements;
   uint32_t max_elements;
 };
+
+uint32_t Hash(const PageId& page_id);
 
 class BufPool {
  private:

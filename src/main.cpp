@@ -17,7 +17,9 @@ int main() {
   uint64_t h2 = XXH64(&k2, sizeof(k2), 100);
   std::cout << "h2: " << h2 << ' ' << bit_string(h2, 64) << '\n';
 
-  Filter f(64);
+  BufPool buf(BufPoolTuning{.initial_elements = 16, .max_elements = 16},
+              std::make_unique<ClockEvictor>(), &Hash);
+  Filter f("name", 1, 64, buf, 100);
   f.Put(100);
   bool val = f.Has(100);
   std::cout << val << "\n";
