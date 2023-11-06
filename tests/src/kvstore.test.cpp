@@ -14,12 +14,13 @@
 #include "memtable.hpp"
 
 TEST(KvStore, ScanIncludesEnds) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Put(2, 20);
-  table->Put(3, 30);
+  KvStore table;
+  table.Open("/tmp/KvStore.ScanIncludesEnds", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Put(2, 20);
+  table.Put(3, 30);
 
-  std::vector<std::pair<K, V>> v = table->Scan(1, 3);
+  std::vector<std::pair<K, V>> v = table.Scan(1, 3);
 
   ASSERT_EQ(v.size(), 3);
 
@@ -34,12 +35,13 @@ TEST(KvStore, ScanIncludesEnds) {
 }
 
 TEST(KvStore, ScanStopsBeforeEnd) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Put(2, 20);
-  table->Put(3, 30);
+  KvStore table;
+  table.Open("/tmp/KvStore.ScanStopsBeforeEnd", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Put(2, 20);
+  table.Put(3, 30);
 
-  std::vector<std::pair<K, V>> v = table->Scan(1, 2);
+  std::vector<std::pair<K, V>> v = table.Scan(1, 2);
   ASSERT_EQ(v.size(), 2);
   ASSERT_EQ(v[0].first, 1);
   ASSERT_EQ(v[0].second, 10);
@@ -48,12 +50,13 @@ TEST(KvStore, ScanStopsBeforeEnd) {
 }
 
 TEST(KvStore, ScanStopsBeforeStart) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Put(2, 20);
-  table->Put(3, 30);
+  KvStore table;
+  table.Open("/tmp/KvStore.ScanStopsBeforeStart", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Put(2, 20);
+  table.Put(3, 30);
 
-  std::vector<std::pair<K, V>> v = table->Scan(2, 3);
+  std::vector<std::pair<K, V>> v = table.Scan(2, 3);
   ASSERT_EQ(v.size(), 2);
   ASSERT_EQ(v[0].first, 2);
   ASSERT_EQ(v[0].second, 20);
@@ -62,12 +65,13 @@ TEST(KvStore, ScanStopsBeforeStart) {
 }
 
 TEST(KvStore, ScanGoesBeyondKeySizes) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(10, 10);
-  table->Put(20, 20);
-  table->Put(30, 30);
+  KvStore table;
+  table.Open("/tmp/KvStore.ScanGoesBeyondKeySizes", Options{.overwrite = true});
+  table.Put(10, 10);
+  table.Put(20, 20);
+  table.Put(30, 30);
 
-  std::vector<std::pair<K, V>> v = table->Scan(0, 100);
+  std::vector<std::pair<K, V>> v = table.Scan(0, 100);
   ASSERT_EQ(v.size(), 3);
 
   ASSERT_EQ(v[0].first, 10);
@@ -81,66 +85,71 @@ TEST(KvStore, ScanGoesBeyondKeySizes) {
 }
 
 TEST(KvStore, InsertAndDeleteOne) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Delete(1);
-  const std::optional<V> v = table->Get(1);
+  KvStore table;
+  table.Open("/tmp/KvStore.InsertAndDeleteOne", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Delete(1);
+  const std::optional<V> v = table.Get(1);
 
   ASSERT_EQ(v, std::nullopt);
 }
 
 TEST(KvStore, InsertAndDeleteAFew) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Put(2, 20);
-  table->Put(3, 30);
-  table->Delete(1);
+  KvStore table;
+  table.Open("/tmp/KvStore.InsertAndDeleteAFew", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Put(2, 20);
+  table.Put(3, 30);
+  table.Delete(1);
 
-  const std::optional<V> val = table->Get(2);
+  const std::optional<V> val = table.Get(2);
   ASSERT_NE(val, std::nullopt);
   ASSERT_EQ(val.value(), 20);
 
-  const std::optional<V> val2 = table->Get(1);
+  const std::optional<V> val2 = table.Get(1);
   ASSERT_EQ(val2, std::nullopt);
 }
 
 TEST(KvStore, InsertAndGetOne) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  const std::optional<V> val = table->Get(1);
+  KvStore table;
+  table.Open("/tmp/KvStore.InsertAndGetOne", Options{.overwrite = true});
+  table.Put(1, 10);
+  const std::optional<V> val = table.Get(1);
   ASSERT_NE(val, std::nullopt);
   ASSERT_EQ(val.value(), 10);
 }
 
 TEST(KvStore, InsertOneAndReplaceIt) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 100);
-  table->Put(1, 200);
-  const std::optional<V> val = table->Get(1);
+  KvStore table;
+  table.Open("/tmp/KvStore.InsertOneAndReplaceIt", Options{.overwrite = true});
+  table.Put(1, 100);
+  table.Put(1, 200);
+  const std::optional<V> val = table.Get(1);
   ASSERT_NE(val, std::nullopt);
   ASSERT_EQ(val.value(), 200);
 }
 
 TEST(KvStore, InsertManyAndGetMany) {
-  auto table = std::make_unique<KvStore>();
-  table->Put(1, 10);
-  table->Put(2, 20);
-  table->Put(3, 30);
-  table->Put(4, 40);
+  KvStore table;
+  table.Open("/tmp/KvStore.InsertManyAndGetMany", Options{.overwrite = true});
+  table.Put(1, 10);
+  table.Put(2, 20);
+  table.Put(3, 30);
+  table.Put(4, 40);
 
-  const std::optional<V> val1 = table->Get(1);
+  const std::optional<V> val1 = table.Get(1);
   ASSERT_NE(val1, std::nullopt);
   ASSERT_EQ(val1.value(), 10);
 
-  const std::optional<V> val2 = table->Get(2);
+  const std::optional<V> val2 = table.Get(2);
   ASSERT_NE(val2, std::nullopt);
   ASSERT_EQ(val2.value(), 20);
 
-  const std::optional<V> val3 = table->Get(3);
+  const std::optional<V> val3 = table.Get(3);
   ASSERT_NE(val3, std::nullopt);
   ASSERT_EQ(val3.value(), 30);
 
-  const std::optional<V> val4 = table->Get(4);
+  const std::optional<V> val4 = table.Get(4);
   ASSERT_NE(val4, std::nullopt);
   ASSERT_EQ(val4.value(), 40);
 }

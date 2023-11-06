@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "constants.hpp"
+#include "dbg.hpp"
 #include "lsm.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
@@ -27,19 +28,6 @@ const char* DatabaseClosedException::what() const noexcept {
 const char* FailedToOpenException::what() const noexcept {
   return "Failed to open database directory!";
 };
-
-std::vector<std::string> split_string(std::string s, std::string&& delimiter) {
-  size_t pos = 0;
-  std::vector<std::string> tokens;
-  while (pos < s.size()) {
-    pos = s.find(delimiter);
-    tokens.push_back(s.substr(0, pos));
-    s.erase(0, pos + delimiter.length());
-  }
-  tokens.push_back(s);
-
-  return tokens;
-}
 
 struct KvStore::KvStoreImpl {
   MemTable memtable;
