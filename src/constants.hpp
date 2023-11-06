@@ -11,5 +11,6 @@ constexpr static std::size_t kValSize = sizeof(V);
 
 enum
 {
-  kPageSize = 4096
+  kPageSize = 4096,
+  BLOCK_NULL = -1, // TODO: need to change?
 };
