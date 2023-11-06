@@ -10,8 +10,7 @@
 #include "naming.hpp"
 
 BufPool test_buffer() {
-  return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16},
-                 std::make_unique<ClockEvictor>(), &Hash);
+  return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
 }
 
 DbNaming create_dir(std::string name) {

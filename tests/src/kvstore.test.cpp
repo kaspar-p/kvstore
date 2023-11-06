@@ -107,6 +107,7 @@ TEST(KvStore, InsertAndDeleteAFew) {
   ASSERT_EQ(val.value(), 20);
 
   const std::optional<V> val2 = table.Get(1);
+
   ASSERT_EQ(val2, std::nullopt);
 }
 

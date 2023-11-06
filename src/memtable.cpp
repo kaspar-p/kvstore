@@ -153,11 +153,11 @@ const char* MemTableFullException::what() const noexcept {
 
 class MemTable::MemTableImpl {
  private:
-  uint64_t capacity_;
+  uint64_t capacity;
   uint64_t size_;
   std::optional<K> least_key_;
   std::optional<K> most_key_;
-  RbNode* root_;
+  RbNode* root;
 
   /**
    * @brief Return a vector of pairs, sorted. All pairs (k, v) in
@@ -320,7 +320,7 @@ class MemTable::MemTableImpl {
         x->parent()->set_color(kBlack);
         w->right()->set_color(kBlack);
         this->rb_left_rotate(x->parent());
-        x = this->root_;
+        x = this->root;
       } else {
         RbNode* w = x->parent()->left();
         if (w->color() == kRed) {
@@ -344,7 +344,7 @@ class MemTable::MemTableImpl {
         x->parent()->set_color(kBlack);
         w->left()->set_color(kBlack);
         this->rb_right_rotate(x->parent());
-        x = this->root_;
+        x = this->root;
       }
     }
 
@@ -353,7 +353,7 @@ class MemTable::MemTableImpl {
 
   void rb_transplant(RbNode* u, RbNode* v) {
     if (u->parent()->is_none()) {
-      this->root_ = v;
+      this->root = v;
     } else if (u == u->parent()->left()) {
       u->parent()->set_left(v);
     } else {
@@ -384,7 +384,7 @@ class MemTable::MemTableImpl {
     }
     y->set_parent(x->parent());
     if (x->parent()->is_none()) {
-      this->root_ = y;
+      this->root = y;
     } else if (*x == *x->parent()->left()) {
       x->parent()->set_left(y);
     } else {
@@ -414,7 +414,7 @@ class MemTable::MemTableImpl {
     }
     y->set_parent(x->parent());
     if (x->parent()->is_none()) {
-      this->root_ = y;
+      this->root = y;
     } else if (*x == *x->parent()->right()) {
       x->parent()->set_right(y);
     } else {
@@ -433,7 +433,7 @@ class MemTable::MemTableImpl {
    */
   void rb_insert(RbNode* z) {
     RbNode* y = nil_sentinel();
-    RbNode* x = this->root_;
+    RbNode* x = this->root;
     while (x->is_some()) {
       y = x;
       if (*z < *x) {
@@ -445,7 +445,7 @@ class MemTable::MemTableImpl {
 
     z->set_parent(y);
     if (y->is_none()) {
-      this->root_ = z;
+      this->root = z;
     } else if (*z < *y) {
       y->set_left(z);
     } else {
@@ -502,23 +502,23 @@ class MemTable::MemTableImpl {
       }
     }
 
-    this->root_->set_color(kBlack);
+    this->root->set_color(kBlack);
   }
 
  public:
   explicit MemTableImpl(uint64_t capacity) {
-    this->capacity_ = capacity;
+    this->capacity = capacity;
     this->size_ = 0;
-    this->root_ = nil_sentinel();
+    this->root = nil_sentinel();
   }
 
   MemTableImpl(const MemTableImpl& t) = default;
   MemTableImpl& operator=(const MemTableImpl& t) = default;
 
-  [[nodiscard]] std::string Print() const { return this->root_->print(); }
+  [[nodiscard]] std::string Print() const { return this->root->print(); }
 
   [[nodiscard]] V* Get(const K key) const {
-    RbNode* node = rb_search(this->root_, key);
+    RbNode* node = rb_search(this->root, key);
     if (node->is_some()) {
       return node->value();
     }
@@ -526,12 +526,12 @@ class MemTable::MemTableImpl {
   }
 
   std::optional<V> Put(const K key, const V value) {
-    RbNode* preexisting_node = rb_search(this->root_, key);
+    RbNode* preexisting_node = rb_search(this->root, key);
     if (preexisting_node->is_some()) {
       return std::make_optional(preexisting_node->replace_value(value));
     }
 
-    if (this->size_ == this->capacity_) {
+    if (this->size_ == this->capacity) {
       throw MemTableFullException();
     }
 
@@ -552,7 +552,7 @@ class MemTable::MemTableImpl {
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower_bound,
                                                   const K upper_bound) const {
     std::vector<RbNode*> nodes =
-        this->rb_in_order(this->root_, lower_bound, upper_bound);
+        this->rb_in_order(this->root, lower_bound, upper_bound);
 
     std::vector<std::pair<K, V>> pairs;
     std::transform(nodes.begin(), nodes.end(), std::back_inserter(pairs),
@@ -569,7 +569,7 @@ class MemTable::MemTableImpl {
     }
 
     std::vector<RbNode*> nodes = this->rb_in_order(
-        this->root_, this->least_key_.value(), this->most_key_.value());
+        this->root, this->least_key_.value(), this->most_key_.value());
 
     std::transform(nodes.begin(), nodes.end(), std::back_inserter(pairs),
                    [](RbNode* elem) {
@@ -579,7 +579,7 @@ class MemTable::MemTableImpl {
   }
 
   V* Delete(const K key) {
-    RbNode* node = rb_search(this->root_, key);
+    RbNode* node = rb_search(this->root, key);
 
     this->rb_delete(node);
 
@@ -596,10 +596,10 @@ class MemTable::MemTableImpl {
 
   void Clear() {
     for (RbNode* node :
-         this->rb_in_order(this->root_, rb_minimum(this->root_)->key(),
-                           rb_maximum(this->root_)->key())) {
-      if (node == this->root_) {
-        this->root_ = nil_sentinel();
+         this->rb_in_order(this->root, rb_minimum(this->root)->key(),
+                           rb_maximum(this->root)->key())) {
+      if (node == this->root) {
+        this->root = nil_sentinel();
       }
       delete node;
     }

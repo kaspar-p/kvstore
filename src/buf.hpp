@@ -60,6 +60,8 @@ class BufPool {
  public:
   BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
           uint32_t (*hash)(const PageId&));
+  BufPool(BufPoolTuning tuning, uint32_t (*hash)(const PageId&));
+  BufPool(BufPoolTuning tuning);
   ~BufPool();
 
   [[nodiscard]] bool HasPage(PageId& page) const;

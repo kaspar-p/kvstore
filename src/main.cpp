@@ -10,28 +10,18 @@
 #include "xxhash.h"
 
 int main() {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 4096,
-          .max_elements = 4096,
-      },
-      std::make_unique<ClockEvictor>(), &Hash);
+  BufPool buf(BufPoolTuning{
+      .initial_elements = 4,
+      .max_elements = 4,
+  });
 
-  DbNaming name = {.dirpath = "/tmp/MAIN_UNIQUE", .name = "MAIN_UNIQUE"};
-  bool exists = std::filesystem::exists("/tmp/MAIN_UNIQUE");
-  if (!exists) {
-    bool created = std::filesystem::create_directory("/tmp/MAIN_UNIQUE");
-    assert(created);
+  PageId id = {.filename = std::string("unique_file"), .page = 2};
+  for (int i = 0; i < 10; i++) {
+    buf.PutPage(id, PageType::kFilters, Buffer{std::byte{(uint8_t)i}});
   }
 
-  std::filesystem::remove(filter_file(name, 1));
-
-  Filter f(name, 1, 128, buf, 0);
-  for (int i = 0; i < 4096; i++) {
-    f.Put(i);
-  }
-
-  std::cout << buf.DebugPrint() << '\n';
-
-  assert(f.Has(12345678) == true);
+  std::optional<BufferedPage> page = buf.GetPage(id);
+  assert(page.has_value());
+  assert(page.value().type == PageType::kFilters);
+  assert(page.value().contents == Buffer{std::byte{9}});
 }
