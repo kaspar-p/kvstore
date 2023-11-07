@@ -9,9 +9,8 @@
 #include "constants.hpp"
 #include "memtable.hpp"
 
-class Sstable
-{
-public:
+class Sstable {
+ public:
   /**
    * @brief Create a new file in the data directory with name @param filename
    * from an entire @param memtable. Assumes that the file doesn't already
@@ -40,27 +39,22 @@ public:
    * @param upper The upper bound of the scan
    * @return std::vector<std::pair<K, V>>
    */
-  virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
-                                                  K lower,
+  virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                                   K upper);
 };
 
-class SstableNaive
-{
-public:
+class SstableNaive {
+ public:
   static void Flush(std::fstream& filename, MemTable& memtable);
   static std::optional<V> GetFromFile(std::fstream& file, K key);
-  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
-                                                 K lower,
+  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                                  K upper);
 };
 
-class SstableBTree
-{
-public:
+class SstableBTree {
+ public:
   static void Flush(std::fstream& filename, MemTable& memtable);
   static std::optional<V> GetFromFile(std::fstream& file, K key);
-  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file,
-                                                 K lower,
+  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                                  K upper);
 };

@@ -21,15 +21,27 @@ enable_testing()
 # ---- Kvstore Tests ----
 add_executable(kvstore_test 
   src/kvstore.test.cpp
-  src/bufpool.test.cpp
+  src/buf.test.cpp
   src/memtable.test.cpp
   src/sstable_naive.test.cpp
+  src/evict.test.cpp
+  src/filter.test.cpp
+  src/dbg.test.cpp
+  src/fileutil.test.cpp
 )
+
+target_link_libraries(kvstore_test PRIVATE kvstore_naming)
+target_link_libraries(kvstore_test PRIVATE kvstore_file)
+target_link_libraries(kvstore_test PRIVATE kvstore_filter)
+target_link_libraries(kvstore_test PRIVATE kvstore_dbg)
 target_link_libraries(kvstore_test PRIVATE kvstore_memtable)
 target_link_libraries(kvstore_test PRIVATE kvstore_buf)
+target_link_libraries(kvstore_test PRIVATE kvstore_evict)
+target_link_libraries(kvstore_test PRIVATE kvstore_lsm)
 target_link_libraries(kvstore_test PRIVATE kvstore_sstable)
 target_link_libraries(kvstore_test PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_test PRIVATE gtest_main)
+target_link_libraries(kvstore_test PRIVATE xxHash::xxhash)
 target_compile_features(kvstore_test PRIVATE cxx_std_17)
 add_test(NAME kvstore_test COMMAND kvstore_test)
 

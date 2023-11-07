@@ -1,5 +1,7 @@
 # SSTable format
 
+This document describes the format of the SSTables on the disk.
+
 ## ptr (8 bytes)
 
 - Most significant 4 bytes are the offset within the file where the block starts. 
@@ -19,6 +21,7 @@ For `PAGE_SIZE = 4096 (4kb)` then `ORDER=256`.
 First block is always metadata block. Metadata block has structure:
 ```
 [ 00 db 00 be ef 00 db 00 ] (magic number, 8 bytes, funny)
+[ 00 00 00 00 00 00 00 01 ] (type field, data files are type `01`)
 [ uint64_t ]                (# of key value pairs in the file, 8 bytes)
 [ root block ptr ]          (8 bytes)
 ```

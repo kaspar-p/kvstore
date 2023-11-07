@@ -5,10 +5,9 @@
 #include <queue>
 #include <iostream>
 
-#include "sstable.hpp"
-
 #include "constants.hpp"
 #include "memtable.hpp"
+#include "sstable.hpp"
 
 struct LeafNode {
     uint32_t magic_number;
@@ -204,11 +203,10 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
 
 std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
                                                       const K lower,
-                                                      const K upper)
-{
+                                                      const K upper) {
   (void)file;
   (void)lower;
   (void)upper;
-  std::vector<std::pair<K, V>> l {};
-  return l;
+  std::vector<std::pair<K, V>> l{};
+   return l;
 };

@@ -10,19 +10,17 @@
 
 #include "constants.hpp"
 
-class MemTableFullException : public std::exception
-{
-public:
+class MemTableFullException : public std::exception {
+ public:
   [[nodiscard]] const char* what() const noexcept override;
 };
 
-class MemTable
-{
-private:
+class MemTable {
+ private:
   class MemTableImpl;
   std::unique_ptr<MemTableImpl> impl_;
 
-public:
+ public:
   /**
    * @brief Constructs a MemTable object, the maximum size given by the
    * parameter. All inserts beyond that size will throw an error, see the

@@ -9,30 +9,26 @@
 
 #include "constants.hpp"
 
-class DatabaseClosedException : public std::exception
-{
-public:
+class DatabaseClosedException : public std::exception {
+ public:
   [[nodiscard]] const char* what() const noexcept override;
 };
 
-class FailedToOpenException : public std::exception
-{
-public:
+class FailedToOpenException : public std::exception {
+ public:
   [[nodiscard]] const char* what() const noexcept override;
 };
 
-struct Options
-{
+struct Options {
   bool overwrite;
 };
 
-class KvStore
-{
-private:
+class KvStore {
+ private:
   class KvStoreImpl;
   std::unique_ptr<KvStoreImpl> impl_;
 
-public:
+ public:
   KvStore();
   ~KvStore();
 
