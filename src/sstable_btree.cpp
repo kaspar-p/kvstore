@@ -91,7 +91,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
     }
 
     const size_t actual_size = 2 + leaf_node.kv_pairs.size() * 2;
-    wbuf.push_back(leaf_node.magic_number << 32 | leaf_node.garbage);
+    wbuf.push_back(static_cast<uint64_t>(leaf_node.magic_number) << 32 | leaf_node.garbage);
     for (int j = 0; j < leaf_node.kv_pairs.size(); j++) {
       wbuf.push_back(leaf_node.kv_pairs[j].first);
       wbuf.push_back(leaf_node.kv_pairs[j].second);
@@ -150,8 +150,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
       }
 
       const size_t actual_size = 2 + internal_node.child_ptrs.size() * 2;
-      wbuf.push_back(internal_node.magic_number << 32 | internal_node.num_children);
-      wbuf.push_back(internal_node.last_child_block_ptr);
+      wbuf.push_back(static_cast<uint64_t>(internal_node.magic_number) << 32 | internal_node.num_children);
       for (int j = 0; j < internal_node.child_ptrs.size(); j++) {
         wbuf.push_back(internal_node.child_ptrs[j].first);
         wbuf.push_back(internal_node.child_ptrs[j].second);
@@ -205,7 +204,6 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
     file.read(reinterpret_cast<char*>(buf), kPageSize);
     assert(file.good());
 
-    std::cout << buf[0] << "\n";
     int header_size = 1;
     int pair_size = 2;
 

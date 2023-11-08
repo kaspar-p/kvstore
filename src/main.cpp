@@ -27,7 +27,6 @@ int main() {
   f.seekg(0);
   f.read(reinterpret_cast<char*>(buf), kPageSize);
 
-
   std::optional<V> val = t.GetFromFile(f, 32);
 
   assert(val.has_value());

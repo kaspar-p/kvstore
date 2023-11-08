@@ -45,7 +45,6 @@ TEST(SstableBTree, GetSingleElems) {
   uint64_t buf[kPageSize];
   f.seekg(4096);
   f.read(reinterpret_cast<char*>(buf), kPageSize);
-  printf("buf[0] = %lu\n", buf[1]);
 
   std::optional<V> val = t.GetFromFile(f, 32);
 
