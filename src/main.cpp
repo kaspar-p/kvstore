@@ -10,28 +10,26 @@
 #include "xxhash.h"
 
 int main() {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 4096,
-          .max_elements = 4096,
-      },
-      std::make_unique<ClockEvictor>(), &Hash);
-
-  DbNaming name = {.dirpath = "/tmp/MAIN_UNIQUE", .name = "MAIN_UNIQUE"};
-  bool exists = std::filesystem::exists("/tmp/MAIN_UNIQUE");
-  if (!exists) {
-    bool created = std::filesystem::create_directory("/tmp/MAIN_UNIQUE");
-    assert(created);
+  MemTable memtable(64);
+  for (int i = 0; i < 64; i++) {
+    memtable.Put(i, i);
   }
 
-  std::filesystem::remove(filter_file(name, 1));
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.GetSingleElems.bin",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  assert(f.is_open());
+  assert(f.good());
+  t.Flush(f, memtable);
+  
+  uint64_t buf[kPageSize];
+  f.seekg(0);
+  f.read(reinterpret_cast<char*>(buf), kPageSize);
 
-  Filter f(name, 1, 128, buf, 0);
-  for (int i = 0; i < 4096; i++) {
-    f.Put(i);
-  }
 
-  std::cout << buf.DebugPrint() << '\n';
+  std::optional<V> val = t.GetFromFile(f, 32);
 
-  assert(f.Has(12345678) == true);
+  assert(val.has_value());
+  assert(val.value() == 32);
 }

@@ -41,8 +41,9 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   assert(file.good());
   
   int order = floor(kPageSize / 16);
-  std::vector<uint64_t> wbuf; // makeshift solution
+  std::vector<uint64_t> wbuf;
   wbuf.push_back(0x00db00beef00db00); // magic number
+  wbuf.push_back(0x0000000000000001);
   wbuf.push_back(pairs.size()); // # key value pairs in the file
   wbuf.push_back(0x0000000000000000); // dummy root block ptr
   
@@ -58,7 +59,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
     // info node used for the queue
     sstable_btree_node info_node;
     info_node.offset = i * kPageSize;
-
+    
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
     leaf_node.magic_number = 0x00db0011;
@@ -76,26 +77,29 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
         i++;
       } else {
         // TODO: do i need to pad these zeroes?
+        // whille I need the number of kv pairs like in internal node format instead of garbage?
         // pad the rest of the page with zeroes
-        leaf_node.kv_pairs.push_back(std::make_pair(0, 0));
+        // leaf_node.kv_pairs.push_back(std::make_pair(0, 0));
+        break;
       }
     }
     // right leaf block ptr (8 ptr)
-    // - don't need for the last element
-    // pointer to the right leaf node
-    // offset from the beginning of the file
     if (i < pairs.size()) {
-      leaf_node.right_leaf_block_ptr = i/order * kPageSize;
+      leaf_node.right_leaf_block_ptr = i * kPageSize;
     } else {
       leaf_node.right_leaf_block_ptr = BLOCK_NULL;
     }
-    // Convert the LeafNode struct to bytes and append to wbuf
-    char* data = reinterpret_cast<char*>(&leaf_node);
-    for (size_t k = 0; k < sizeof(LeafNode); k++) {
-        wbuf.push_back(data[k]);
+
+    const size_t actual_size = 2 + leaf_node.kv_pairs.size() * 2;
+    wbuf.push_back(leaf_node.magic_number << 32 | leaf_node.garbage);
+    for (int j = 0; j < leaf_node.kv_pairs.size(); j++) {
+      wbuf.push_back(leaf_node.kv_pairs[j].first);
+      wbuf.push_back(leaf_node.kv_pairs[j].second);
     }
+    wbuf.push_back(leaf_node.right_leaf_block_ptr);
+
     // Pad the rest of the page with zeroes
-    for (int k = 0; k < kPageSize - sizeof(LeafNode); k++) {
+    for (int k = actual_size; k < kPageSize; k++) {
       wbuf.push_back(0);
     }
   }
@@ -103,6 +107,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   // start creating internal nodes
   // note that the address of the first internal node is the address of the last leaf node + 1
   // since this is offsets we can calculate this using the length of the queue at the start of the algorithim
+  
   while (creation_queue.size() > 1) {
     int queue_length = creation_queue.size();
     int start_offset = creation_queue.back().offset + kPageSize;
@@ -126,12 +131,12 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
         if (i < queue_length) {
           sstable_btree_node child = creation_queue.front();
           creation_queue.pop();
-          if (j == order-1) {
+          if (j == order-1 or i == queue_length - 1) {
             // last child
             // TODO: what if not enought elements to fill up to order-1?
             internal_node.last_child_block_ptr = child.offset;
-            info_node.global_max = child.global_max; // TODO: applies here too
-            creation_queue.push(info_node); // TODO: applies here too
+            info_node.global_max = child.global_max; // applies here too
+            creation_queue.push(info_node); // applies here too
           } else {
             // key value pairs (8 + 8 bytes)
             internal_node.child_ptrs.push_back(std::make_pair(child.global_max, child.offset));
@@ -144,26 +149,28 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
         }
       }
 
-      // Convert the InternalNode struct to bytes and append to wbuf
-      uint8_t* data = reinterpret_cast<uint8_t*>(&internal_node);
-      for (size_t k = 0; k < sizeof(InternalNode); k++) {
-          wbuf.push_back(data[k]);
+      const size_t actual_size = 2 + internal_node.child_ptrs.size() * 2;
+      wbuf.push_back(internal_node.magic_number << 32 | internal_node.num_children);
+      wbuf.push_back(internal_node.last_child_block_ptr);
+      for (int j = 0; j < internal_node.child_ptrs.size(); j++) {
+        wbuf.push_back(internal_node.child_ptrs[j].first);
+        wbuf.push_back(internal_node.child_ptrs[j].second);
       }
 
       // Pad the rest of the page with zeroes
-      for (int k = 0; k < kPageSize - sizeof(InternalNode); k++) {
+      for (int k = actual_size; k < kPageSize; k++) {
         wbuf.push_back(0);
       }
+      // TODO: child ptr is BLOCK_NULL if there isn't a leaf node, in documentation??
     }
   }
   // the last node in the queue is the parent
   sstable_btree_node root = creation_queue.front();
   creation_queue.pop();
-  wbuf[2] = root.offset; // update dummy root block ptr to actual root block ptr
-
+  wbuf[3] = root.offset; // update dummy root block ptr to actual root block ptr
   // write wbuf to file, page size is kPageSize
   for (int i = 0; i < wbuf.size(); i++) {
-    file.write(reinterpret_cast<char*>(&wbuf[i]), sizeof(kPageSize));
+    file.write(reinterpret_cast<char*>(&wbuf[i]), sizeof(uint64_t));
     assert(file.good());
   }
 
@@ -173,31 +180,94 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
 
 std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
 {
-  // std::vector<u_int64_t> buf;
-  // assert(file.is_open());
-  // assert(file.good());
+  uint64_t buf[kPageSize];
+  assert(file.is_open());
+  assert(file.good());
 
-  // file.seekg(0);
-
-  // // file.read(reinterpret_cast<u_int64_t>(buf), kPageSize); // TODO: why doesn't this work
-  // assert(file.good());
-
-  // if (buf[0] != 0x00db00beef00db00) {
-  //   std::cout << "Magic number wrong! Expected " << 0x00db00beef00db00 << " but got "
-  //             << buf[0] << '\n';
-  //   exit(1);
-  // }
-
+  file.seekg(0);
+  file.read(reinterpret_cast<char*>(buf), kPageSize);
+  assert(file.good());
   
-
-  // // If there are no elements
-  // int elems = buf[];
-  // if (elems == 0) {
-  //   return std::nullopt;
-  // }
+  if (buf[0] != 0x00db00beef00db00) { // TODO: use fileutil.cpp
+    std::cout << "Magic number wrong! Expected " << 0x00db00beef00db00 << " but got "
+              << buf[0] << '\n';
+    exit(1);
+  }
   
-  (void) file;
-  (void) key;
+  // if there are no elements
+  int elems = buf[2]; 
+  if (elems == 0) { return std::nullopt; }
+  uint64_t cur_offset = kPageSize + buf[3]; // meta block size + root block ptr 
+  
+  bool leaf_node = false;
+  while (!leaf_node) {
+    file.seekg(cur_offset);
+    file.read(reinterpret_cast<char*>(buf), kPageSize);
+    assert(file.good());
+
+    std::cout << buf[0] << "\n";
+    int header_size = 1;
+    int pair_size = 2;
+
+    if ((buf[1] >> 32) == 0x00db0011) { // leaf node
+      leaf_node = true;
+      // binary search to find which key to return
+      // if key and cant find then return std::nullopt
+      // if key and can find then return val
+      int left = header_size;
+      int right = header_size + (kPageSize-16)/16 * pair_size;
+
+      // check right node ptr to see if the leaf node is the rightmost one => potential not full.
+      if (buf[right] == BLOCK_NULL) {
+        right = header_size + (kPageSize-16)%elems * pair_size;
+      }
+
+      while (left <= right) {
+        int mid = left + floor((right - left) / 2);
+        if (buf[mid] == key) {
+          return std::make_optional(buf[mid]);
+        }
+
+        if (buf[mid] < key) {
+          left = mid + 2;
+        } else {
+          right = mid - 2;
+        }
+      }
+
+      return std::nullopt;
+    } else if ((buf[0] >> 32) == 0x00db00ff) { // internal node
+      uint32_t num_children = buf[0] & 0x00000000ffffffff;
+      int left = header_size + 1;
+      int right = header_size + 1 + num_children * pair_size;
+
+      if (key < buf[left]) {
+        cur_offset = buf[left+1];
+      }
+      if (key > buf[right]) {
+        cur_offset = buf[1];
+      }
+      int mid = left + floor((right - left) / 2);
+      while (left <= right) {
+        int mid = left + floor((right - left) / 2);
+        if (buf[mid] == key) {
+          cur_offset = buf[mid+1];
+        }
+
+        if (buf[mid] < key) {
+          left = mid + 2;
+        } else {
+          right = mid - 2;
+        }
+      }
+      cur_offset = buf[mid+1];
+    } else {
+      std::cout << "Magic number wrong! Expected " << 0x00db0011 << " or " << 0x00db00ff << " but got "
+                << (buf[0] >> 32) << '\n';
+      exit(1);
+    }
+  }
+
   return std::nullopt;
 };
 
