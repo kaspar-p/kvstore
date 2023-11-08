@@ -23,24 +23,18 @@ PageId make_test_id(uint32_t num) {
 }
 
 TEST(BufPool, GetNonExistantPage) {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 1,
-          .max_elements = 1,
-      },
-      std::make_unique<ClockEvictor>(), &test_hash);
+  BufPool buf(BufPoolTuning{.initial_elements = 1, .max_elements = 1},
+              &test_hash);
   PageId id = {.filename = std::string("file"), .page = 2};
   std::optional<BufferedPage> page = buf.GetPage(id);
   ASSERT_EQ(page, std::nullopt);
 }
 
 TEST(BufPool, ReplaceDuplicates) {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 4,
-          .max_elements = 4,
-      },
-      std::make_unique<ClockEvictor>(), &Hash);
+  BufPool buf(BufPoolTuning{
+      .initial_elements = 4,
+      .max_elements = 4,
+  });
 
   PageId id = {.filename = std::string("unique_file"), .page = 2};
   for (int i = 0; i < 10; i++) {
@@ -54,12 +48,8 @@ TEST(BufPool, ReplaceDuplicates) {
 }
 
 TEST(BufPool, GetRealPage) {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 1,
-          .max_elements = 1,
-      },
-      std::make_unique<ClockEvictor>(), &test_hash);
+  BufPool buf(BufPoolTuning{.initial_elements = 1, .max_elements = 1},
+              &test_hash);
 
   PageId id = {.filename = std::string("file"), .page = 3};
   buf.PutPage(id, PageType::kBTreeInternal, Buffer{});
@@ -73,12 +63,8 @@ TEST(BufPool, GetRealPage) {
 }
 
 TEST(BufPool, Evolution) {
-  BufPool buf(
-      BufPoolTuning{
-          .initial_elements = 1,
-          .max_elements = 16,
-      },
-      std::make_unique<ClockEvictor>(), &test_hash);
+  BufPool buf(BufPoolTuning{.initial_elements = 1, .max_elements = 16},
+              &test_hash);
   PageId id;
   std::string exp;
 
@@ -210,12 +196,8 @@ TEST(BufPool, Evolution) {
 
 TEST(BufPool, InitialSizes) {
   {
-    BufPool buf(
-        BufPoolTuning{
-            .initial_elements = 4,
-            .max_elements = 16,
-        },
-        std::make_unique<ClockEvictor>(), &test_hash);
+    BufPool buf(BufPoolTuning{.initial_elements = 4, .max_elements = 16},
+                &test_hash);
 
     ASSERT_EQ(buf.DebugPrint(), std::string("max: 16\n"
                                             "elements: 0\n"
@@ -225,12 +207,8 @@ TEST(BufPool, InitialSizes) {
   }
 
   {
-    BufPool buf(
-        BufPoolTuning{
-            .initial_elements = 7,
-            .max_elements = 1000,
-        },
-        std::make_unique<ClockEvictor>(), &test_hash);
+    BufPool buf(BufPoolTuning{.initial_elements = 7, .max_elements = 1000},
+                &test_hash);
 
     ASSERT_EQ(buf.DebugPrint(), std::string("max: 1000\n"
                                             "elements: 0\n"
@@ -246,7 +224,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
           .initial_elements = 1,
           .max_elements = 2,
       },
-      std::make_unique<ClockEvictor>(), &test_hash);
+      &test_hash);
 
   ASSERT_EQ(buf.DebugPrint(), std::string("max: 2\n"
                                           "elements: 0\n"

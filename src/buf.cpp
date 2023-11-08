@@ -21,18 +21,6 @@ uint32_t Hash(const PageId& page_id) {
   return XXH32(&page_id.page, sizeof(uint32_t), 99);
 };
 
-Buffer FromRaw(char buf[kPageSize]) {
-  Buffer buffer;
-  for (int i = 0; i < kPageSize; i++) {
-    buffer[i] = std::byte{(uint8_t)buf[i]};
-  }
-  return buffer;
-}
-
-char* ToRaw(Buffer& in, char out[kPageSize]) {
-  return reinterpret_cast<char*>(in.data());
-}
-
 [[nodiscard]] std::string PageId::str() const { return this->str(32); }
 [[nodiscard]] std::string PageId::str(uint32_t len) const {
   std::ostringstream s;
@@ -79,15 +67,15 @@ std::string trie_print(TrieNode& node, std::string&& prefix, uint32_t offset,
 
 class BufPool::BufPoolImpl {
  private:
-  const uint32_t initial_elements_;
-  const uint32_t max_elements_;
-  uint32_t (*hash_func_)(const PageId&);
+  const uint32_t initial_elements;
+  const uint32_t max_elements;
   const std::unique_ptr<Evictor> evictor;
+  PageHashFn hash_func_;
 
-  uint16_t bits_;
-  uint32_t capacity_;
-  uint32_t elements_;
-  std::unique_ptr<TrieNode> root_;
+  uint16_t bits;
+  uint32_t capacity;
+  uint32_t elements;
+  std::unique_ptr<TrieNode> root;
 
   /**
    * @brief Returns true if replaced a node, false if added new node
@@ -113,7 +101,7 @@ class BufPool::BufPoolImpl {
     int offset = 0;
     uint32_t idx;
 
-    std::reference_wrapper<TrieNode> curr = *this->root_;
+    std::reference_wrapper<TrieNode> curr = *this->root;
     while (curr.get().children.has_value()) {
       assert(offset < prefix_length);
       idx = prefix_bit(hash, offset);
@@ -125,9 +113,9 @@ class BufPool::BufPoolImpl {
   }
 
   void trie_erase(const PageId& page_id) {
-    TrieNode& bucket = this->trie_find_bucket(hash_func_(page_id), this->bits_);
+    TrieNode& bucket = this->trie_find_bucket(hash_func_(page_id), this->bits);
     BufPoolImpl::trie_erase_from_bucket(bucket, page_id);
-    this->elements_ -= 1;
+    this->elements -= 1;
   }
 
   static void trie_erase_from_bucket(TrieNode& node, const PageId& page_id) {
@@ -181,7 +169,7 @@ class BufPool::BufPoolImpl {
       BufPoolImpl::trie_scan_to_split(*curr.children.value()[0]);
       BufPoolImpl::trie_scan_to_split(*curr.children.value()[1]);
     } else {
-      if (pow(2, this->bits_ - root.prefix_length) > this->bits_) {
+      if (pow(2, this->bits - root.prefix_length) > this->bits) {
         BufPoolImpl::trie_split(root);
       }
     }
@@ -190,17 +178,17 @@ class BufPool::BufPoolImpl {
   void consider_resizing() {
     const double thresh = 0.8F;
 
-    bool needs_to_resize = this->elements_ >= floor(this->capacity_ * thresh);
-    bool can_resize = this->capacity_ < this->max_elements_;
+    bool needs_to_resize = this->elements >= floor(this->capacity * thresh);
+    bool can_resize = this->capacity < this->max_elements;
     if (!needs_to_resize || !can_resize) {
       return;  // no need to resize
     }
 
-    this->capacity_ *= 2;
-    this->bits_ += 1;
+    this->capacity *= 2;
+    this->bits += 1;
 
     // Split the pointers
-    this->trie_scan_to_split(*this->root_);
+    this->trie_scan_to_split(*this->root);
   }
 
   void consider_evicting(BufferedPage& entry) {
@@ -214,22 +202,26 @@ class BufPool::BufPoolImpl {
 
  public:
   BufPoolImpl(uint32_t initial_elements, uint32_t max_elements,
-              std::unique_ptr<Evictor> evictor, uint32_t (*hash)(const PageId&))
-      : initial_elements_(initial_elements),
-        max_elements_(max_elements),
+              std::unique_ptr<Evictor> evictor, PageHashFn hash)
+      : initial_elements(initial_elements),
+        max_elements(max_elements),
         hash_func_(hash),
         evictor(std::move(evictor)) {
-    this->elements_ = 0;
-    this->bits_ = fmax(ceil(log2l(initial_elements)), 1);
-    this->capacity_ = fmax(pow(2, ceil(log2l(initial_elements))), 2);
+    this->elements = 0;
+    this->bits = fmax(ceil(log2l(initial_elements)), 1);
+    this->capacity = fmax(pow(2, ceil(log2l(initial_elements))), 2);
     this->evictor->Resize(max_elements);
 
-    this->root_ = std::make_unique<TrieNode>(TrieNode{
+    this->root = std::make_unique<TrieNode>(TrieNode{
         .prefix_length = 0,
         .bucket = std::make_optional(std::list<BufferedPage>{}),
         .children = std::nullopt,
     });
   }
+
+  BufPoolImpl(uint32_t initial_elements, uint32_t max_elements)
+      : BufPoolImpl(initial_elements, max_elements,
+                    std::make_unique<ClockEvictor>(), &Hash) {}
 
   ~BufPoolImpl() = default;
 
@@ -240,7 +232,7 @@ class BufPool::BufPoolImpl {
 
   [[nodiscard]] std::optional<BufferedPage> GetPage(
       const PageId& page_id) const {
-    TrieNode& node = this->trie_find_bucket(hash_func_(page_id), this->bits_);
+    TrieNode& node = this->trie_find_bucket(hash_func_(page_id), this->bits);
 
     for (BufferedPage& page : node.bucket.value()) {
       if (page.id == page_id) {
@@ -256,7 +248,7 @@ class BufPool::BufPoolImpl {
                const Buffer contents) {
     uint32_t hash = hash_func_(page_id);
 
-    TrieNode& node = BufPoolImpl::trie_find_bucket(hash, this->bits_);
+    TrieNode& node = BufPoolImpl::trie_find_bucket(hash, this->bits);
     auto page = BufferedPage{
         .id = page_id,
         .type = type,
@@ -264,7 +256,7 @@ class BufPool::BufPoolImpl {
     };
     bool removed_one = BufPoolImpl::trie_put_in_bucket(node, page);
     if (!removed_one) {
-      this->elements_ += 1;
+      this->elements += 1;
       this->consider_resizing();
       this->consider_evicting(page);
     }
@@ -272,22 +264,32 @@ class BufPool::BufPoolImpl {
 
   [[nodiscard]] std::string DebugPrint(uint32_t bit_length) const {
     std::ostringstream s;
-    s << "max: " << std::to_string(this->max_elements_) << "\n";
-    s << "elements: " << std::to_string(this->elements_) << "\n";
-    s << "bits: " << std::to_string(this->bits_) << "\n";
-    s << "capacity: " << std::to_string(this->capacity_) << "\n";
+    s << "max: " << std::to_string(this->max_elements) << "\n";
+    s << "elements: " << std::to_string(this->elements) << "\n";
+    s << "bits: " << std::to_string(this->bits) << "\n";
+    s << "capacity: " << std::to_string(this->capacity) << "\n";
 
-    s << trie_print(*this->root_, "", 0, bit_length);
+    s << trie_print(*this->root, "", 0, bit_length);
 
     return s.str();
   }
 };
 
 BufPool::BufPool(const BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
-                 uint32_t (*hash)(const PageId&))
+                 PageHashFn hash)
     : impl_(std::make_unique<BufPoolImpl>(tuning.initial_elements,
                                           tuning.max_elements,
                                           std::move(evictor), hash)) {}
+
+BufPool::BufPool(const BufPoolTuning tuning, PageHashFn hash)
+    : impl_(std::make_unique<BufPoolImpl>(
+          tuning.initial_elements, tuning.max_elements,
+          std::make_unique<ClockEvictor>(), hash)) {}
+
+BufPool::BufPool(const BufPoolTuning tuning)
+    : impl_(std::make_unique<BufPoolImpl>(
+          tuning.initial_elements, tuning.max_elements,
+          std::make_unique<ClockEvictor>(), &Hash)) {}
 
 BufPool::~BufPool() = default;
 

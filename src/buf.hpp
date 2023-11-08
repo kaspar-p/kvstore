@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -21,8 +22,6 @@ enum PageType {
 };
 
 using Buffer = std::array<std::byte, kPageSize>;
-Buffer FromRaw(char buf[kPageSize]);
-char* ToRaw(Buffer& in, char out[kPageSize]);
 
 struct PageId {
   std::string filename;
@@ -50,6 +49,7 @@ struct BufPoolTuning {
   uint32_t max_elements;
 };
 
+using PageHashFn = std::function<uint32_t(const PageId&)>;
 uint32_t Hash(const PageId& page_id);
 
 class BufPool {
@@ -59,7 +59,9 @@ class BufPool {
 
  public:
   BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
-          uint32_t (*hash)(const PageId&));
+          PageHashFn hash);
+  BufPool(BufPoolTuning tuning, PageHashFn Hash);
+  BufPool(BufPoolTuning tuning);
   ~BufPool();
 
   [[nodiscard]] bool HasPage(PageId& page) const;
