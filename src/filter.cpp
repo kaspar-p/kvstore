@@ -19,6 +19,8 @@
 #include "naming.hpp"
 #include "xxhash.h"
 
+using KeyHashFn = std::function<uint32_t(K)>;
+
 constexpr static std::size_t kCacheLineBytes = 128;
 constexpr static std::size_t kFilterBytes = 128;
 static_assert(kCacheLineBytes >= kFilterBytes);
@@ -31,11 +33,10 @@ constexpr static std::size_t kFilterBits = kFilterBytes * 8;
 constexpr static std::size_t kBitsPerEntry = 10;
 constexpr static std::size_t kNumHashFuncs = 7;  // log(2) * kBitsPerEntry;
 
-using HashFn = std::function<uint32_t(K)>;
 using BloomFilter = std::bitset<kFilterBits>;
 
-std::array<HashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed) {
-  std::array<HashFn, kNumHashFuncs> fns;
+std::array<KeyHashFn, kNumHashFuncs> create_hash_funcs(uint64_t starting_seed) {
+  std::array<KeyHashFn, kNumHashFuncs> fns;
   for (int i = 0; i < kNumHashFuncs; i++) {
     fns.at(i) = [starting_seed, i](K key) {
       return static_cast<uint64_t>(
@@ -60,7 +61,7 @@ uint64_t calc_page_offset(uint64_t global_page_idx) {
 
 class Filter::FilterImpl {
  private:
-  const std::array<HashFn, kNumHashFuncs> bit_hashes;
+  const std::array<KeyHashFn, kNumHashFuncs> bit_hashes;
   const uint32_t max_entries;
   const uint32_t num_filters;
   const uint64_t seed;

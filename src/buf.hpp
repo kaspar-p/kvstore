@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -50,6 +51,7 @@ struct BufPoolTuning {
   uint32_t max_elements;
 };
 
+using PageHashFn = std::function<uint32_t(const PageId&)>;
 uint32_t Hash(const PageId& page_id);
 
 class BufPool {
@@ -59,8 +61,8 @@ class BufPool {
 
  public:
   BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
-          uint32_t (*hash)(const PageId&));
-  BufPool(BufPoolTuning tuning, uint32_t (*hash)(const PageId&));
+          PageHashFn hash);
+  BufPool(BufPoolTuning tuning, PageHashFn Hash);
   BufPool(BufPoolTuning tuning);
   ~BufPool();
 

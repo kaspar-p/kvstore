@@ -82,7 +82,7 @@ class BufPool::BufPoolImpl {
   const uint32_t initial_elements;
   const uint32_t max_elements;
   const std::unique_ptr<Evictor> evictor;
-  uint32_t (*hash_func_)(const PageId&);
+  PageHashFn hash_func_;
 
   uint16_t bits;
   uint32_t capacity;
@@ -214,7 +214,7 @@ class BufPool::BufPoolImpl {
 
  public:
   BufPoolImpl(uint32_t initial_elements, uint32_t max_elements,
-              std::unique_ptr<Evictor> evictor, uint32_t (*hash)(const PageId&))
+              std::unique_ptr<Evictor> evictor, PageHashFn hash)
       : initial_elements(initial_elements),
         max_elements(max_elements),
         hash_func_(hash),
@@ -288,12 +288,12 @@ class BufPool::BufPoolImpl {
 };
 
 BufPool::BufPool(const BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
-                 uint32_t (*hash)(const PageId&))
+                 PageHashFn hash)
     : impl_(std::make_unique<BufPoolImpl>(tuning.initial_elements,
                                           tuning.max_elements,
                                           std::move(evictor), hash)) {}
 
-BufPool::BufPool(const BufPoolTuning tuning, uint32_t (*hash)(const PageId&))
+BufPool::BufPool(const BufPoolTuning tuning, PageHashFn hash)
     : impl_(std::make_unique<BufPoolImpl>(
           tuning.initial_elements, tuning.max_elements,
           std::make_unique<ClockEvictor>(), hash)) {}
