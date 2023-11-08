@@ -22,8 +22,6 @@ enum PageType {
 };
 
 using Buffer = std::array<std::byte, kPageSize>;
-Buffer FromRaw(char buf[kPageSize]);
-char* ToRaw(Buffer& in, char out[kPageSize]);
 
 struct PageId {
   std::string filename;

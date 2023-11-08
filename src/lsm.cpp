@@ -10,30 +10,29 @@
 
 class LSMLevel::LSMLevelImpl {
  private:
-  const uint64_t max_entries_;
-  const uint32_t level_;
-  const std::size_t memory_buffer_size_;
-  const bool is_final_;
+  const uint64_t max_entries;
+  const uint32_t level;
+  const std::size_t memory_buffer_size;
+  const bool is_final;
   const DbNaming& dbname;
 
   BufPool& buf;
-  Filter filter_;
+  std::optional<Filter> filter;
 
  public:
   LSMLevelImpl(const DbNaming& dbname, uint32_t level, bool is_final,
                std::size_t memory_buffer_size, BufPool& buf)
-      : max_entries_(pow(2, level) * memory_buffer_size),
-        level_(level),
-        memory_buffer_size_(memory_buffer_size),
-        is_final_(is_final),
+      : max_entries(pow(2, level) * memory_buffer_size),
+        level(level),
+        memory_buffer_size(memory_buffer_size),
+        is_final(is_final),
         dbname(dbname),
-        buf(buf),
-        filter_(dbname, level, this->max_entries_, buf, 0) {}
+        buf(buf) {}
   ~LSMLevelImpl() = default;
-  uint32_t Level() const { return this->level_; }
+  uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    if (!this->filter_.Has(key)) {
+    if (this->filter.has_value() && !this->filter.value().Has(key)) {
       return std::nullopt;
     }
 
@@ -48,8 +47,8 @@ class LSMLevel::LSMLevelImpl {
     assert(level.Level() == this->Level());
 
     // TODO(kfp): do an actual merging algorithm
-    return LSMLevel(this->dbname, this->level_ + 1, this->is_final_,
-                    this->memory_buffer_size_, this->buf);
+    return LSMLevel(this->dbname, this->level + 1, this->is_final,
+                    this->memory_buffer_size, this->buf);
   };
 };
 

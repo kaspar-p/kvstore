@@ -9,19 +9,51 @@
 #include "sstable.hpp"
 #include "xxhash.h"
 
-int main() {
-  BufPool buf(BufPoolTuning{
-      .initial_elements = 4,
-      .max_elements = 4,
-  });
-
-  PageId id = {.filename = std::string("unique_file"), .page = 2};
-  for (int i = 0; i < 10; i++) {
-    buf.PutPage(id, PageType::kFilters, Buffer{std::byte{(uint8_t)i}});
+DbNaming create_dir(std::string name) {
+  bool exists = std::filesystem::exists("/tmp/" + name);
+  if (!exists) {
+    bool created = std::filesystem::create_directory("/tmp/" + name);
+    assert(created);
   }
 
-  std::optional<BufferedPage> page = buf.GetPage(id);
-  assert(page.has_value());
-  assert(page.value().type == PageType::kFilters);
-  assert(page.value().contents == Buffer{std::byte{9}});
+  return DbNaming{.dirpath = "/tmp/" + name, .name = name};
+}
+
+std::vector<K> test_keys(int num) {
+  std::vector<K> keys;
+  for (int i = 0; i < num; i++) {
+    keys.push_back(i);
+  }
+  return keys;
+}
+
+BufPool test_buffer() {
+  return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
+}
+BufPool buf = test_buffer();
+
+int main() {
+  auto name = create_dir("Filter.Recovery");
+  {
+    std::filesystem::remove(filter_file(name, 1));
+
+    Filter f(name, 1, buf, 0, test_keys(128));
+    assert(f.Has(999) == false);
+    assert(std::filesystem::file_size(filter_file(name, 1)) % kPageSize == 0);
+
+    for (auto &key : test_keys(128)) {
+      std::cout << "testing " << key << std::endl;
+      assert(f.Has(key));
+    }
+  }
+
+  {
+    Filter f(name, 1, buf, 0, test_keys(128));
+    assert(std::filesystem::file_size(filter_file(name, 1)) % kPageSize == 0);
+
+    for (auto &key : test_keys(128)) {
+      std::cout << "testing " << key << std::endl;
+      assert(f.Has(key));
+    }
+  }
 }

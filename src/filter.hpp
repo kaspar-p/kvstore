@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "buf.hpp"
 #include "constants.hpp"
@@ -21,12 +22,14 @@ class Filter {
    * @param level The level that this Bloom filter is a part of. Assumed to be
    * the only filter for that level, and will contest/override files if there
    * are multiple for a single level.
-   * @param max_elems The maximum number of elements that the filter is meant to
-   * support.
    * @param buf A buffer pool cache for accessing pages in the filesystem.
+   * @param seed A starting random seed for the hash functions in the
+   * Blocked BloomFilter.
+   * @param keys A large list of keys to write into the bloom filter with. There
+   * are no other write methods on this class.
    */
-  Filter(const DbNaming& dbname, uint32_t level, uint32_t max_elems,
-         BufPool& buf, uint64_t seed);
+  Filter(const DbNaming& dbname, uint32_t level, BufPool& buf, uint64_t seed,
+         std::vector<K> keys);
   ~Filter();
 
   /**
@@ -34,9 +37,4 @@ class Filter {
    * filter DEFINITELY does not have the key.
    */
   [[nodiscard]] bool Has(K key) const;
-
-  /**
-   * @brief Puts the key into the set.
-   */
-  void Put(K key);
 };

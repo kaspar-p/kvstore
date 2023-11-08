@@ -21,18 +21,6 @@ uint32_t Hash(const PageId& page_id) {
   return XXH32(&page_id.page, sizeof(uint32_t), 99);
 };
 
-Buffer FromRaw(char buf[kPageSize]) {
-  Buffer buffer;
-  for (int i = 0; i < kPageSize; i++) {
-    buffer[i] = std::byte{(uint8_t)buf[i]};
-  }
-  return buffer;
-}
-
-char* ToRaw(Buffer& in, char out[kPageSize]) {
-  return reinterpret_cast<char*>(in.data());
-}
-
 [[nodiscard]] std::string PageId::str() const { return this->str(32); }
 [[nodiscard]] std::string PageId::str(uint32_t len) const {
   std::ostringstream s;
