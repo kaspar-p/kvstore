@@ -47,7 +47,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   wbuf.push_back(pairs.size()); // # key value pairs in the file
   wbuf.push_back(0x0000000000000000); // dummy root block ptr
   
-  for (int i = 3; i < kPageSize; i++) {
+  for (int i = 4; i < kPageSize; i++) {
     wbuf.push_back(0); // pad the rest of the page with zeroes
   }
 
@@ -58,7 +58,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   while (i < pairs.size()) {
     // info node used for the queue
     sstable_btree_node info_node;
-    info_node.offset = i * kPageSize;
+    info_node.offset = i/order * kPageSize;
     
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
@@ -76,22 +76,18 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
         }
         i++;
       } else {
-        // TODO: do i need to pad these zeroes?
-        // whille I need the number of kv pairs like in internal node format instead of garbage?
-        // pad the rest of the page with zeroes
-        // leaf_node.kv_pairs.push_back(std::make_pair(0, 0));
         break;
       }
     }
     // right leaf block ptr (8 ptr)
     if (i < pairs.size()) {
-      leaf_node.right_leaf_block_ptr = i * kPageSize;
+      leaf_node.right_leaf_block_ptr = i/order * kPageSize;
     } else {
       leaf_node.right_leaf_block_ptr = BLOCK_NULL;
     }
 
     const size_t actual_size = 2 + leaf_node.kv_pairs.size() * 2;
-    wbuf.push_back(static_cast<uint64_t>(leaf_node.magic_number) << 32 | leaf_node.garbage);
+    wbuf.push_back(static_cast<uint64_t>(leaf_node.magic_number) << 32 | static_cast<uint64_t>(leaf_node.garbage));
     for (int j = 0; j < leaf_node.kv_pairs.size(); j++) {
       wbuf.push_back(leaf_node.kv_pairs[j].first);
       wbuf.push_back(leaf_node.kv_pairs[j].second);
@@ -150,7 +146,8 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
       }
 
       const size_t actual_size = 2 + internal_node.child_ptrs.size() * 2;
-      wbuf.push_back(static_cast<uint64_t>(internal_node.magic_number) << 32 | internal_node.num_children);
+      wbuf.push_back(static_cast<uint64_t>(internal_node.magic_number) << 32 | static_cast<uint64_t>(internal_node.num_children));
+      wbuf.push_back(internal_node.last_child_block_ptr);
       for (int j = 0; j < internal_node.child_ptrs.size(); j++) {
         wbuf.push_back(internal_node.child_ptrs[j].first);
         wbuf.push_back(internal_node.child_ptrs[j].second);
@@ -167,9 +164,9 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   sstable_btree_node root = creation_queue.front();
   creation_queue.pop();
   wbuf[3] = root.offset; // update dummy root block ptr to actual root block ptr
-  // write wbuf to file, page size is kPageSize
-  for (int i = 0; i < wbuf.size(); i++) {
-    file.write(reinterpret_cast<char*>(&wbuf[i]), sizeof(uint64_t));
+
+  for (uint64_t& elem : wbuf) {
+    file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
     assert(file.good());
   }
 
@@ -197,7 +194,17 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
   int elems = buf[2]; 
   if (elems == 0) { return std::nullopt; }
   uint64_t cur_offset = kPageSize + buf[3]; // meta block size + root block ptr 
-  
+  // TESTING: DELETE
+  cur_offset = 8000;
+  file.seekg(cur_offset, std::ios::beg);
+  file.read(reinterpret_cast<char*>(buf), kPageSize);
+  assert(file.good());
+  if ((buf[0] >> 32)!= 0x00db0011) { 
+    std::cout << "Magic number wrong! Expected " << 0x00db0011 << " but got "
+              << (buf[0] >>32) << '\n';
+    exit(1);
+  }
+  // TESTING: DELETE
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
@@ -207,7 +214,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
     int header_size = 1;
     int pair_size = 2;
 
-    if ((buf[1] >> 32) == 0x00db0011) { // leaf node
+    if ((buf[0] >> 32) == 0x00db0011) { // leaf node
       leaf_node = true;
       // binary search to find which key to return
       // if key and cant find then return std::nullopt
