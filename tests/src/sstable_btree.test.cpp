@@ -29,8 +29,8 @@ TEST(SstableBTree, AddElems) {
 }
 
 TEST(SstableBTree, GetSingleElems) {
-  MemTable memtable(64);
-  for (int i = 0; i < 64; i++) {
+  MemTable memtable(255);
+  for (int i = 0; i < 255; i++) {
     memtable.Put(i, i);
   }
 
@@ -50,4 +50,14 @@ TEST(SstableBTree, GetSingleElems) {
 
   ASSERT_EQ(val.has_value(), true);
   ASSERT_EQ(val.value(), 32);
+
+  val = t.GetFromFile(f,254);
+
+  ASSERT_EQ(val.has_value(), true);
+  ASSERT_EQ(val.value(), 254);
+
+  val = t.GetFromFile(f,0);
+
+  ASSERT_EQ(val.has_value(), true);
+  ASSERT_EQ(val.value(), 0);
 }

@@ -217,9 +217,12 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
       } else if (buf[1] == 0xffffffffffffffff) {
         right = header_size + elems * pair_size;
       }
+
       while (left <= right) {
-        int mid = left + floor((right - left) / 2);
+        int mid = left + floor((right - left) / 4) * 2;
         if (buf[mid] == key) {
+          std::cout << "key" << buf[mid] << std::endl;
+          std::cout << "value" << buf[mid+1] << std::endl;
           return std::make_optional(buf[mid+1]);
         }
 

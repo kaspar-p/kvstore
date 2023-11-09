@@ -10,8 +10,8 @@
 #include "xxhash.h"
 
 int main() {
-  MemTable memtable(64);
-  for (int i = 0; i < 64; i++) {
+  MemTable memtable(255);
+  for (int i = 0; i < 255; i++) {
     memtable.Put(i, i);
   }
 
