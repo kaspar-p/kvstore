@@ -40,17 +40,16 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   file.seekp(0); 
   assert(file.good());
   
-  int order = floor(kPageSize / 16);
+  int order = floor(kPageSize / 16)-1;
   std::vector<uint64_t> wbuf;
   wbuf.push_back(0x00db00beef00db00); // magic number
   wbuf.push_back(0x0000000000000001);
   wbuf.push_back(pairs.size()); // # key value pairs in the file
-  wbuf.push_back(0x0000000000000000); // dummy root block ptr
+  wbuf.push_back(0); // dummy root block ptr
   
-  for (int i = 4; i < kPageSize; i++) {
-    wbuf.push_back(0); // pad the rest of the page with zeroes
+  for (int i = 4; i < kPageSize / sizeof(uint64_t); i++) {
+    wbuf.push_back(0x0000000000000000); // pad the rest of the page with zeroes
   }
-
   std::queue<sstable_btree_node> creation_queue;
 
   // create and write leaf nodes
@@ -88,11 +87,12 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
 
     const size_t actual_size = 2 + leaf_node.kv_pairs.size() * 2;
     wbuf.push_back(static_cast<uint64_t>(leaf_node.magic_number) << 32 | static_cast<uint64_t>(leaf_node.garbage));
+    wbuf.push_back(leaf_node.right_leaf_block_ptr);
     for (int j = 0; j < leaf_node.kv_pairs.size(); j++) {
       wbuf.push_back(leaf_node.kv_pairs[j].first);
       wbuf.push_back(leaf_node.kv_pairs[j].second);
     }
-    wbuf.push_back(leaf_node.right_leaf_block_ptr);
+   
 
     // Pad the rest of the page with zeroes
     for (int k = actual_size; k < kPageSize; k++) {
@@ -194,17 +194,6 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
   int elems = buf[2]; 
   if (elems == 0) { return std::nullopt; }
   uint64_t cur_offset = kPageSize + buf[3]; // meta block size + root block ptr 
-  // TESTING: DELETE
-  cur_offset = 8000;
-  file.seekg(cur_offset, std::ios::beg);
-  file.read(reinterpret_cast<char*>(buf), kPageSize);
-  assert(file.good());
-  if ((buf[0] >> 32)!= 0x00db0011) { 
-    std::cout << "Magic number wrong! Expected " << 0x00db0011 << " but got "
-              << (buf[0] >>32) << '\n';
-    exit(1);
-  }
-  // TESTING: DELETE
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
@@ -223,10 +212,11 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
       int right = header_size + (kPageSize-16)/16 * pair_size;
 
       // check right node ptr to see if the leaf node is the rightmost one => potential not full.
-      if (buf[right] == BLOCK_NULL) {
-        right = header_size + (kPageSize-16)%elems * pair_size;
-      }
-
+      // if (buf[right] == 0xffffffffffffffff) {
+      //   right = header_size + (kPageSize-16)%elems * pair_size;
+      // }
+      std::cout << "right leaf block ptr" << buf[1] << '\n';
+      std::cout << "left: " << left << " right: " << right << '\n';
       while (left <= right) {
         int mid = left + floor((right - left) / 2);
         if (buf[mid] == key) {

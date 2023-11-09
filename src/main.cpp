@@ -22,10 +22,6 @@ int main() {
   assert(f.is_open());
   assert(f.good());
   t.Flush(f, memtable);
-  
-  uint64_t buf[kPageSize];
-  f.seekg(0);
-  f.read(reinterpret_cast<char*>(buf), kPageSize);
 
   std::optional<V> val = t.GetFromFile(f, 32);
 
