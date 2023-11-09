@@ -200,7 +200,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
     file.read(reinterpret_cast<char*>(buf), kPageSize);
     assert(file.good());
 
-    int header_size = 1;
+    int header_size = 2;
     int pair_size = 2;
 
     if ((buf[0] >> 32) == 0x00db0011) { // leaf node
@@ -212,15 +212,15 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
       int right = header_size + (kPageSize-16)/16 * pair_size;
 
       // check right node ptr to see if the leaf node is the rightmost one => potential not full.
-      // if (buf[right] == 0xffffffffffffffff) {
-      //   right = header_size + (kPageSize-16)%elems * pair_size;
-      // }
-      std::cout << "right leaf block ptr" << buf[1] << '\n';
-      std::cout << "left: " << left << " right: " << right << '\n';
+      if (buf[1] == 0xffffffffffffffff and elems > (kPageSize-16)/16) {
+        right = header_size + (kPageSize-16)%elems * pair_size;
+      } else if (buf[1] == 0xffffffffffffffff) {
+        right = header_size + elems * pair_size;
+      }
       while (left <= right) {
         int mid = left + floor((right - left) / 2);
         if (buf[mid] == key) {
-          return std::make_optional(buf[mid]);
+          return std::make_optional(buf[mid+1]);
         }
 
         if (buf[mid] < key) {
@@ -233,8 +233,8 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
       return std::nullopt;
     } else if ((buf[0] >> 32) == 0x00db00ff) { // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
-      int left = header_size + 1;
-      int right = header_size + 1 + num_children * pair_size;
+      int left = header_size;
+      int right = header_size + num_children * pair_size;
 
       if (key < buf[left]) {
         cur_offset = buf[left+1];
