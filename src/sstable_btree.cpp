@@ -189,7 +189,8 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
               << buf[0] << '\n';
     exit(1);
   }
-  
+  std::cout << "elems: " << buf[2] << std::endl;
+  std::cout << "root block ptr: " << buf[3] << std::endl;
   // if there are no elements
   int elems = buf[2]; 
   if (elems == 0) { return std::nullopt; }
