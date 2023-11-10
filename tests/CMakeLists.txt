@@ -24,6 +24,7 @@ add_executable(kvstore_test
   src/buf.test.cpp
   src/memtable.test.cpp
   src/sstable_naive.test.cpp
+  src/sstable_btree.test.cpp
   src/evict.test.cpp
   src/filter.test.cpp
   src/dbg.test.cpp

@@ -53,7 +53,6 @@ struct KvStore::KvStoreImpl {
     SstableNaive::Flush(file, this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
-      exit(1);
     }
 
     this->blocks++;

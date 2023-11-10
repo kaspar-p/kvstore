@@ -33,11 +33,11 @@ This includes the root node if there are <= `ORDER` (key, value) pairs in the fi
 
 ```
 [ 00 db 00 11 ] [ uint32_t ]  (4+4 bytes, magic number for leaf node, then 4 bytes garbage)
+[ right leaf block ptr ]      (8 bytes)
 [ key ] [ value ]             (8 + 8 bytes)
 [ key ] [ value ]             (8 + 8 bytes)
 ...
 [ key ] [ value ]             (8 + 8 bytes)
-[ right leaf block ptr ]      (8 bytes)
 ```
 
 The next ptrs are the macro `BLOCK_NULL` if there is no previous/next.

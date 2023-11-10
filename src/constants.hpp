@@ -10,4 +10,8 @@ constexpr static std::size_t kKeySize = sizeof(K);
 constexpr static std::size_t kValSize = sizeof(V);
 constexpr static std::size_t kMegabyteSize = 1024 * 1024;
 
-enum { kPageSize = 4096 };
+enum
+{
+  kPageSize = 4096,
+  BLOCK_NULL = -1, // TODO: need to change?
+};
