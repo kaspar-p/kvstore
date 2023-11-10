@@ -4,7 +4,7 @@ The intention of compaction is to take N files in a level, and combine them into
 
 ## Size of files
 
-The size of a file heavily effects the compaction algorithm. It's much more difficult to keep running
+The size of a file heavily affects the compaction algorithm. It's much more difficult to keep running
 buffers (in an external sorting way) to existing files than to just _assume_ that every file fits into 
 the available memory size.
 
