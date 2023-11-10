@@ -69,3 +69,21 @@ L2: [1, 2, 3] [4, 5, 8]
 ```
 where L2 has double the capacity of L1. This capacity isn't written down anywhere, it's just in code and used
 to trigger the compaction of L2 -> L3 _later_ than the compaction of L1 -> L2.
+
+## Skipping files
+
+As mentioned, another benefit of keeping many small files is being able to skip reading through files and being able to
+blindly copy, or simply rename.
+
+Each data file has a metadata page as it's very first `kPageSize` bytes, usually 4KB. The metadata page should store the
+minimum and maximum keys that the file has. Reading this can allow us to skip entire files.
+
+Imagine a situation like:
+```
+...
+L2: [1,2,3] [4,5,6] | [7,8,9] [10,11,12]
+```
+where everything to the left of the `|` is the "old data", already sorted, and everything to the right of the `|` is
+the data that got flushed out of L1. In this case, we didn't have to do anything to the files, since the min of both
+files were above the maximum we had. Here, 7 > 6, so no need to do any sorting. We read a single page out of the file,
+and saved lots of compute.
