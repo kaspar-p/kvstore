@@ -26,6 +26,7 @@ See the [BUILDING](BUILDING.md) document.
   - [x] Creation: happens during the constructor
   - [x] Has
 - [ ] Buffer pool
+  - [ ] Clock eviction
   - [x] Extendible hashing
   - [x] GetPage
   - [x] PutPage
@@ -46,9 +47,7 @@ See the [BUILDING](BUILDING.md) document.
 
 ## TODO
 
-- Benchmarks!!!! There aren't any!
-- `Close()` isn't implemented for KvStore, all data in the MemTable would be lost.
-  - Many things that just `return;` aren't implemented. I think `Delete()`, too.
-- Serialize in a non-text format. All keys/values are each 8 bytes (`uint8_t`), so binary search could be done by jumping through indices. We'd need to solve endian-ness before, that's why it's a text-based serialization right now.
-- Read through the data directory if it exists. Currently, the `blocks` counter in KvStoreImpl is always going to start at 0, but it should be set based on the existing data. It WILL overwrite data unless this is fixed!
-- A scan currently goes the wrong way, goes OLDEST to YOUNGEST. We assume that we will find it younger, so iterate backwards!
+- LSM implementations are not done, the main `KvStore` is not using the `LSMLevel` class yet.
+  - There is no compaction algorithm
+- Recovery is untested. The starting of a database with existing datafiles is not yet tested.
+- We have no experiments/benchmarks for anything!
