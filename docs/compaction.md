@@ -33,7 +33,7 @@ void Flush(string filename, unique_ptr<vector<pair<K, V>>> pairs);
 Assume the vector fits in memory, and a layout looks like:
 ```
 MemTable: [ ]     (empty)
-L1:       [x] [x] (full, requires compaction)
+L1:       [x] [y] (full, requires compaction)
 L2:               (empty)
 ```
 
@@ -51,3 +51,21 @@ The process is:
   pipeline the work a little.
 4. For each file-size chunk of `v3`, use `Flush` to create a new file in the next level.
 
+If both `v1` and `v2` were completely full (8MB of data worth, say), then two files are created in the next level L2. 
+This is one extreme. In the other extreme, all of the keys in `v1` are marked `TOMBSTONE` in `v2`, and only 
+one file is persisted into L2 after merging.
+
+Imagine the file `[x]` has keys `1, 3, 4`, and `[y]` has keys `2, 5, 8`. Then we start with:
+```
+MemTable:                     (empty)
+L1:       [1, 3, 4] [2, 5, 8] (full, requires compaction)
+-- no L2 files --
+```
+and end with:
+```
+MemTable:                (empty)
+L1:                      (empty)
+L2: [1, 2, 3] [4, 5, 8]
+```
+where L2 has double the capacity of L1. This capacity isn't written down anywhere, it's just in code and used
+to trigger the compaction of L2 -> L3 _later_ than the compaction of L1 -> L2.
