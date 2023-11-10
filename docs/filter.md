@@ -30,15 +30,19 @@ for LSM trees, who do no in-place updating/expansion, unlike B-Trees. That confi
 maximum is saved into the file.
 
 The cache line is taken in the code to be 128 bytes, so each bloom filter has 
-128*8 = 1024 bits. Using M=8 bits per entry makes the alignment easier, so
-each bloom filter has capacity for 128 elements. That is, the number of bloom blocks
-that need to be read are is:
+128*8 = 1024 bits. We use M=5 in the code, but any M is supported. Each bloom filter
+has:
 ```
-number of blocks to read = maximum number / 128
+entries = bits / bits_per_entry = 1024 / 5 = 204
+```
+
+That is, the number of bloom blocks that need to be read are is:
+```
+number of blocks to read = maximum number / entries = maximum number / 204
 ```
 
 This number will be rounded up to ensure that more bits than are necessary are persisted.
 
-Taking a page size of 4KB, 4096 / 128 = 32 bloom filters fit into a single page. The index
+Taking a page size of 4KB, `4096 / 128 = 32` bloom filters fit into a single page. The index
 of the page can be calculated when the "block hash" is run, the hash function that maps
 a key into an initial bloom filter.
