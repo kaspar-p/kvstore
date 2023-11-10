@@ -57,8 +57,8 @@ one file is persisted into L2 after merging.
 
 Imagine the file `[x]` has keys `1, 3, 4`, and `[y]` has keys `2, 5, 8`. Then we start with:
 ```
-MemTable:                     (empty)
-L1:       [1, 3, 4] [2, 5, 8] (full, requires compaction)
+MemTable:               (empty)
+L1: [1, 3, 4] [2, 5, 8] (full, requires compaction)
 -- no L2 files --
 ```
 and end with:
