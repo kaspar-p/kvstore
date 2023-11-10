@@ -30,7 +30,7 @@ The `main.cpp` compiles into a binary `kvstore`, run with:
 
 But most likely the binary to run is the test binary.
 
-### Testing
+## Test
 
 The same commands, but the executable is placed differently in the filesystem:
 
