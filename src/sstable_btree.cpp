@@ -57,7 +57,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
   while (i < pairs.size()) {
     // info node used for the queue
     sstable_btree_node info_node;
-    info_node.offset = i/order * kPageSize;
+    info_node.offset = (1 + i/order) * kPageSize;
     
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
@@ -80,7 +80,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
     }
     // right leaf block ptr (8 ptr)
     if (i < pairs.size()) {
-      leaf_node.right_leaf_block_ptr = i/order * kPageSize;
+      leaf_node.right_leaf_block_ptr = (1 + i/order) * kPageSize;
     } else {
       leaf_node.right_leaf_block_ptr = BLOCK_NULL;
     }
@@ -95,7 +95,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
    
 
     // Pad the rest of the page with zeroes
-    for (int k = actual_size; k < kPageSize; k++) {
+    for (int k = actual_size; k < kPageSize/sizeof(uint64_t); k++) {
       wbuf.push_back(0);
     }
   }
@@ -154,7 +154,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable)
       }
 
       // Pad the rest of the page with zeroes
-      for (int k = actual_size; k < kPageSize; k++) {
+      for (int k = actual_size; k < kPageSize/sizeof(uint64_t); k++) {
         wbuf.push_back(0);
       }
       // TODO: child ptr is BLOCK_NULL if there isn't a leaf node, in documentation??
@@ -184,17 +184,16 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
   file.read(reinterpret_cast<char*>(buf), kPageSize);
   assert(file.good());
   
-  if (buf[0] != 0x00db00beef00db00) { // TODO: use fileutil.cpp
+  if (buf[0] != 0x00db00beef00db00) {
     std::cout << "Magic number wrong! Expected " << 0x00db00beef00db00 << " but got "
               << buf[0] << '\n';
     exit(1);
   }
-  std::cout << "elems: " << buf[2] << std::endl;
-  std::cout << "root block ptr: " << buf[3] << std::endl;
+
   // if there are no elements
   int elems = buf[2]; 
   if (elems == 0) { return std::nullopt; }
-  uint64_t cur_offset = kPageSize + buf[3]; // meta block size + root block ptr 
+  uint64_t cur_offset = buf[3]; // meta block size + root block ptr 
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
@@ -213,17 +212,15 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
       int right = header_size + (kPageSize-16)/16 * pair_size;
 
       // check right node ptr to see if the leaf node is the rightmost one => potential not full.
-      if (buf[1] == 0xffffffffffffffff and elems > (kPageSize-16)/16) {
-        right = header_size + (kPageSize-16)%elems * pair_size;
-      } else if (buf[1] == 0xffffffffffffffff) {
+      if (buf[1] == 0xffffffffffffffff and ((kPageSize-16)/16)%elems == 0) {
         right = header_size + elems * pair_size;
+      } else if (buf[1] == 0xffffffffffffffff) {
+        right = header_size + ((kPageSize-16)/16)%elems * pair_size;
       }
-
+      int mid = left + floor((right - left) / 4) * 2;
       while (left <= right) {
         int mid = left + floor((right - left) / 4) * 2;
         if (buf[mid] == key) {
-          std::cout << "key" << buf[mid] << std::endl;
-          std::cout << "value" << buf[mid+1] << std::endl;
           return std::make_optional(buf[mid+1]);
         }
 
@@ -233,33 +230,32 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
           right = mid - 2;
         }
       }
-
       return std::nullopt;
+      
     } else if ((buf[0] >> 32) == 0x00db00ff) { // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
       int right = header_size + num_children * pair_size;
-
       if (key < buf[left]) {
         cur_offset = buf[left+1];
-      }
-      if (key > buf[right]) {
+      } else if (key > buf[right]) {
         cur_offset = buf[1];
-      }
-      int mid = left + floor((right - left) / 2);
-      while (left <= right) {
+      } else {
         int mid = left + floor((right - left) / 2);
-        if (buf[mid] == key) {
-          cur_offset = buf[mid+1];
+        while (left <= right) {
+          int mid = left + floor((right - left) / 2);
+          if (buf[mid] == key) {
+            cur_offset = buf[mid+1];
+          }
+          if (buf[mid] < key) {
+            left = mid + 2;
+          } else {
+            right = mid - 2;
+          }
         }
-
-        if (buf[mid] < key) {
-          left = mid + 2;
-        } else {
-          right = mid - 2;
-        }
-      }
       cur_offset = buf[mid+1];
+      }
+      
     } else {
       std::cout << "Magic number wrong! Expected " << 0x00db0011 << " or " << 0x00db00ff << " but got "
                 << (buf[0] >> 32) << '\n';
@@ -273,9 +269,104 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key)
 std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
                                                       const K lower,
                                                       const K upper) {
-  (void)file;
-  (void)lower;
-  (void)upper;
-  std::vector<std::pair<K, V>> l{};
-   return l;
+  uint64_t buf[kPageSize];
+  assert(file.is_open());
+  assert(file.good());
+
+  file.seekg(0);
+  file.read(reinterpret_cast<char*>(buf), kPageSize);
+  assert(file.good());
+  
+  if (buf[0] != 0x00db00beef00db00) { 
+    std::cout << "Magic number wrong! Expected " << 0x00db00beef00db00 << " but got "
+              << buf[0] << '\n';
+    exit(1);
+  }
+
+  std::vector<std::pair<K, V>> l;
+
+  int elems = buf[2]; 
+  if (elems == 0) {return l;}
+
+  uint64_t cur_offset = buf[3]; // meta block size + root block ptr 
+  bool leaf_node = false;
+  int mid;
+  while (!leaf_node) {
+    file.seekg(cur_offset);
+    file.read(reinterpret_cast<char*>(buf), kPageSize);
+    assert(file.good());
+
+    int header_size = 2;
+    int pair_size = 2;
+
+    if ((buf[0] >> 32) == 0x00db0011) { // leaf node
+      leaf_node = true;
+      // binary search to find which key to return
+      // if key and cant find then return std::nullopt
+      // if key and can find then return val
+      int left = header_size;
+      int right = header_size + (kPageSize-16)/16 * pair_size;
+
+      // check right node ptr to see if the leaf node is the rightmost one => potential not full.
+      if (buf[1] == 0xffffffffffffffff and ((kPageSize-16)/16)%elems == 0) {
+        right = header_size + elems * pair_size;
+      } else if (buf[1] == 0xffffffffffffffff) {
+        right = header_size + ((kPageSize-16)/16)%elems * pair_size;
+      }
+      while (left <= right) {
+        mid = left + floor((right - left) / 4) * 2;
+        if (left == right || buf[mid] == lower) {
+          break;
+        }
+
+        if (buf[mid] < lower) {
+          left = mid + 2;
+        } else {
+          right = mid - 2;
+        }
+      }
+      assert(buf[mid] >= lower);
+      
+    } else if ((buf[0] >> 32) == 0x00db00ff) { // internal node
+      uint32_t num_children = buf[0] & 0x00000000ffffffff;
+      int left = header_size;
+      int right = header_size + num_children * pair_size;
+      if (lower < buf[left]) {
+        cur_offset = buf[left+1];
+      } else if (lower > buf[right]) {
+        cur_offset = buf[1];
+      } else {
+        while (left <= right) {
+          mid = left + floor((right - left) / 2);
+          if (buf[mid] == lower) {
+            cur_offset = buf[mid+1];
+          }
+          if (buf[mid] < lower) {
+            left = mid + 2;
+          } else {
+            right = mid - 2;
+          }
+        }
+      cur_offset = buf[mid+1];
+      }
+      
+    } else {
+      std::cout << "Magic number wrong! Expected " << 0x00db0011 << " or " << 0x00db00ff << " but got "
+                << (buf[0] >> 32) << '\n';
+      exit(1);
+    }
+  }
+  int walk = mid;
+  while ((buf[0] >> 32 == 0x00db0011) && buf[walk] <= upper && walk < kPageSize/sizeof(uint64_t)) {
+    l.push_back(std::make_pair(buf[walk], buf[walk+1]));
+    walk += 2;
+
+    if (walk == kPageSize/sizeof(uint64_t) and buf[1] != 0xffffffffffffffff) {
+      file.seekg(buf[1]);
+      file.read(reinterpret_cast<char*>(buf), kPageSize);
+      assert(file.good());
+      walk = 2;
+    }
+  }
+  return l;
 };
