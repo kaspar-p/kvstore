@@ -1,5 +1,6 @@
 #include "filter.hpp"
 
+#include <any>
 #include <array>
 #include <bitset>
 #include <cassert>
@@ -101,8 +102,8 @@ class Filter::FilterImpl {
     return static_cast<uint64_t>(XXH64(&key, kKeySize, starting_seed));
   }
 
-  Buffer to_buf(std::array<BloomFilter, kFiltersPerPage>& filters) const {
-    Buffer buffer;
+  BytePage to_buf(std::array<BloomFilter, kFiltersPerPage>& filters) const {
+    BytePage buffer{};
     for (int filt = 0; filt < filters.size(); filt++) {
       std::array<uint8_t, kFilterBytes> data_vec = filters.at(filt);
       for (int data_offset = 0; data_offset < data_vec.size(); data_offset++) {
@@ -114,7 +115,7 @@ class Filter::FilterImpl {
     return buffer;
   }
 
-  std::array<BloomFilter, kFiltersPerPage> from_buf(Buffer& buffer) const {
+  std::array<BloomFilter, kFiltersPerPage> from_buf(BytePage& buffer) const {
     std::array<BloomFilter, kFiltersPerPage> filters;
     for (int i = 0; i < kFiltersPerPage; i++) {
       std::array<uint8_t, kFilterBytes> filter_buf;
@@ -189,7 +190,7 @@ class Filter::FilterImpl {
       }
     }
 
-    std::vector<Buffer> pages{};
+    std::vector<BytePage> pages{};
 
     int filter_idx = 0;
     while (filter_idx < this->num_filters) {
@@ -259,18 +260,19 @@ class Filter::FilterImpl {
     PageId page_id = PageId{.filename = this->filename, .page = page_idx};
     std::optional<BufferedPage> buf_page = buf.GetPage(page_id);
     if (buf_page.has_value()) {
-      auto filters = this->from_buf(buf_page.value().contents);
+      auto buf = std::any_cast<BytePage>(buf_page.value().contents);
+      auto filters = this->from_buf(buf);
       return this->bloom_has(filters.at(filter_offset), key);
     } else {
       // Or read it ourselves.
       this->file.seekg(page_idx * kPageSize);
-      Buffer buf{};
+      BytePage buf{};
       assert(this->file.good());
       this->file.read(reinterpret_cast<char*>(buf.data()), kPageSize);
       assert(this->file.good());
 
       // Put the page back in the buffer
-      this->buf.PutPage(page_id, PageType::kFilters, buf);
+      this->buf.PutPage(page_id, std::make_any<BytePage>(buf));
 
       std::array<BloomFilter, kFiltersPerPage> filters = this->from_buf(buf);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <any>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +22,7 @@ enum PageType {
   kFilters = 3
 };
 
-using Buffer = std::array<std::byte, kPageSize>;
+using BytePage = std::array<std::byte, kPageSize>;
 
 struct PageId {
   std::string filename;
@@ -39,8 +40,7 @@ struct PageId {
 
 struct BufferedPage {
   PageId id;
-  PageType type;
-  Buffer contents;
+  std::any contents;
   bool operator==(BufferedPage& other) const { return this->id == other.id; }
 };
 
@@ -65,8 +65,9 @@ class BufPool {
   ~BufPool();
 
   [[nodiscard]] bool HasPage(PageId& page) const;
+
   [[nodiscard]] std::optional<BufferedPage> GetPage(PageId& page) const;
-  void PutPage(PageId& page, PageType type, Buffer contents);
+  void PutPage(PageId& page, std::any contents);
 
   std::string DebugPrint(uint32_t);
   std::string DebugPrint();

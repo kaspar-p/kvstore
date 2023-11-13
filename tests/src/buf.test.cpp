@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <any>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -38,13 +39,13 @@ TEST(BufPool, ReplaceDuplicates) {
 
   PageId id = {.filename = std::string("unique_file"), .page = 2};
   for (int i = 0; i < 10; i++) {
-    buf.PutPage(id, PageType::kFilters, Buffer{std::byte{(uint8_t)i}});
+    buf.PutPage(id, BytePage{std::byte{(uint8_t)i}});
   }
 
   std::optional<BufferedPage> page = buf.GetPage(id);
   ASSERT_TRUE(page.has_value());
-  ASSERT_EQ(page.value().type, PageType::kFilters);
-  ASSERT_EQ(page.value().contents, Buffer{std::byte{9}});
+  ASSERT_EQ(std::any_cast<BytePage>(page.value().contents),
+            BytePage{std::byte{9}});
 }
 
 TEST(BufPool, GetRealPage) {
@@ -52,14 +53,13 @@ TEST(BufPool, GetRealPage) {
               &test_hash);
 
   PageId id = {.filename = std::string("file"), .page = 3};
-  buf.PutPage(id, PageType::kBTreeInternal, Buffer{});
+  buf.PutPage(id, BytePage{});
   std::optional<BufferedPage> page = buf.GetPage(id);
 
   ASSERT_TRUE(page.has_value());
   ASSERT_EQ(page.value().id.filename, std::string("file"));
   ASSERT_EQ(page.value().id.page, 3);
-  ASSERT_EQ(page.value().type, PageType::kBTreeInternal);
-  ASSERT_EQ(page.value().contents, Buffer{});
+  ASSERT_EQ(std::any_cast<BytePage>(page.value().contents), BytePage{});
 }
 
 TEST(BufPool, Evolution) {
@@ -75,7 +75,7 @@ TEST(BufPool, Evolution) {
                                            "[]: ()\n"));
 
   id = make_test_id(0b0111, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)0}});
+  buf.PutPage(id, {std::byte{(uint8_t)0}});
   ASSERT_EQ(buf.DebugPrint(4), std::string("max: 16\n"
                                            "elements: 1\n"
                                            "bits: 2\n"
@@ -85,7 +85,7 @@ TEST(BufPool, Evolution) {
                                            "..[1]: ()\n"));
 
   id = make_test_id(0b1010, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)1}});
+  buf.PutPage(id, {std::byte{(uint8_t)1}});
   ASSERT_EQ(buf.DebugPrint(4), std::string("max: 16\n"
                                            "elements: 2\n"
                                            "bits: 2\n"
@@ -95,7 +95,7 @@ TEST(BufPool, Evolution) {
                                            "..[1]: (file,1010) -> ()\n"));
 
   id = make_test_id(0b1101, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)2}});
+  buf.PutPage(id, {std::byte{(uint8_t)2}});
   ASSERT_EQ(buf.DebugPrint(4), std::string("max: 16\n"
                                            "elements: 3\n"
                                            "bits: 3\n"
@@ -109,7 +109,7 @@ TEST(BufPool, Evolution) {
                                            "....[11]: (file,1101) -> ()\n"));
 
   id = make_test_id(0b1001, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)3}});
+  buf.PutPage(id, {std::byte{(uint8_t)3}});
   exp = std::string(
       "max: 16\n"
       "elements: 4\n"
@@ -125,7 +125,7 @@ TEST(BufPool, Evolution) {
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b0010, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)4}});
+  buf.PutPage(id, {std::byte{(uint8_t)4}});
   exp = std::string(
       "max: 16\n"
       "elements: 5\n"
@@ -141,7 +141,7 @@ TEST(BufPool, Evolution) {
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b0110, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)5}});
+  buf.PutPage(id, {std::byte{(uint8_t)5}});
   exp = std::string(
       "max: 16\n"
       "elements: 6\n"
@@ -157,7 +157,7 @@ TEST(BufPool, Evolution) {
   ASSERT_EQ(buf.DebugPrint(4), exp);
 
   id = make_test_id(0b1011, 4);
-  buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)6}});
+  buf.PutPage(id, {std::byte{(uint8_t)6}});
   exp = std::string(
       "max: 16\n"
       "elements: 7\n"
@@ -174,7 +174,7 @@ TEST(BufPool, Evolution) {
 
   for (int i = 0; i < 9; i++) {
     id = make_test_id(i + 7, 4);
-    buf.PutPage(id, kBTreeInternal, {std::byte{(uint8_t)(i + 7)}});
+    buf.PutPage(id, {std::byte{(uint8_t)(i + 7)}});
   }
 
   exp = std::string(
@@ -234,9 +234,9 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
 
   // Fill the buffer
   PageId id0 = make_test_id(0b001, 3);
-  buf.PutPage(id0, kBTreeInternal, {std::byte{0x00}});
+  buf.PutPage(id0, BytePage{std::byte{0x00}});
   PageId id1 = make_test_id(0b101, 3);
-  buf.PutPage(id1, kBTreeInternal, {std::byte{0x01}});
+  buf.PutPage(id1, BytePage{std::byte{0x01}});
 
   ASSERT_EQ(buf.DebugPrint(4),
             std::string("max: 2\n"
@@ -250,7 +250,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
 
   // Evict the pages by filling the buffer again
   PageId id2 = make_test_id(0b010, 3);
-  buf.PutPage(id2, kBTreeInternal, {std::byte{0x02}});
+  buf.PutPage(id2, BytePage{std::byte{0x02}});
 
   ASSERT_EQ(buf.DebugPrint(4),
             std::string("max: 2\n"
@@ -260,7 +260,7 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
                         "[]: (file,0100) -> (file,1010) -> ()\n"));
 
   PageId id3 = make_test_id(0b110, 3);
-  buf.PutPage(id3, kBTreeInternal, {std::byte{0x03}});
+  buf.PutPage(id3, BytePage{std::byte{0x03}});
 
   ASSERT_EQ(buf.DebugPrint(4),
             std::string("max: 2\n"
@@ -275,10 +275,12 @@ TEST(BufPool, PagesAreEvictedOnFullRotation) {
   std::optional<BufferedPage> page2 = buf.GetPage(id2);
   ASSERT_EQ(page2.has_value(), true);
   ASSERT_EQ(page2.value().id, id2);
-  ASSERT_EQ(page2.value().contents, Buffer{std::byte(0x02)});
+  ASSERT_EQ(std::any_cast<BytePage>(page2.value().contents),
+            BytePage{std::byte(0x02)});
 
   std::optional<BufferedPage> page3 = buf.GetPage(id3);
   ASSERT_EQ(page3.has_value(), true);
   ASSERT_EQ(page3.value().id, id3);
-  ASSERT_EQ(page3.value().contents, Buffer{std::byte(0x03)});
+  ASSERT_EQ(std::any_cast<BytePage>(page3.value().contents),
+            BytePage{std::byte(0x03)});
 }

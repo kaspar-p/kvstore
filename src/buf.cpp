@@ -244,14 +244,12 @@ class BufPool::BufPoolImpl {
     return std::nullopt;
   }
 
-  void PutPage(const PageId& page_id, const PageType type,
-               const Buffer contents) {
+  void PutPage(const PageId& page_id, const std::any contents) {
     uint32_t hash = hash_func_(page_id);
 
     TrieNode& node = BufPoolImpl::trie_find_bucket(hash, this->bits);
     auto page = BufferedPage{
         .id = page_id,
-        .type = type,
         .contents = contents,
     };
     bool removed_one = BufPoolImpl::trie_put_in_bucket(node, page);
@@ -299,9 +297,8 @@ std::optional<BufferedPage> BufPool::GetPage(PageId& page) const {
   return this->impl_->GetPage(page);
 }
 
-void BufPool::PutPage(PageId& page, const PageType type,
-                      const Buffer contents) {
-  return this->impl_->PutPage(page, type, contents);
+void BufPool::PutPage(PageId& page, const std::any contents) {
+  return this->impl_->PutPage(page, contents);
 }
 
 std::string BufPool::DebugPrint(uint32_t bit_length) {
