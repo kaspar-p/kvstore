@@ -9,57 +9,46 @@
 #include "sstable.hpp"
 #include "xxhash.h"
 
-int main() {
-  // MemTable memtable(64);
-  // for (int i = 0; i < 64; i++) {
-  //   memtable.Put(i, i);
-  // }
-
-  // SstableBTree t{};
-  // std::fstream f("/tmp/SstableBTree.GetSingleElems.bin",
-  //                std::fstream::binary | std::fstream::in | std::fstream::out
-  //                |
-  //                    std::fstream::trunc);
-  // assert(f.is_open());
-  // assert(f.good());
-  // t.Flush(f, memtable);
-
-  // std::optional<V> val = t.GetFromFile(f, 32);
-
-  // assert(val.has_value());
-  // assert(val.value() == 32);
-
-  // std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
-
-  // assert(val.size() == 43);
-  // assert(val.front().first == 10);
-  // assert(val.front().second == 10);
-  // assert(val.back().first == 52);
-  // assert(val.back().second == 52);
-
-  MemTable memtable(510);
-  for (int i = 0; i < 510; i++) {
-    memtable.Put(i, i);
+DbNaming create_dir(std::string name) {
+  bool exists = std::filesystem::exists("/tmp/" + name);
+  if (!exists) {
+    bool created = std::filesystem::create_directory("/tmp/" + name);
+    assert(created);
   }
+  return DbNaming{.dirpath = "/tmp/" + name, .name = name};
+}
 
-  SstableBTree t{};
-  std::fstream f("/tmp/SstableBTree.GetSingleElems.bin",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  assert(f.is_open());
-  assert(f.good());
-  t.Flush(f, memtable);
+FilterId test_setup(DbNaming& naming) {
+  std::filesystem::remove(filter_file(naming, 1, 0));
 
-  // std::optional<V> val = t.GetFromFile(f, 509);
+  return FilterId{
+      .dbname = naming,
+      .level = 1,
+      .run = 0,
+  };
+}
 
-  // assert(val.has_value());
-  // assert(val.value() == 509);
+BufPool test_buffer() {
+  return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
+}
+BufPool buf = test_buffer();
 
-  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 509);
+std::vector<K> test_keys(int num) {
+  std::vector<K> keys;
+  for (int i = 0; i < num; i++) {
+    keys.push_back(i);
+  }
+  return keys;
+}
 
-  assert(val.size() == 500);
-  assert(val.front().first == 10);
-  assert(val.front().second == 10);
-  assert(val.back().first == 509);
-  assert(val.back().second == 509);
+int main() {
+  auto naming = create_dir("Main.Initialization");
+  auto id = test_setup(naming);
+  std::cout << "BEFORe!" << std::endl;
+  Filter f(id, buf, 0, test_keys(10));
+  std::cout << "AFTER!" << std::endl;
+  assert(f.Has(0) == false);
+  assert(std::filesystem::file_size(filter_file(id.dbname, id.level, id.run)) %
+             kPageSize ==
+         0);
 }

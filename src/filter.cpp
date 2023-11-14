@@ -35,6 +35,10 @@ constexpr static std::size_t kNumHashFuncs = 3;  // log(2) * kBitsPerEntry;
 
 using BloomFilter = std::array<uint8_t, kFilterBytes>;
 
+enum FilterFileLocations {
+  kNumEntries = 2,
+};
+
 uint64_t calc_page_idx(uint64_t global_filter_idx) {
   uint64_t page_idx = global_filter_idx / kFiltersPerPage;
   return page_idx + 1;  // First page is always metadata page
@@ -46,13 +50,14 @@ uint64_t calc_page_offset(uint64_t global_filter_idx) {
 
 class Filter::FilterImpl {
  private:
-  const std::array<KeyHashFn, kNumHashFuncs> bit_hashes;
-  const uint32_t num_filters;
-  const uint64_t seed;
-  const std::string filename;
-
   BufPool& buf;
+
+  const std::string filename;
   std::fstream file;
+
+  const std::array<KeyHashFn, kNumHashFuncs> bit_hashes;
+  const uint64_t seed;
+  const uint32_t num_filters;
 
   [[nodiscard]] bool bloom_has(const BloomFilter& filter, const K key) const {
     bool val = true;
@@ -135,7 +140,7 @@ class Filter::FilterImpl {
     if (std::filesystem::exists(this->filename) &&
         std::filesystem::file_size(this->filename) > kPageSize) {
       // If there is at least a page in the file, we assume it's correct
-      char firstPage[kPageSize];
+      uint64_t firstPage[kPageSize / sizeof(uint64_t)];
       if (!this->file.is_open()) {
         this->file.open(this->filename, std::fstream::binary |
                                             std::fstream::out |
@@ -143,7 +148,7 @@ class Filter::FilterImpl {
       }
       assert(this->file.good());
       this->file.seekg(0);
-      this->file.read(firstPage, kPageSize);
+      this->file.read(reinterpret_cast<char*>(firstPage), kPageSize);
       bool has_magic = has_magic_numbers(firstPage, FileType::kFilter);
       if (has_magic) {
         return true;
@@ -157,9 +162,11 @@ class Filter::FilterImpl {
 
   void write_metadata_block() {
     assert(this->file.good());
-    char metadata_block[kPageSize]{};
+    uint64_t metadata_block[kPageSize / sizeof(uint64_t)]{};
     put_magic_numbers(metadata_block, FileType::kFilter);
-    this->file.write(metadata_block, kPageSize);
+    metadata_block[kNumEntries] = this->num_filters * kEntriesPerFilter;
+
+    this->file.write(reinterpret_cast<char*>(metadata_block), kPageSize);
     assert(this->file.good());
 
     for (int filter_idx = 0; filter_idx < this->num_filters; filter_idx++) {
@@ -212,14 +219,37 @@ class Filter::FilterImpl {
     assert(this->file.good());
   }
 
+  uint32_t find_num_filters() {
+    std::cout << "before" << '\n';
+    if (this->file_exists()) {
+      std::cout << "here" << '\n';
+      uint64_t metadata_buf[kPageSize / sizeof(uint64_t)];
+      this->file.seekg(0);
+      this->file.read(reinterpret_cast<char*>(metadata_buf), kPageSize);
+
+      uint64_t max_entries = metadata_buf[2];
+      return max_entries / kEntriesPerFilter;
+    }
+    return 0;
+  }
+
  public:
-  FilterImpl(const DbNaming& dbname, const uint32_t level, BufPool& buf,
-             const uint64_t starting_seed, const std::vector<K> keys)
-      : num_filters(ceil((float)keys.size() / kEntriesPerFilter)),
+  FilterImpl(const FilterId id, BufPool& buf, const uint64_t starting_seed)
+      : filename(filter_file(id.dbname, id.level, id.run)),
+        num_filters(find_num_filters()),
         seed(starting_seed),
         buf(buf),
-        bit_hashes(create_hash_funcs(starting_seed)),
-        filename(filter_file(dbname, level)) {
+        bit_hashes(create_hash_funcs(starting_seed)) {
+    assert(num_filters > 0);
+  }
+
+  FilterImpl(const FilterId id, BufPool& buf, const uint64_t starting_seed,
+             const std::vector<K> keys)
+      : filename(filter_file(id.dbname, id.level, id.run)),
+        num_filters(ceil((float)keys.size() / kEntriesPerFilter)),
+        seed(starting_seed),
+        buf(buf),
+        bit_hashes(create_hash_funcs(starting_seed)) {
     if (!this->file.is_open()) {
       this->file.open(this->filename, std::fstream::binary | std::fstream::out |
                                           std::fstream::in);
@@ -281,9 +311,13 @@ class Filter::FilterImpl {
   }
 };
 
-Filter::Filter(const DbNaming& dbname, const uint32_t level, BufPool& buf,
-               const uint64_t seed, const std::vector<K> keys)
-    : impl_(std::make_unique<FilterImpl>(dbname, level, buf, seed, keys)) {}
+Filter::Filter(const FilterId id, BufPool& buf, const uint64_t seed,
+               const std::vector<K> keys)
+    : impl_(std::make_unique<FilterImpl>(id, buf, seed, keys)) {}
+
+Filter::Filter(const FilterId id, BufPool& buf, const uint64_t seed)
+    : impl_(std::make_unique<FilterImpl>(id, buf, seed)) {}
+
 Filter::~Filter() = default;
 
 bool Filter::Has(K key) const { return this->impl_->Has(key); }

@@ -9,6 +9,12 @@
 #include "constants.hpp"
 #include "naming.hpp"
 
+struct FilterId {
+  DbNaming& dbname;
+  uint32_t level;
+  uint32_t run;
+};
+
 class Filter {
  private:
   class FilterImpl;
@@ -16,20 +22,31 @@ class Filter {
 
  public:
   /**
-   * @brief Construct a bloom filter. See /docs/filter.md for more information.
+   * @brief Construct a handler for an _existing_ Bloom Filter. See
+   * `docs/file_filter.md` for format. This constructor will NOT overwrite files
+   * in the filesystem, the other one will!
    *
-   * @param dbname The name of the database given when the user calls Open()
-   * @param level The level that this Bloom filter is a part of. Assumed to be
-   * the only filter for that level, and will contest/override files if there
-   * are multiple for a single level.
+   * @param id The ID of the filter. There is one unique one of these per filter
+   * file in the DB.
+   * @param buf The buffer pool of pages from disk.
+   * @param seed An initial randomization seed.
+   */
+  Filter(const FilterId id, BufPool& buf, uint64_t seed);
+
+  /**
+   * @brief Construct a NEW Bloom Filter. See `docs/file_filter.md` for format.
+   * This will create a new Bloom Filter in the filesystem, potentially
+   * overwriting existing data! Please ensure that you intend this!
+   *
+   * @param id The ID of the filter. There is one unique one of these per filter
+   * file in the DB.
    * @param buf A buffer pool cache for accessing pages in the filesystem.
    * @param seed A starting random seed for the hash functions in the
    * Blocked BloomFilter.
    * @param keys A large list of keys to write into the bloom filter with. There
    * are no other write methods on this class.
    */
-  Filter(const DbNaming& dbname, uint32_t level, BufPool& buf, uint64_t seed,
-         std::vector<K> keys);
+  Filter(const FilterId id, BufPool& buf, uint64_t seed, std::vector<K> keys);
   ~Filter();
 
   /**
