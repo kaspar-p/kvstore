@@ -224,11 +224,11 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
 
       // check right node ptr to see if the leaf node is the rightmost one =>
       // potential not full.
-      if (buf[1] == 0xffffffffffffffff and
-          ((kPageSize - 16) / 16) % elems == 0) {
-        right = header_size + elems * pair_size;
+      if (buf[1] == 0xffffffffffffffff &&
+          elems % ((kPageSize - 16) / 16) == 0) {
+        right = header_size + ((kPageSize - 16) / 16) * pair_size;
       } else if (buf[1] == 0xffffffffffffffff) {
-        right = header_size + ((kPageSize - 16) / 16) % elems * pair_size;
+        right = header_size + elems % ((kPageSize - 16) / 16) * pair_size;
       }
       int mid = left + floor((right - left) / 4) * 2;
       while (left <= right) {
@@ -275,7 +275,6 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
       exit(1);
     }
   }
-
   return std::nullopt;
 };
 
@@ -324,12 +323,13 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
 
       // check right node ptr to see if the leaf node is the rightmost one =>
       // potential not full.
-      if (buf[1] == 0xffffffffffffffff and
-          ((kPageSize - 16) / 16) % elems == 0) {
-        right = header_size + elems * pair_size;
+      if (buf[1] == 0xffffffffffffffff &&
+          elems % ((kPageSize - 16) / 16) == 0) {
+        right = header_size + ((kPageSize - 16) / 16) * pair_size;
       } else if (buf[1] == 0xffffffffffffffff) {
-        right = header_size + ((kPageSize - 16) / 16) % elems * pair_size;
+        right = header_size + elems % ((kPageSize - 16) / 16) * pair_size;
       }
+      right -= pair_size;
       while (left <= right) {
         mid = left + floor((right - left) / 4) * 2;
         if (left == right || buf[mid] == lower) {
@@ -337,12 +337,15 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
         }
 
         if (buf[mid] < lower) {
-          left = mid + 2;
+          left = mid + pair_size;
         } else {
-          right = mid - 2;
+          right = mid - pair_size;
         }
       }
-      assert(buf[mid] >= lower);
+      // assert(buf[mid] >= lower);
+      if (buf[mid] < lower) {
+        return l;
+      }
 
     } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
