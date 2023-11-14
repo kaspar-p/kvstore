@@ -1,10 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 
 struct DbNaming {
-  std::string dirpath;
+  std::filesystem::path dirpath;
   std::string name;
 };
 

@@ -36,29 +36,26 @@ const char* FailedToOpenException::what() const noexcept {
 
 struct KvStore::KvStoreImpl {
   const std::unique_ptr<Sstable> sstable_serializer;
-
+  DbNaming naming;
   MemTable memtable;
   bool open;
   std::vector<LSMLevel> levels;
 
   // Might not be necessary
   uint64_t blocks;
-  std::filesystem::path dir;
 
   KvStoreImpl()
       : sstable_serializer(std::make_unique<SstableBTree>()),
-        memtable((kPageSize / (kKeySize + kValSize)) - 4) {
-    this->open = false;
-    this->blocks = 0;
-  };
+        memtable((kPageSize / (kKeySize + kValSize)) - 4),
+        open(false),
+        blocks(0){};
 
   ~KvStoreImpl() = default;
 
   void flush_memtable() {
-    std::fstream file(this->datafile(this->blocks), std::fstream::binary |
-                                                        std::fstream::out |
-                                                        std::fstream::trunc);
-
+    std::fstream file(data_file(this->naming, 1, 0), std::fstream::binary |
+                                                         std::fstream::in |
+                                                         std::fstream::out);
     this->sstable_serializer->Flush(file, this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
@@ -68,18 +65,14 @@ struct KvStore::KvStoreImpl {
     this->memtable.Clear();
   };
 
-  [[nodiscard]] std::string datafile(const unsigned int block_num) const {
-    return this->dir / ("__datafile." + std::to_string(block_num));
-  }
-
   void ensure_fs(const Options options) const {
-    bool dir_exists = std::filesystem::is_directory(this->dir);
+    bool dir_exists = std::filesystem::is_directory(this->naming.dirpath);
     if (dir_exists && options.overwrite) {
-      std::filesystem::remove_all(this->dir);
+      std::filesystem::remove_all(this->naming.dirpath);
     }
 
     if (!dir_exists || (dir_exists && options.overwrite)) {
-      bool created = std::filesystem::create_directory(this->dir);
+      bool created = std::filesystem::create_directory(this->naming.dirpath);
       if (!created) {
         perror("Failed to create data directory!");
         throw FailedToOpenException();
@@ -90,15 +83,18 @@ struct KvStore::KvStoreImpl {
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
             .count();
-    std::ofstream outfile(this->dir / "__HEADER");
-    outfile << "name=" << this->dir << "\n"
+    std::ofstream outfile(this->naming.dirpath / "__HEADER");
+    outfile << "name=" << this->naming.dirpath << "\n"
             << "created=" << created_time << '\n';
   }
 
   void Open(const std::string& name, const Options options) {
     this->open = true;
-    this->dir = name;
 
+    std::filesystem::path parent("/var/lib/kvstore/");
+    std::filesystem::create_directory(parent);
+    this->naming = DbNaming{.dirpath = parent / name, .name = name};
+    std::filesystem::create_directory(this->naming.dirpath);
     this->ensure_fs(options);
   }
 
