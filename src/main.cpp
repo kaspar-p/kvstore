@@ -17,7 +17,8 @@ int main() {
 
   // SstableBTree t{};
   // std::fstream f("/tmp/SstableBTree.GetSingleElems.bin",
-  //                std::fstream::binary | std::fstream::in | std::fstream::out |
+  //                std::fstream::binary | std::fstream::in | std::fstream::out
+  //                |
   //                    std::fstream::trunc);
   // assert(f.is_open());
   // assert(f.good());

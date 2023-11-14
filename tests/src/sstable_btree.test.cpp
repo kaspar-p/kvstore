@@ -47,12 +47,12 @@ TEST(SstableBTree, GetSingleElems) {
   ASSERT_EQ(val.has_value(), true);
   ASSERT_EQ(val.value(), 32);
 
-  val = t.GetFromFile(f,254);
+  val = t.GetFromFile(f, 254);
 
   ASSERT_EQ(val.has_value(), true);
   ASSERT_EQ(val.value(), 254);
 
-  val = t.GetFromFile(f,0);
+  val = t.GetFromFile(f, 0);
 
   ASSERT_EQ(val.has_value(), true);
   ASSERT_EQ(val.value(), 0);
@@ -151,8 +151,6 @@ TEST(SstableBTree, ScanDenseRange2LeafNodes) {
   ASSERT_EQ(val.front().second, 10);
   ASSERT_EQ(val.back().first, 509);
   ASSERT_EQ(val.back().second, 509);
-
-  
 }
 
 TEST(SstableBTree, ScanSparseRangeIncludes) {

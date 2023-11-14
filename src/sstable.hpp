@@ -20,7 +20,7 @@ class Sstable {
    * @param filename The name of the file to create
    * @param memtable The MemTable to flush.
    */
-  virtual void Flush(std::string filename, MemTable& memtable);
+  virtual void Flush(std::fstream& filename, MemTable& memtable) const = 0;
 
   /**
    * @brief Get a value from a file, or std::nullopt if it doesn't exist.
@@ -29,7 +29,7 @@ class Sstable {
    * @param key The key to search for
    * @return std::optional<V> The resulting value.
    */
-  virtual std::optional<V> GetFromFile(std::fstream& file, K key);
+  virtual std::optional<V> GetFromFile(std::fstream& file, K key) const = 0;
 
   /**
    * @brief Scan keys in range [lower, upper] from @param file.
@@ -40,21 +40,23 @@ class Sstable {
    * @return std::vector<std::pair<K, V>>
    */
   virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
-                                                  K upper);
+                                                  K upper) const = 0;
 };
 
-class SstableNaive {
+class SstableNaive : public Sstable {
  public:
-  static void Flush(std::fstream& filename, MemTable& memtable);
-  static std::optional<V> GetFromFile(std::fstream& file, K key);
-  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
-                                                 K upper);
+  SstableNaive();
+  void Flush(std::fstream& filename, MemTable& memtable) const override;
+  std::optional<V> GetFromFile(std::fstream& file, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
+                                          K upper) const override;
 };
 
-class SstableBTree {
+class SstableBTree : public Sstable {
  public:
-  static void Flush(std::fstream& filename, MemTable& memtable);
-  static std::optional<V> GetFromFile(std::fstream& file, K key);
-  static std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
-                                                 K upper);
+  SstableBTree();
+  void Flush(std::fstream& filename, MemTable& memtable) const override;
+  std::optional<V> GetFromFile(std::fstream& file, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
+                                          K upper) const override;
 };

@@ -30,6 +30,8 @@ const char* FailedToOpenException::what() const noexcept {
 };
 
 struct KvStore::KvStoreImpl {
+  const std::unique_ptr<Sstable> sstable_serializer;
+
   MemTable memtable;
   bool open;
   std::vector<LSMLevel> levels;
@@ -38,7 +40,9 @@ struct KvStore::KvStoreImpl {
   uint64_t blocks;
   std::filesystem::path dir;
 
-  KvStoreImpl() : memtable((kPageSize / (kKeySize + kValSize)) - 4) {
+  KvStoreImpl()
+      : sstable_serializer(std::make_unique<SstableBTree>()),
+        memtable((kPageSize / (kKeySize + kValSize)) - 4) {
     this->open = false;
     this->blocks = 0;
   };
@@ -50,7 +54,7 @@ struct KvStore::KvStoreImpl {
                                                         std::fstream::out |
                                                         std::fstream::trunc);
 
-    SstableNaive::Flush(file, this->memtable);
+    this->sstable_serializer->Flush(file, this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");
     }

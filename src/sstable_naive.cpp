@@ -12,7 +12,9 @@
 #include "memtable.hpp"
 #include "sstable.hpp"
 
-void SstableNaive::Flush(std::fstream& file, MemTable& memtable) {
+SstableNaive::SstableNaive() {}
+
+void SstableNaive::Flush(std::fstream& file, MemTable& memtable) const {
   assert(file.is_open());
   assert(file.good());
   std::vector<std::pair<K, V>> pairs = memtable.ScanAll();
@@ -45,7 +47,8 @@ void SstableNaive::Flush(std::fstream& file, MemTable& memtable) {
   assert(file.good());
 };
 
-std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key) {
+std::optional<V> SstableNaive::GetFromFile(std::fstream& file,
+                                           const K key) const {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
@@ -97,7 +100,7 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file, const K key) {
 
 std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
                                                       const K lower,
-                                                      const K upper) {
+                                                      const K upper) const {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());

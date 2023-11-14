@@ -30,7 +30,9 @@ struct sstable_btree_node {
   uint64_t global_max;
 };
 
-void SstableBTree::Flush(std::fstream& file, MemTable& memtable) {
+SstableBTree::SstableBTree() {}
+
+void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
   // questions
   // pages? what does this mean
   // what if there are more key/val than possible to fit in a sst? what is the
@@ -182,7 +184,8 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) {
   assert(file.good());
 };
 
-std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key) {
+std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
+                                           const K key) const {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
@@ -279,7 +282,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file, const K key) {
 
 std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
                                                       const K lower,
-                                                      const K upper) {
+                                                      const K upper) const {
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
