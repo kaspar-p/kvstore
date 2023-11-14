@@ -15,6 +15,8 @@ which is the decimal integer:
 ```
 because it's funny.
 
+All inserts into the database with this value will throw an `OnlyTheDatabaseCanUseFunnyValues` exception.
+
 ## Alternatives
 
 RocksDB ([proof](https://piazza.com/class/lm6cxnn0zm5dl/post/190)) uses metadata alongside a value, 

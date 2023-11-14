@@ -21,6 +21,11 @@
 #include "memtable.hpp"
 #include "sstable.hpp"
 
+const char* OnlyTheDatabaseCanUseFunnyValues::what() const noexcept {
+  return "Only the database can use funny values! This one is the tombstone "
+         "value, and is reserved.";
+};
+
 const char* DatabaseClosedException::what() const noexcept {
   return "Database is closed, please Open() it first!";
 };
@@ -101,6 +106,10 @@ struct KvStore::KvStoreImpl {
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower,
                                                   const K upper) const {
+    if (!this->open) {
+      throw DatabaseClosedException();
+    }
+
     // Scan through the memtable
     std::vector<std::pair<K, V>> memtable_range =
         this->memtable.Scan(lower, upper);
@@ -116,6 +125,10 @@ struct KvStore::KvStoreImpl {
   }
 
   [[nodiscard]] std::optional<V> Get(const K key) const {
+    if (!this->open) {
+      throw DatabaseClosedException();
+    }
+
     // First search the memtable
     V* mem_val = this->memtable.Get(key);
     if (mem_val != nullptr) {
@@ -136,6 +149,10 @@ struct KvStore::KvStoreImpl {
   void Put(const K key, const K value) {
     if (!this->open) {
       throw DatabaseClosedException();
+    }
+
+    if (value == kTombstoneValue) {
+      throw OnlyTheDatabaseCanUseFunnyValues();
     }
 
     try {

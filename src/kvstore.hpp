@@ -19,6 +19,11 @@ class FailedToOpenException : public std::exception {
   [[nodiscard]] const char* what() const noexcept override;
 };
 
+class OnlyTheDatabaseCanUseFunnyValues : public std::exception {
+ public:
+  [[nodiscard]] const char* what() const noexcept override;
+};
+
 struct Options {
   bool overwrite;
 };

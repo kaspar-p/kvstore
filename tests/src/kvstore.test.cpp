@@ -84,6 +84,66 @@ TEST(KvStore, ScanGoesBeyondKeySizes) {
   ASSERT_EQ(v[2].second, 30);
 }
 
+TEST(KvStore, UnopenedGetThrow) {
+  KvStore db;
+  ASSERT_THROW(
+      {
+        try {
+          auto v = db.Get(1);
+        } catch (const DatabaseClosedException& e) {
+          ASSERT_TRUE(std::string(e.what()).find("closed") !=
+                      std::string::npos);
+          throw e;
+        }
+      },
+      DatabaseClosedException);
+}
+
+TEST(KvStore, UnopenedPutThrow) {
+  KvStore db;
+  ASSERT_THROW(
+      {
+        try {
+          db.Put(1, 2);
+        } catch (const DatabaseClosedException& e) {
+          ASSERT_TRUE(std::string(e.what()).find("closed") !=
+                      std::string::npos);
+          throw e;
+        }
+      },
+      DatabaseClosedException);
+}
+
+TEST(KvStore, UnopenedScanThrow) {
+  KvStore db;
+  ASSERT_THROW(
+      {
+        try {
+          auto v = db.Scan(1, 100);
+        } catch (const DatabaseClosedException& e) {
+          ASSERT_TRUE(std::string(e.what()).find("closed") !=
+                      std::string::npos);
+          throw e;
+        }
+      },
+      DatabaseClosedException);
+}
+
+TEST(KvStore, TombstoneInsertionThrow) {
+  KvStore db;
+  db.Open("/tmp/KvStore.TombstoneInsertionThrow", Options{.overwrite = true});
+  ASSERT_THROW(
+      {
+        try {
+          db.Put(1, kTombstoneValue);
+        } catch (const OnlyTheDatabaseCanUseFunnyValues& e) {
+          ASSERT_TRUE(std::string(e.what()).find("funny") != std::string::npos);
+          throw e;
+        }
+      },
+      OnlyTheDatabaseCanUseFunnyValues);
+}
+
 TEST(KvStore, InsertAndDeleteOne) {
   KvStore table;
   table.Open("/tmp/KvStore.InsertAndDeleteOne", Options{.overwrite = true});
