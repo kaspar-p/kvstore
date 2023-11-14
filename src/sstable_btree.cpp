@@ -172,8 +172,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
   // the last node in the queue is the parent
   sstable_btree_node root = creation_queue.front();
   creation_queue.pop();
-  wbuf[3] =
-      root.offset;  // update dummy root block ptr to actual root block ptr
+  wbuf[3] = root.offset;  // update dummy root block ptr to actual root block ptr
 
   for (uint64_t& elem : wbuf) {
     file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
@@ -375,12 +374,16 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
     }
   }
   int walk = mid;
-  while ((buf[0] >> 32 == 0x00db0011) && buf[walk] <= upper &&
-         walk < kPageSize / sizeof(uint64_t)) {
+  while ((buf[0] >> 32 == 0x00db0011) && 
+          buf[walk] <= upper &&
+          walk < kPageSize / sizeof(uint64_t)) {
+    if (buf[1] == 0xffffffffffffffff && walk > elems % (kPageSize / sizeof(uint64_t) - 1) * 2) {
+      break;
+    };
     l.push_back(std::make_pair(buf[walk], buf[walk + 1]));
     walk += 2;
 
-    if (walk == kPageSize / sizeof(uint64_t) and buf[1] != 0xffffffffffffffff) {
+    if (walk == kPageSize / sizeof(uint64_t) && buf[1] != 0xffffffffffffffff) {
       file.seekg(buf[1]);
       file.read(reinterpret_cast<char*>(buf), kPageSize);
       assert(file.good());
