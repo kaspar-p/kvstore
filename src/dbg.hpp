@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 /**
  * @brief Repeat `input` a `num` amount of times
