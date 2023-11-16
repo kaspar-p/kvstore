@@ -170,24 +170,12 @@ class ManifestHandle::ManifestHandleImpl {
     for (auto& level : this->levels) {
       auto it = std::remove_if(level.begin(), level.end(), [&](auto& f1) {
         return std::any_of(files.begin(), files.end(), [&](std::string& f2) {
-          std::cout << "Comparing ::: "
-                    << data_file(this->naming, f1.id.level, f1.id.run,
-                                 f1.id.intermediate)
-                    << " AND " << f2 << '\n';
           return data_file(this->naming, f1.id.level, f1.id.run,
                            f1.id.intermediate) == f2;
         });
       });
 
       level.erase(it, level.end());
-    }
-
-    std::cout << this->levels.size() << '\n';
-    std::cout << this->levels.at(0).size() << '\n';
-    for (auto& f : this->levels.at(0)) {
-      std::cout << data_file(this->naming, f.id.level, f.id.run,
-                             f.id.intermediate)
-                << '\n';
     }
 
     this->to_file();

@@ -88,14 +88,19 @@ struct KvStore::KvStoreImpl {
             << "created=" << created_time << '\n';
   }
 
-  void Open(const std::string& name, const Options options) {
+  void Open(const std::string& name, const std::filesystem::path dir,
+            const Options options) {
     this->open = true;
 
-    std::filesystem::path parent("/var/lib/kvstore/");
+    std::filesystem::path parent(dir);
     std::filesystem::create_directory(parent);
     this->naming = DbNaming{.dirpath = parent / name, .name = name};
     std::filesystem::create_directory(this->naming.dirpath);
     this->ensure_fs(options);
+  }
+
+  void Open(const std::string& name, const Options options) {
+    return this->Open(name, std::filesystem::path("./"), options);
   }
 
   void Close() { this->open = false; }
@@ -160,10 +165,7 @@ struct KvStore::KvStoreImpl {
     }
   }
 
-  void Delete(const K key) const {
-    (void)key;
-    std::cout << this->blocks << '\n';
-  };
+  void Delete(const K key) const { (void)key; };
 };
 
 /* Connect the pImpl (pointer-to-implementation) to the actual class */
@@ -174,6 +176,10 @@ KvStore::~KvStore() = default;
 
 void KvStore::Open(const std::string& name, Options options) {
   return this->impl_->Open(name, options);
+}
+void KvStore::Open(const std::string& name, std::filesystem::path dir,
+                   Options options) {
+  return this->impl_->Open(name, dir, options);
 }
 
 void KvStore::Close() { return this->impl_->Close(); }

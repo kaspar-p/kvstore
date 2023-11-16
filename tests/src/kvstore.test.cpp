@@ -15,7 +15,8 @@
 
 TEST(KvStore, ScanIncludesEnds) {
   KvStore table;
-  table.Open("KvStore.ScanIncludesEnds", Options{.overwrite = true});
+  table.Open("/tmp/KvStore.ScanIncludesEnds", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -36,7 +37,8 @@ TEST(KvStore, ScanIncludesEnds) {
 
 TEST(KvStore, ScanStopsBeforeEnd) {
   KvStore table;
-  table.Open("KvStore.ScanStopsBeforeEnd", Options{.overwrite = true});
+  table.Open("/tmp/KvStore.ScanStopsBeforeEnd", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -51,7 +53,8 @@ TEST(KvStore, ScanStopsBeforeEnd) {
 
 TEST(KvStore, ScanStopsBeforeStart) {
   KvStore table;
-  table.Open("KvStore.ScanStopsBeforeStart", Options{.overwrite = true});
+  table.Open("/tmp/KvStore.ScanStopsBeforeStart", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -66,7 +69,8 @@ TEST(KvStore, ScanStopsBeforeStart) {
 
 TEST(KvStore, ScanGoesBeyondKeySizes) {
   KvStore table;
-  table.Open("KvStore.ScanGoesBeyondKeySizes", Options{.overwrite = true});
+  table.Open("KvStore.ScanGoesBeyondKeySizes", "/tmp/",
+             Options{.overwrite = true});
   table.Put(10, 10);
   table.Put(20, 20);
   table.Put(30, 30);
@@ -131,7 +135,8 @@ TEST(KvStore, UnopenedScanThrow) {
 
 TEST(KvStore, TombstoneInsertionThrow) {
   KvStore db;
-  db.Open("KvStore.TombstoneInsertionThrow", Options{.overwrite = true});
+  db.Open("/tmp/KvStore.TombstoneInsertionThrow", "/tmp/",
+          Options{.overwrite = true});
   ASSERT_THROW(
       {
         try {
@@ -146,7 +151,7 @@ TEST(KvStore, TombstoneInsertionThrow) {
 
 TEST(KvStore, InsertAndDeleteOne) {
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteOne", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndDeleteOne", "/tmp/", Options{.overwrite = true});
   table.Put(1, 10);
   table.Delete(1);
   const std::optional<V> v = table.Get(1);
@@ -156,7 +161,8 @@ TEST(KvStore, InsertAndDeleteOne) {
 
 TEST(KvStore, InsertAndDeleteAFew) {
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteAFew", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndDeleteAFew", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -173,7 +179,7 @@ TEST(KvStore, InsertAndDeleteAFew) {
 
 TEST(KvStore, InsertAndGetOne) {
   KvStore table;
-  table.Open("KvStore.InsertAndGetOne", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndGetOne", "/tmp/", Options{.overwrite = true});
   table.Put(1, 10);
   const std::optional<V> val = table.Get(1);
   ASSERT_NE(val, std::nullopt);
@@ -182,7 +188,8 @@ TEST(KvStore, InsertAndGetOne) {
 
 TEST(KvStore, InsertOneAndReplaceIt) {
   KvStore table;
-  table.Open("KvStore.InsertOneAndReplaceIt", Options{.overwrite = true});
+  table.Open("KvStore.InsertOneAndReplaceIt", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 100);
   table.Put(1, 200);
   const std::optional<V> val = table.Get(1);
@@ -192,7 +199,8 @@ TEST(KvStore, InsertOneAndReplaceIt) {
 
 TEST(KvStore, InsertManyAndGetMany) {
   KvStore table;
-  table.Open("KvStore.InsertManyAndGetMany", Options{.overwrite = true});
+  table.Open("KvStore.InsertManyAndGetMany", "/tmp/",
+             Options{.overwrite = true});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);

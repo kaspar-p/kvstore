@@ -1,6 +1,7 @@
 #pragma once
 
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,6 +50,8 @@ class KvStore {
    * the data is stored.
    */
   void Open(const std::string& name, Options options);
+  void Open(const std::string& name, const std::filesystem::path dir,
+            Options options);
 
   /**
    * @brief Paired operation with `Open()`, closes the
