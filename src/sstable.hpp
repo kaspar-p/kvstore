@@ -9,6 +9,12 @@
 #include "constants.hpp"
 #include "memtable.hpp"
 
+struct SstableId {
+  uint32_t level;
+  uint32_t run;
+  uint32_t intermediate;
+};
+
 class Sstable {
  public:
   /**

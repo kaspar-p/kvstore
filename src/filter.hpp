@@ -10,9 +10,9 @@
 #include "naming.hpp"
 
 struct FilterId {
-  DbNaming& dbname;
   uint32_t level;
   uint32_t run;
+  uint32_t intermediate;
 };
 
 class Filter {
@@ -31,7 +31,8 @@ class Filter {
    * @param buf The buffer pool of pages from disk.
    * @param seed An initial randomization seed.
    */
-  Filter(const FilterId id, BufPool& buf, uint64_t seed);
+  Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
+         uint64_t seed);
 
   /**
    * @brief Construct a NEW Bloom Filter. See `docs/file_filter.md` for format.
@@ -46,7 +47,8 @@ class Filter {
    * @param keys A large list of keys to write into the bloom filter with. There
    * are no other write methods on this class.
    */
-  Filter(const FilterId id, BufPool& buf, uint64_t seed, std::vector<K> keys);
+  Filter(const DbNaming& dbname, const FilterId id, BufPool& buf, uint64_t seed,
+         std::vector<K> keys);
   ~Filter();
 
   /**

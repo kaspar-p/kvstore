@@ -234,8 +234,9 @@ class Filter::FilterImpl {
   }
 
  public:
-  FilterImpl(const FilterId id, BufPool& buf, const uint64_t starting_seed)
-      : filename(filter_file(id.dbname, id.level, id.run)),
+  FilterImpl(const DbNaming& dbname, const FilterId id, BufPool& buf,
+             const uint64_t starting_seed)
+      : filename(filter_file(dbname, id.level, id.run, id.intermediate)),
         num_filters(find_num_filters()),
         seed(starting_seed),
         buf(buf),
@@ -243,9 +244,9 @@ class Filter::FilterImpl {
     assert(num_filters > 0);
   }
 
-  FilterImpl(const FilterId id, BufPool& buf, const uint64_t starting_seed,
-             const std::vector<K> keys)
-      : filename(filter_file(id.dbname, id.level, id.run)),
+  FilterImpl(const DbNaming& dbname, const FilterId id, BufPool& buf,
+             const uint64_t starting_seed, const std::vector<K> keys)
+      : filename(filter_file(dbname, id.level, id.run, id.intermediate)),
         num_filters(ceil((float)keys.size() / kEntriesPerFilter)),
         seed(starting_seed),
         buf(buf),
@@ -311,12 +312,13 @@ class Filter::FilterImpl {
   }
 };
 
-Filter::Filter(const FilterId id, BufPool& buf, const uint64_t seed,
-               const std::vector<K> keys)
-    : impl_(std::make_unique<FilterImpl>(id, buf, seed, keys)) {}
+Filter::Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
+               const uint64_t seed, const std::vector<K> keys)
+    : impl_(std::make_unique<FilterImpl>(dbname, id, buf, seed, keys)) {}
 
-Filter::Filter(const FilterId id, BufPool& buf, const uint64_t seed)
-    : impl_(std::make_unique<FilterImpl>(id, buf, seed)) {}
+Filter::Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
+               const uint64_t seed)
+    : impl_(std::make_unique<FilterImpl>(dbname, id, buf, seed)) {}
 
 Filter::~Filter() = default;
 

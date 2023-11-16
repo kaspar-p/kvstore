@@ -19,12 +19,12 @@ DbNaming create_dir(std::string name) {
 }
 
 FilterId test_setup(DbNaming& naming) {
-  std::filesystem::remove(filter_file(naming, 1, 0));
+  std::filesystem::remove(filter_file(naming, 0, 0, 0));
 
   return FilterId{
-      .dbname = naming,
-      .level = 1,
+      .level = 0,
       .run = 0,
+      .intermediate = 0,
   };
 }
 
@@ -45,10 +45,11 @@ int main() {
   auto naming = create_dir("Main.Initialization");
   auto id = test_setup(naming);
   std::cout << "BEFORe!" << std::endl;
-  Filter f(id, buf, 0, test_keys(10));
+  Filter f(naming, id, buf, 0, test_keys(10));
   std::cout << "AFTER!" << std::endl;
   assert(f.Has(0) == false);
-  assert(std::filesystem::file_size(filter_file(id.dbname, id.level, id.run)) %
+  assert(std::filesystem::file_size(
+             filter_file(naming, id.level, id.run, id.intermediate)) %
              kPageSize ==
          0);
 }

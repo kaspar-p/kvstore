@@ -65,6 +65,7 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
+  cppcoreguidelines-init-variables,
   -google-readability-braces-around-statements,
   -misc-no-recursion,
   -google-readability-namespace-comments,

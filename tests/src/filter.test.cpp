@@ -8,29 +8,16 @@
 
 #include "constants.hpp"
 #include "naming.hpp"
+#include "testutil.hpp"
 
 BufPool test_buffer() {
   return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
 }
 BufPool buf = test_buffer();
 
-DbNaming create_dir(std::string dir_name) {
-  bool exists = std::filesystem::exists("/tmp/" + dir_name);
-  if (!exists) {
-    bool created = std::filesystem::create_directory("/tmp/" + dir_name);
-    assert(created);
-  }
-
-  return DbNaming{.dirpath = "/tmp/" + dir_name, .name = dir_name};
-}
-
 FilterId test_setup(DbNaming &naming) {
-  std::filesystem::remove(filter_file(naming, 1, 0));
-  return FilterId{
-      .dbname = naming,
-      .level = 1,
-      .run = 0,
-  };
+  std::filesystem::remove(filter_file(naming, 0, 0, 0));
+  return FilterId{.level = 0, .run = 0, .intermediate = 0};
 }
 
 std::vector<K> test_keys(int num) {
@@ -44,10 +31,10 @@ std::vector<K> test_keys(int num) {
 TEST(Filter, Initialization) {
   auto naming = create_dir("Filter.Initialization");
   auto id = test_setup(naming);
-  Filter f(id, buf, 0, test_keys(0));
+  Filter f(naming, id, buf, 0, test_keys(0));
   ASSERT_FALSE(f.Has(0));
   ASSERT_EQ(
-      std::filesystem::file_size(filter_file(id.dbname, 1, 0)) % kPageSize, 0);
+      std::filesystem::file_size(filter_file(naming, 0, 0, 0)) % kPageSize, 0);
 }
 
 TEST(Filter, PointRead) {
@@ -72,7 +59,7 @@ TEST(Filter, PointRead) {
   keys.push_back(38763);
   keys.push_back(12058);
 
-  Filter f(id, buf, 0, keys);
+  Filter f(naming, id, buf, 0, keys);
   ASSERT_TRUE(f.Has(1283));
   ASSERT_TRUE(f.Has(2891));
   ASSERT_TRUE(f.Has(309201));
@@ -86,10 +73,10 @@ TEST(Filter, Recovery) {
   std::vector<K> keys = test_keys(128);
 
   {
-    Filter f(id, buf, 0, keys);
+    Filter f(naming, id, buf, 0, keys);
     ASSERT_FALSE(f.Has(999));
     ASSERT_EQ(
-        std::filesystem::file_size(filter_file(id.dbname, 1, 0)) % kPageSize,
+        std::filesystem::file_size(filter_file(naming, 0, 0, 0)) % kPageSize,
         0);
 
     for (auto &key : keys) {
@@ -98,9 +85,9 @@ TEST(Filter, Recovery) {
   }
 
   {
-    Filter f(id, buf, 0);
+    Filter f(naming, id, buf, 0);
     ASSERT_EQ(
-        std::filesystem::file_size(filter_file(id.dbname, 1, 0)) % kPageSize,
+        std::filesystem::file_size(filter_file(naming, 0, 0, 0)) % kPageSize,
         0);
 
     for (auto &key : keys) {
@@ -112,7 +99,7 @@ TEST(Filter, Recovery) {
 TEST(Filter, RecoveryRandom) {
   auto naming = create_dir("Filter.RecoveryRandom");
   auto id = test_setup(naming);
-  auto filename = filter_file(id.dbname, id.level, id.run);
+  auto filename = filter_file(naming, id.level, id.run, id.intermediate);
 
   std::vector<K> keys;
   keys.push_back(928137);
@@ -133,7 +120,7 @@ TEST(Filter, RecoveryRandom) {
   keys.push_back(12058);
 
   {
-    Filter f(id, buf, 0, keys);
+    Filter f(naming, id, buf, 0, keys);
     ASSERT_FALSE(f.Has(999));
     ASSERT_EQ(std::filesystem::file_size(filename) % kPageSize, 0);
 
@@ -143,7 +130,7 @@ TEST(Filter, RecoveryRandom) {
   }
 
   {
-    Filter f(id, buf, 0, test_keys(4096));
+    Filter f(naming, id, buf, 0, test_keys(4096));
     ASSERT_EQ(std::filesystem::file_size(filename) % kPageSize, 0);
 
     for (int i = 0; i < keys.size(); i++) {
@@ -155,7 +142,7 @@ TEST(Filter, RecoveryRandom) {
 TEST(Filter, FilledFilterGetsFalsePositives) {
   auto naming = create_dir("Filter.FilledFilterGetsFalsePositives");
   auto id = test_setup(naming);
-  Filter f(id, buf, 0, test_keys(4096));
+  Filter f(naming, id, buf, 0, test_keys(4096));
 
   bool has_any = false;
   for (uint64_t i = 4097; i < 999999999; i++) {
@@ -171,6 +158,6 @@ TEST(Filter, DoesNotHaveElement) {
   auto naming = create_dir("Filter.DoesNotHaveElement");
   auto id = test_setup(naming);
 
-  Filter f(id, buf, 0, test_keys(0));
+  Filter f(naming, id, buf, 0, test_keys(0));
   ASSERT_FALSE(f.Has(1));
 }

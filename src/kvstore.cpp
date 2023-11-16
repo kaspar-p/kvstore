@@ -53,9 +53,9 @@ struct KvStore::KvStoreImpl {
   ~KvStoreImpl() = default;
 
   void flush_memtable() {
-    std::fstream file(data_file(this->naming, 1, 0), std::fstream::binary |
-                                                         std::fstream::in |
-                                                         std::fstream::out);
+    std::fstream file(data_file(this->naming, 0, 0, 0), std::fstream::binary |
+                                                            std::fstream::in |
+                                                            std::fstream::out);
     this->sstable_serializer->Flush(file, this->memtable);
     if (!file.good()) {
       perror("Failed to write serialized block!");

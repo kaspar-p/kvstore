@@ -18,6 +18,17 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+# ---- Testing Libraries ----
+# testutil.cpp
+add_library(kvstore_testutil OBJECT src/testutil.cpp)
+target_include_directories(
+  kvstore_testutil ${warning_guard}
+  PUBLIC
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_link_libraries(kvstore_testutil PRIVATE kvstore_naming)
+target_compile_features(kvstore_testutil PUBLIC cxx_std_17)
+
 # ---- Kvstore Tests ----
 add_executable(kvstore_test 
   src/kvstore.test.cpp
@@ -29,9 +40,12 @@ add_executable(kvstore_test
   src/filter.test.cpp
   src/dbg.test.cpp
   src/fileutil.test.cpp
+  src/manifest.test.cpp
 )
 
 target_link_libraries(kvstore_test PRIVATE kvstore_naming)
+target_link_libraries(kvstore_test PRIVATE kvstore_testutil)
+target_link_libraries(kvstore_test PRIVATE kvstore_manifest)
 target_link_libraries(kvstore_test PRIVATE kvstore_file)
 target_link_libraries(kvstore_test PRIVATE kvstore_filter)
 target_link_libraries(kvstore_test PRIVATE kvstore_dbg)
