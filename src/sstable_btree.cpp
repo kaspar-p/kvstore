@@ -4,13 +4,13 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <queue>
 #include <utility>
 #include <vector>
 
 #include "constants.hpp"
-#include "memtable.hpp"
 #include "sstable.hpp"
 
 struct LeafNode {
@@ -34,14 +34,15 @@ struct SstableBtreeNode {
 
 SstableBTree::SstableBTree() = default;
 
-void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
+void SstableBTree::Flush(
+    std::fstream& file,
+    std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const {
   // questions
   // pages? what does this mean
   // what if there are more key/val than possible to fit in a sst? what is the
   // sst max size?
   assert(file.is_open());
   assert(file.good());
-  std::vector<std::pair<K, V>> pairs = memtable.ScanAll();
 
   file.seekp(0);
   assert(file.good());
@@ -50,8 +51,8 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
   std::vector<uint64_t> wbuf;
   wbuf.push_back(0x00db00beef00db00);  // magic number
   wbuf.push_back(0x0000000000000001);
-  wbuf.push_back(pairs.size());  // # key value pairs in the file
-  wbuf.push_back(0);             // dummy root block ptr
+  wbuf.push_back(pairs->size());  // # key value pairs in the file
+  wbuf.push_back(0);              // dummy root block ptr
 
   for (int i = 4; i < kPageSize / sizeof(uint64_t); i++) {
     wbuf.push_back(0x0000000000000000);  // pad the rest of the page with zeroes
@@ -60,7 +61,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
 
   // create and write leaf nodes
   uint64_t i = 0;
-  while (i < pairs.size()) {
+  while (i < pairs->size()) {
     // info node used for the queue
     SstableBtreeNode info_node = {
         .offset = (1 + i / order) * kPageSize,
@@ -73,13 +74,13 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
     leaf_node.garbage = 0x00000000;
 
     for (int j = 0; j < order; j++) {
-      if (i < pairs.size()) {
+      if (i < pairs->size()) {
         // key value pairs (8 + 8 bytes)
-        leaf_node.kv_pairs.push_back(pairs[i]);
+        leaf_node.kv_pairs.push_back(pairs->at(i));
         // set global max for info node using the last/rightmost node in the
         // leaf
-        if (j == order - 1 or i == pairs.size() - 1) {
-          info_node.global_max = pairs[i].first;
+        if (j == order - 1 or i == pairs->size() - 1) {
+          info_node.global_max = pairs->at(i).first;
           creation_queue.push(info_node);
         }
         i++;
@@ -88,7 +89,7 @@ void SstableBTree::Flush(std::fstream& file, MemTable& memtable) const {
       }
     }
     // right leaf block ptr (8 ptr)
-    if (i < pairs.size()) {
+    if (i < pairs->size()) {
       leaf_node.right_leaf_block_ptr = (1 + i / order) * kPageSize;
     } else {
       leaf_node.right_leaf_block_ptr = BLOCK_NULL;

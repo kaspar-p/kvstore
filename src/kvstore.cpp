@@ -46,17 +46,21 @@ struct KvStore::KvStoreImpl {
 
   KvStoreImpl()
       : sstable_serializer(std::make_unique<SstableBTree>()),
-        memtable((kPageSize / (kKeySize + kValSize)) - 4),
+        memtable((8 * kMegabyteSize) / (kKeySize + kValSize)),
         open(false),
         blocks(0){};
 
   ~KvStoreImpl() = default;
 
   void flush_memtable() {
+    std::cout << "FLUSHING!" << '\n';
     std::fstream file(data_file(this->naming, 0, 0, 0), std::fstream::binary |
                                                             std::fstream::in |
                                                             std::fstream::out);
-    this->sstable_serializer->Flush(file, this->memtable);
+    assert(file.good());
+    this->sstable_serializer->Flush(
+        file, std::make_unique<std::vector<std::pair<K, V>>>(
+                  this->memtable.ScanAll()));
     if (!file.good()) {
       perror("Failed to write serialized block!");
     }
@@ -132,15 +136,20 @@ struct KvStore::KvStoreImpl {
 
     // First search the memtable
     V* mem_val = this->memtable.Get(key);
+
     if (mem_val != nullptr) {
+      // If the value is a tombstone, mark it as not present.
+      if (*mem_val == kTombstoneValue) {
+        return std::nullopt;
+      }
       return std::make_optional(*mem_val);
     }
 
     // Then search through each level, starting at the smallest
     for (const auto& level : this->levels) {
       std::optional<V> val = level.Get(key);
-      if (val.has_value()) {
-        return val.value();
+      if (val.has_value() && val.value() != kTombstoneValue) {
+        return val;
       }
     }
 
@@ -165,7 +174,20 @@ struct KvStore::KvStoreImpl {
     }
   }
 
-  void Delete(const K key) const { (void)key; };
+  void Delete(const K key) {
+    if (!this->open) {
+      throw DatabaseClosedException();
+    }
+
+    try {
+      // No need to use Delete(), Put replaces the value if it was there.
+      this->memtable.Put(key, kTombstoneValue);
+    } catch (MemTableFullException& e) {
+      this->flush_memtable();
+      this->memtable.Clear();
+      this->memtable.Put(key, kTombstoneValue);
+    }
+  };
 };
 
 /* Connect the pImpl (pointer-to-implementation) to the actual class */

@@ -154,9 +154,8 @@ TEST(KvStore, InsertAndDeleteOne) {
   table.Open("KvStore.InsertAndDeleteOne", "/tmp/", Options{.overwrite = true});
   table.Put(1, 10);
   table.Delete(1);
-  const std::optional<V> v = table.Get(1);
 
-  ASSERT_EQ(v, std::nullopt);
+  ASSERT_EQ(table.Get(1), std::nullopt);
 }
 
 TEST(KvStore, InsertAndDeleteAFew) {
@@ -175,6 +174,28 @@ TEST(KvStore, InsertAndDeleteAFew) {
   const std::optional<V> val2 = table.Get(1);
 
   ASSERT_EQ(val2, std::nullopt);
+}
+
+TEST(KvStore, InsertAndDeleteThousands) {
+  KvStore table;
+  table.Open("KvStore.InsertAndDeleteThousands", "/tmp/",
+             Options{.overwrite = true});
+  for (int i = 0; i < 10 * 1000; i++) {
+    std::cout << "Putting " << i << '\n';
+    table.Put(i, 10 * i);
+  }
+
+  for (int i = 0; i < 10 * 1000; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(10 * i));
+  }
+
+  for (int i = 0; i < 10 * 1000; i++) {
+    table.Delete(i);
+  }
+
+  for (int i = 0; i < 10 * 1000; i++) {
+    ASSERT_EQ(table.Get(i), std::nullopt);
+  }
 }
 
 TEST(KvStore, InsertAndGetOne) {

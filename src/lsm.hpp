@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -32,6 +33,12 @@ class LSMLevel {
    * @brief Get the level
    */
   uint32_t Level() const;
+
+  /**
+   * @brief Create a new file within the level. It doesn't contain data yet,
+   * it's returned to get filled with data.
+   */
+  std::fstream CreateFile();
 
   /**
    * @brief Get a single value from the level by its key. Returns

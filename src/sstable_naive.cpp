@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -14,24 +15,25 @@
 
 SstableNaive::SstableNaive() {}
 
-void SstableNaive::Flush(std::fstream& file, MemTable& memtable) const {
+void SstableNaive::Flush(
+    std::fstream& file,
+    std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const {
   assert(file.is_open());
   assert(file.good());
-  std::vector<std::pair<K, V>> pairs = memtable.ScanAll();
 
   file.seekp(0);
   assert(file.good());
 
-  const size_t actual_size = 4 + 2 * pairs.size();
+  const size_t actual_size = 4 + 2 * pairs->size();
   const size_t bufsize = kPageSize;
   uint64_t wbuf[bufsize];
   wbuf[0] = 0x11223344;
-  wbuf[1] = pairs.size();
-  wbuf[2] = pairs.front().first;
-  wbuf[3] = pairs.back().first;
-  for (int i = 0; i < pairs.size(); i++) {
-    wbuf[4 + (2 * i) + 0] = pairs[i].first;
-    wbuf[4 + (2 * i) + 1] = pairs[i].second;
+  wbuf[1] = pairs->size();
+  wbuf[2] = pairs->front().first;
+  wbuf[3] = pairs->back().first;
+  for (int i = 0; i < pairs->size(); i++) {
+    wbuf[4 + (2 * i) + 0] = pairs->at(i).first;
+    wbuf[4 + (2 * i) + 1] = pairs->at(i).second;
   }
   // Pad the rest of the page with zeroes
   for (int i = actual_size; i < bufsize; i++) {

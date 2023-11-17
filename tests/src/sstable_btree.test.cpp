@@ -23,7 +23,8 @@ TEST(SstableBTree, AddElems) {
          std::fstream::binary | std::fstream::in | std::fstream::out |
              std::fstream::trunc);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   ASSERT_EQ(1, 1);
 }
@@ -40,7 +41,8 @@ TEST(SstableBTree, GetSingleElems) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::optional<V> val = t.GetFromFile(f, 32);
 
@@ -70,7 +72,8 @@ TEST(SstableBTree, GetSingleMissing) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::optional<V> val = t.GetFromFile(f, 100);
 
@@ -89,7 +92,8 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::optional<V> val = t.GetFromFile(f, 509);
 
@@ -111,7 +115,8 @@ TEST(SstableBTree, ScanDenseRange1LeafNode) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
 
@@ -134,7 +139,8 @@ TEST(SstableBTree, ScanDenseRange2LeafNodes) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
 
@@ -169,7 +175,8 @@ TEST(SstableBTree, ScanSparseRangeIncludes) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 50);
 
@@ -203,7 +210,8 @@ TEST(SstableBTree, ScanSparseRangeHuge) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 100);
 
@@ -247,7 +255,8 @@ TEST(SstableBTree, ScanSparseRangeLeftHanging) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 10);
 
@@ -275,7 +284,8 @@ TEST(SstableBTree, ScanSparseRangeRightHanging) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 50, 1000);
 
@@ -300,7 +310,8 @@ TEST(SstableBTree, ScanSparseRangeOutOfBounds) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable);
+  t.Flush(f,
+          std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
 
   // Above range
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 100, 1000);
