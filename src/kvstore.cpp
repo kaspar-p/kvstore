@@ -41,11 +41,12 @@ const char* FailedToOpenException::what() const noexcept {
 
 class KvStore::KvStoreImpl {
  private:
-  const std::unique_ptr<Sstable> sstable_serializer;
+  std::unique_ptr<Sstable> sstable_serializer;
   DbNaming naming;
   MemTable memtable;
   bool open;
   std::vector<LSMLevel> levels;
+  uint8_t tiers;
 
   // Might not be necessary
   uint64_t blocks;
@@ -56,9 +57,7 @@ class KvStore::KvStoreImpl {
                                                             std::fstream::in |
                                                             std::fstream::out);
     assert(file.good());
-    this->sstable_serializer->Flush(
-        file, std::make_unique<std::vector<std::pair<K, V>>>(
-                  this->memtable.ScanAll()));
+    this->sstable_serializer->Flush(file, this->memtable.ScanAll());
     if (!file.good()) {
       perror("Failed to write serialized block!");
     }
@@ -100,25 +99,33 @@ class KvStore::KvStoreImpl {
   }
 
  public:
-  KvStoreImpl()
-      : sstable_serializer(std::make_unique<SstableBTree>()),
-        memtable((8 * kMegabyteSize) / (kKeySize + kValSize)),
-        open(false),
-        blocks(0){};
+  KvStoreImpl() : open(false), blocks(0), memtable(0){};
 
   ~KvStoreImpl() = default;
 
-  void Open(const std::string& name, const std::filesystem::path dir,
-            const Options options) {
+  void Open(const std::string& name, const Options options) {
     this->open = true;
+
+    if (!options.serialization.has_value() ||
+        options.serialization.value() == DataFileFormat::BTree) {
+      this->sstable_serializer = std::make_unique<SstableBTree>();
+    } else {
+      this->sstable_serializer = std::make_unique<SstableNaive>();
+    }
+
+    this->tiers = options.tiers.value_or(2);
+    std::filesystem::path dir = options.dir.value_or("./");
     this->naming = DbNaming{.dirpath = dir / name, .name = name};
 
     this->init_directory(dir);
     this->lock_directory();
-  }
 
-  void Open(const std::string& name, const Options options) {
-    return this->Open(name, std::filesystem::path("./"), options);
+    if (options.buffer_elements.has_value()) {
+      this->memtable.IncreaseCapacity(options.buffer_elements.value());
+    } else {
+      constexpr uint64_t mbData = kMegabyteSize / (kKeySize + kValSize);
+      this->memtable.IncreaseCapacity(mbData);
+    }
   }
 
   std::filesystem::path DataDirectory() const {
@@ -223,10 +230,6 @@ KvStore::~KvStore() = default;
 
 void KvStore::Open(const std::string& name, Options options) {
   return this->impl_->Open(name, options);
-}
-void KvStore::Open(const std::string& name, std::filesystem::path dir,
-                   Options options) {
-  return this->impl_->Open(name, dir, options);
 }
 
 std::filesystem::path KvStore::DataDirectory() const {

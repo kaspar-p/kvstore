@@ -1,6 +1,7 @@
 #include "memtable.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <exception>
 #include <iostream>
@@ -515,6 +516,11 @@ class MemTable::MemTableImpl {
   MemTableImpl(const MemTableImpl& t) = default;
   MemTableImpl& operator=(const MemTableImpl& t) = default;
 
+  void IncreaseCapacity(uint64_t capacity) {
+    assert(this->capacity <= capacity);
+    this->capacity = capacity;
+  }
+
   [[nodiscard]] std::string Print() const { return this->root->print(); }
 
   [[nodiscard]] V* Get(const K key) const {
@@ -562,8 +568,8 @@ class MemTable::MemTableImpl {
     return pairs;
   }
 
-  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const {
-    std::vector<std::pair<K, V>> pairs;
+  [[nodiscard]] std::unique_ptr<std::vector<std::pair<K, V>>> ScanAll() const {
+    auto pairs = std::make_unique<std::vector<std::pair<K, V>>>();
     if (!this->least_key_.has_value() || !this->most_key_.has_value()) {
       return pairs;
     }
@@ -571,7 +577,7 @@ class MemTable::MemTableImpl {
     std::vector<RbNode*> nodes = this->rb_in_order(
         this->root, this->least_key_.value(), this->most_key_.value());
 
-    std::transform(nodes.begin(), nodes.end(), std::back_inserter(pairs),
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(*pairs),
                    [](RbNode* elem) {
                      return std::make_pair(elem->key(), *elem->value());
                    });
@@ -619,6 +625,10 @@ MemTable& MemTable::operator=(const MemTable& t) {
   return *this;
 }
 
+void MemTable::IncreaseCapacity(uint64_t capacity) {
+  return this->impl_->IncreaseCapacity(capacity);
+}
+
 std::string MemTable::Print() const { return this->impl_->Print(); }
 
 V* MemTable::Get(const K key) const { return this->impl_->Get(key); }
@@ -634,7 +644,7 @@ std::vector<std::pair<K, V>> MemTable::Scan(const K lower_bound,
 
 V* MemTable::Delete(const K key) { return this->impl_->Delete(key); }
 
-std::vector<std::pair<K, V>> MemTable::ScanAll() const {
+std::unique_ptr<std::vector<std::pair<K, V>>> MemTable::ScanAll() const {
   return this->impl_->ScanAll();
 }
 

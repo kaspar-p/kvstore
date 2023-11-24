@@ -17,7 +17,7 @@ TEST(KvStore, ScanIncludesEnds) {
   std::filesystem::remove_all("/tmp/KvStore.ScanIncludesEnds");
 
   KvStore table;
-  table.Open("KvStore.ScanIncludesEnds", "/tmp", Options{.overwrite = true});
+  table.Open("KvStore.ScanIncludesEnds", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -40,7 +40,7 @@ TEST(KvStore, ScanStopsBeforeEnd) {
   std::filesystem::remove_all("/tmp/KvStore.ScanStopsBeforeEnd");
 
   KvStore table;
-  table.Open("KvStore.ScanStopsBeforeEnd", "/tmp", Options{.overwrite = true});
+  table.Open("KvStore.ScanStopsBeforeEnd", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -57,8 +57,7 @@ TEST(KvStore, ScanStopsBeforeStart) {
   std::filesystem::remove_all("/tmp/KvStore.ScanStopsBeforeStart");
 
   KvStore table;
-  table.Open("KvStore.ScanStopsBeforeStart", "/tmp",
-             Options{.overwrite = true});
+  table.Open("KvStore.ScanStopsBeforeStart", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -75,8 +74,7 @@ TEST(KvStore, ScanGoesBeyondKeySizes) {
   std::filesystem::remove_all("/tmp/KvStore.ScanGoesBeyondKeySizes");
 
   KvStore table;
-  table.Open("KvStore.ScanGoesBeyondKeySizes", "/tmp",
-             Options{.overwrite = true});
+  table.Open("KvStore.ScanGoesBeyondKeySizes", Options{.dir = "/tmp"});
   table.Put(10, 10);
   table.Put(20, 20);
   table.Put(30, 30);
@@ -125,7 +123,7 @@ TEST(KvStore, DataDirectory) {
       },
       DatabaseClosedException);
 
-  db.Open("KvStore.DataDirectory", "/tmp/", Options{.overwrite = true});
+  db.Open("KvStore.DataDirectory", Options{.dir = "/tmp"});
   ASSERT_EQ(db.DataDirectory(),
             std::filesystem::path("/tmp/KvStore.DataDirectory"));
 }
@@ -134,7 +132,7 @@ TEST(KvStore, DatabaseLockExists) {
   std::filesystem::remove_all("/tmp/KvStore.DatabaseLockExists");
 
   KvStore db;
-  db.Open("KvStore.DatabaseLockExists", "/tmp/", Options{.overwrite = true});
+  db.Open("KvStore.DatabaseLockExists", Options{.dir = "/tmp"});
 
   ASSERT_TRUE(std::filesystem::exists(
       "/tmp/KvStore.DatabaseLockExists/KvStore.DatabaseLockExists.LOCK"));
@@ -143,7 +141,7 @@ TEST(KvStore, DatabaseLockExists) {
   ASSERT_FALSE(std::filesystem::exists(
       "/tmp/KvStore.DatabaseLockExists/KvStore.DatabaseLockExists.LOCK"));
 
-  db.Open("KvStore.DatabaseLockExists", "/tmp/", Options{.overwrite = true});
+  db.Open("KvStore.DatabaseLockExists", Options{.dir = "/tmp"});
   ASSERT_TRUE(std::filesystem::exists(
       "/tmp/KvStore.DatabaseLockExists/KvStore.DatabaseLockExists.LOCK"));
 }
@@ -154,8 +152,8 @@ TEST(KvStore, DatabaseLockedThrowsDifferentInstances) {
         "/tmp/KvStore.DatabaseLockedThrowsDifferentInstances/");
 
     KvStore db;
-    db.Open("KvStore.DatabaseLockedThrowsDifferentInstances", "/tmp/",
-            Options{.overwrite = true});
+    db.Open("KvStore.DatabaseLockedThrowsDifferentInstances",
+            Options{.dir = "/tmp"});
 
     KvStore db2;
     ASSERT_TRUE(std::filesystem::exists(
@@ -164,8 +162,8 @@ TEST(KvStore, DatabaseLockedThrowsDifferentInstances) {
     ASSERT_THROW(
         {
           try {
-            db2.Open("KvStore.DatabaseLockedThrowsDifferentInstances", "/tmp/",
-                     Options{.overwrite = true});
+            db2.Open("KvStore.DatabaseLockedThrowsDifferentInstances",
+                     Options{.dir = "/tmp"});
           } catch (const DatabaseInUseException& e) {
             ASSERT_TRUE(std::string(e.what()).find("in use") !=
                         std::string::npos);
@@ -181,8 +179,7 @@ TEST(KvStore, DatabaseLockedThrowsDoubleOpen) {
     std::filesystem::remove_all("/tmp/KvStore.DatabaseLockedThrowsDoubleOpen/");
 
     KvStore db;
-    db.Open("KvStore.DatabaseLockedThrowsDoubleOpen", "/tmp/",
-            Options{.overwrite = true});
+    db.Open("KvStore.DatabaseLockedThrowsDoubleOpen", Options{.dir = "/tmp"});
 
     ASSERT_TRUE(
         std::filesystem::exists("/tmp/KvStore.DatabaseLockedThrowsDoubleOpen/"
@@ -190,8 +187,8 @@ TEST(KvStore, DatabaseLockedThrowsDoubleOpen) {
     ASSERT_THROW(
         {
           try {
-            db.Open("KvStore.DatabaseLockedThrowsDoubleOpen", "/tmp/",
-                    Options{.overwrite = true});
+            db.Open("KvStore.DatabaseLockedThrowsDoubleOpen",
+                    Options{.dir = "/tmp"});
           } catch (const DatabaseInUseException& e) {
             ASSERT_TRUE(std::string(e.what()).find("in use") !=
                         std::string::npos);
@@ -236,8 +233,7 @@ TEST(KvStore, TombstoneInsertionThrow) {
   std::filesystem::remove_all("/tmp/KvStore.TombstoneInsertionThrow");
 
   KvStore db;
-  db.Open("KvStore.TombstoneInsertionThrow", "/tmp",
-          Options{.overwrite = true});
+  db.Open("KvStore.TombstoneInsertionThrow", Options{.dir = "/tmp"});
   ASSERT_THROW(
       {
         try {
@@ -254,7 +250,7 @@ TEST(KvStore, InsertAndDeleteOne) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndDeleteOne");
 
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteOne", "/tmp", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndDeleteOne", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Delete(1);
 
@@ -265,7 +261,7 @@ TEST(KvStore, InsertAndDeleteAFew) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndDeleteAFew");
 
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteAFew", "/tmp", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndDeleteAFew", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -284,8 +280,7 @@ TEST(KvStore, InsertAndDeleteThousands) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndDeleteThousands");
 
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteThousands", "/tmp",
-             Options{.overwrite = true});
+  table.Open("KvStore.InsertAndDeleteThousands", Options{.dir = "/tmp"});
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 10 * i);
   }
@@ -307,7 +302,7 @@ TEST(KvStore, InsertAndGetOne) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndGetOne");
 
   KvStore table;
-  table.Open("KvStore.InsertAndGetOne", "/tmp", Options{.overwrite = true});
+  table.Open("KvStore.InsertAndGetOne", Options{.dir = "/tmp"});
   table.Put(1, 10);
   const std::optional<V> val = table.Get(1);
   ASSERT_NE(val, std::nullopt);
@@ -318,8 +313,7 @@ TEST(KvStore, InsertOneAndReplaceIt) {
   std::filesystem::remove_all("/tmp/KvStore.InsertOneAndReplaceIt");
 
   KvStore table;
-  table.Open("KvStore.InsertOneAndReplaceIt", "/tmp",
-             Options{.overwrite = true});
+  table.Open("KvStore.InsertOneAndReplaceIt", Options{.dir = "/tmp"});
   table.Put(1, 100);
   table.Put(1, 200);
   const std::optional<V> val = table.Get(1);
@@ -331,8 +325,7 @@ TEST(KvStore, InsertManyAndGetMany) {
   std::filesystem::remove_all("/tmp/KvStore.InsertManyAndGetMany");
 
   KvStore table;
-  table.Open("KvStore.InsertManyAndGetMany", "/tmp",
-             Options{.overwrite = true});
+  table.Open("KvStore.InsertManyAndGetMany", Options{.dir = "/tmp"});
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);

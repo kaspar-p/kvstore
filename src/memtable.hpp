@@ -36,6 +36,11 @@ class MemTable {
   MemTable& operator=(MemTable&& t) = default;
 
   /**
+   * @brief Increase the capacity of the memtable.
+   */
+  void IncreaseCapacity(uint64_t capacity);
+
+  /**
    * @brief Returns a string representation of the tree, meant only for
    * visualization purposes.
    *
@@ -83,7 +88,7 @@ class MemTable {
    *
    * @return std::vector<std::pair<K, V>> All pairs in the table.
    */
-  [[nodiscard]] std::vector<std::pair<K, V>> ScanAll() const;
+  [[nodiscard]] std::unique_ptr<std::vector<std::pair<K, V>>> ScanAll() const;
 
   /**
    * @brief Deletes a key from the table. Returns a nullptr if the key was never

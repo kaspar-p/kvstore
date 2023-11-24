@@ -18,6 +18,8 @@ struct SstableId {
 
 class Sstable {
  public:
+  virtual ~Sstable() = default;
+
   /**
    * @brief Create a new file in the data directory with name @param filename
    * from an entire @param memtable. Assumes that the file doesn't already

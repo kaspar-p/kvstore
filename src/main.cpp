@@ -5,6 +5,7 @@
 
 #include "dbg.hpp"
 #include "filter.hpp"
+#include "kvstore.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
 #include "xxhash.h"
@@ -16,16 +17,6 @@ DbNaming create_dir(std::string name) {
     assert(created);
   }
   return DbNaming{.dirpath = "/tmp/" + name, .name = name};
-}
-
-FilterId test_setup(DbNaming& naming) {
-  std::filesystem::remove(filter_file(naming, 0, 0, 0));
-
-  return FilterId{
-      .level = 0,
-      .run = 0,
-      .intermediate = 0,
-  };
 }
 
 BufPool test_buffer() {
@@ -42,14 +33,12 @@ std::vector<K> test_keys(int num) {
 }
 
 int main() {
-  auto naming = create_dir("Main.Initialization");
-  auto id = test_setup(naming);
-  std::cout << "BEFORe!" << std::endl;
-  Filter f(naming, id, buf, 0, test_keys(10));
-  std::cout << "AFTER!" << std::endl;
-  assert(f.Has(0) == false);
-  assert(std::filesystem::file_size(
-             filter_file(naming, id.level, id.run, id.intermediate)) %
-             kPageSize ==
-         0);
+  std::filesystem::remove_all("./Main.DataTesting");
+
+  KvStore table;
+  table.Open("Main.DataTesting", Options{.dir = "./"});
+
+  for (int i = 0; i < 1000 * 1000; i++) {
+    table.Put(i, 2 * i);
+  }
 }

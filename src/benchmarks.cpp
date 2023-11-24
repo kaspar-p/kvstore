@@ -98,7 +98,6 @@ void run_benchmarks(uint64_t megabytes_to_insert,
   uint64_t nodes_to_insert = megabytes_to_insert * kMegabyteSize / kKeySize;
   KvStore db{};
   Options options;
-  options.overwrite = true;
   std::string db_dir("benchmark_test_" + std::to_string(megabytes_to_insert) +
                      ".db");
   db.Open(db_dir, options);

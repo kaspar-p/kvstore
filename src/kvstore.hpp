@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <memory>
@@ -30,7 +31,16 @@ class DatabaseInUseException : public std::exception {
   [[nodiscard]] const char* what() const noexcept override;
 };
 
+enum DataFileFormat { BTree, FlatSorted };
+
 struct Options {
+  /**
+   * @brief The data directory to create the database in.
+   *
+   * Defaults to "./", the current directory
+   */
+  std::optional<std::filesystem::path> dir;
+
   /**
    * @brief The number of elements to buffer in-memory before flushing to the
    * filesystem.
@@ -38,9 +48,9 @@ struct Options {
    * Fewer elements flush more often. This leads to better data volatility, but
    * also might impact performance.
    *
-   * Defaults to roughly 8MB worth of elements.
+   * Defaults to roughly 1MB worth of elements.
    */
-  std::size_t buffer_elements;
+  std::optional<std::size_t> buffer_elements;
 
   /**
    * @brief The number of runs within an LSM-level. This also is the fan-out
@@ -52,12 +62,20 @@ struct Options {
    *
    * Defaults to 2.
    */
-  std::uint8_t tiers;
+  std::optional<std::uint8_t> tiers;
 
   /**
-   * @brief Currently does nothing.
+   * @brief The way to serialize the data files. Note that the serialization
+   * methods are not compatible with each other, and databases opened with one
+   * file format should not be opened with a future format, it will likely
+   * break.
+   *
+   * Likely this option shouldn't be touched, as FlatSorted is slower than BTree
+   * anyway. Only really useful for perf testing.
+   *
+   * Defaults to DataFileFormat::BTree
    */
-  bool overwrite;
+  std::optional<DataFileFormat> serialization;
 };
 
 class KvStore {
@@ -81,8 +99,6 @@ class KvStore {
    * the data is stored.
    */
   void Open(const std::string& name, Options options);
-  void Open(const std::string& name, const std::filesystem::path dir,
-            Options options);
 
   /**
    * @brief Returns the path to the data directory, if needed.
