@@ -21,9 +21,14 @@
 #include "memtable.hpp"
 #include "sstable.hpp"
 
-const char* OnlyTheDatabaseCanUseFunnyValues::what() const noexcept {
+const char* OnlyTheDatabaseCanUseFunnyValuesException::what() const noexcept {
   return "Only the database can use funny values! This one is the tombstone "
          "value, and is reserved.";
+};
+
+const char* DatabaseInUseException::what() const noexcept {
+  return "This data directory is in already in use by an instance of the "
+         "database! Cannot have dual-ownership!";
 };
 
 const char* DatabaseClosedException::what() const noexcept {
@@ -34,7 +39,8 @@ const char* FailedToOpenException::what() const noexcept {
   return "Failed to open database directory!";
 };
 
-struct KvStore::KvStoreImpl {
+class KvStore::KvStoreImpl {
+ private:
   const std::unique_ptr<Sstable> sstable_serializer;
   DbNaming naming;
   MemTable memtable;
@@ -43,14 +49,6 @@ struct KvStore::KvStoreImpl {
 
   // Might not be necessary
   uint64_t blocks;
-
-  KvStoreImpl()
-      : sstable_serializer(std::make_unique<SstableBTree>()),
-        memtable((8 * kMegabyteSize) / (kKeySize + kValSize)),
-        open(false),
-        blocks(0){};
-
-  ~KvStoreImpl() = default;
 
   void flush_memtable() {
     std::cout << "FLUSHING!" << '\n';
@@ -69,45 +67,72 @@ struct KvStore::KvStoreImpl {
     this->memtable.Clear();
   };
 
-  void ensure_fs(const Options options) const {
-    bool dir_exists = std::filesystem::is_directory(this->naming.dirpath);
-    if (dir_exists && options.overwrite) {
-      std::filesystem::remove_all(this->naming.dirpath);
+  /**
+   * @brief Creates a file in the directory meant for locking the DB. If the
+   * file already exists, throws a DatabaseInUseException() to the user.
+   */
+  void lock_directory() {
+    std::string lockfile_name = lock_file(this->naming);
+    if (std::filesystem::exists(lockfile_name)) {
+      throw DatabaseInUseException();
+    } else {
+      std::fstream f(lockfile_name, std::fstream::binary | std::fstream::out |
+                                        std::fstream::trunc);
+      f.close();
     }
-
-    if (!dir_exists || (dir_exists && options.overwrite)) {
-      bool created = std::filesystem::create_directory(this->naming.dirpath);
-      if (!created) {
-        perror("Failed to create data directory!");
-        throw FailedToOpenException();
-      };
-    }
-
-    uint64_t created_time =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    std::ofstream outfile(this->naming.dirpath / "__HEADER");
-    outfile << "name=" << this->naming.dirpath << "\n"
-            << "created=" << created_time << '\n';
   }
+
+  void unlock_directory() {
+    assert(this->open);
+
+    std::string lockfile_name = lock_file(this->naming);
+    if (std::filesystem::exists(lockfile_name)) {
+      std::filesystem::remove(lockfile_name);
+    } else {
+      throw DatabaseClosedException();
+    }
+  }
+
+  void init_directory(const std::filesystem::path& parent_dir) {
+    if (std::filesystem::exists(parent_dir)) {
+      std::filesystem::create_directory(this->naming.dirpath);
+    }
+  }
+
+ public:
+  KvStoreImpl()
+      : sstable_serializer(std::make_unique<SstableBTree>()),
+        memtable((8 * kMegabyteSize) / (kKeySize + kValSize)),
+        open(false),
+        blocks(0){};
+
+  ~KvStoreImpl() = default;
 
   void Open(const std::string& name, const std::filesystem::path dir,
             const Options options) {
     this->open = true;
+    this->naming = DbNaming{.dirpath = dir / name, .name = name};
 
-    std::filesystem::path parent(dir);
-    std::filesystem::create_directory(parent);
-    this->naming = DbNaming{.dirpath = parent / name, .name = name};
-    std::filesystem::create_directory(this->naming.dirpath);
-    this->ensure_fs(options);
+    this->init_directory(dir);
+    this->lock_directory();
   }
 
   void Open(const std::string& name, const Options options) {
     return this->Open(name, std::filesystem::path("./"), options);
   }
 
-  void Close() { this->open = false; }
+  std::filesystem::path DataDirectory() const {
+    if (!this->open) {
+      throw DatabaseClosedException();
+    }
+
+    return this->naming.dirpath;
+  }
+
+  void Close() {
+    this->unlock_directory();
+    this->open = false;
+  }
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(const K lower,
                                                   const K upper) const {
@@ -162,7 +187,7 @@ struct KvStore::KvStoreImpl {
     }
 
     if (value == kTombstoneValue) {
-      throw OnlyTheDatabaseCanUseFunnyValues();
+      throw OnlyTheDatabaseCanUseFunnyValuesException();
     }
 
     try {
@@ -202,6 +227,10 @@ void KvStore::Open(const std::string& name, Options options) {
 void KvStore::Open(const std::string& name, std::filesystem::path dir,
                    Options options) {
   return this->impl_->Open(name, dir, options);
+}
+
+std::filesystem::path KvStore::DataDirectory() const {
+  return this->impl_->DataDirectory();
 }
 
 void KvStore::Close() { return this->impl_->Close(); }

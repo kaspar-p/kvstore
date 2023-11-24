@@ -21,3 +21,7 @@ std::string filter_file(const DbNaming& naming, uint32_t level, uint32_t run,
          std::string(naming.name + ".FILTER.L" + std::to_string(level) + ".R" +
                      std::to_string(run) + ".I" + std::to_string(intermediate));
 }
+
+std::string lock_file(const DbNaming& naming) {
+  return naming.dirpath / std::string(naming.name + ".LOCK");
+}

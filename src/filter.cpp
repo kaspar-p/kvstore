@@ -220,9 +220,7 @@ class Filter::FilterImpl {
   }
 
   uint32_t find_num_filters() {
-    std::cout << "before" << '\n';
     if (this->file_exists()) {
-      std::cout << "here" << '\n';
       uint64_t metadata_buf[kPageSize / sizeof(uint64_t)];
       this->file.seekg(0);
       this->file.read(reinterpret_cast<char*>(metadata_buf), kPageSize);

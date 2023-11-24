@@ -20,7 +20,12 @@ class FailedToOpenException : public std::exception {
   [[nodiscard]] const char* what() const noexcept override;
 };
 
-class OnlyTheDatabaseCanUseFunnyValues : public std::exception {
+class OnlyTheDatabaseCanUseFunnyValuesException : public std::exception {
+ public:
+  [[nodiscard]] const char* what() const noexcept override;
+};
+
+class DatabaseInUseException : public std::exception {
  public:
   [[nodiscard]] const char* what() const noexcept override;
 };
@@ -52,6 +57,15 @@ class KvStore {
   void Open(const std::string& name, Options options);
   void Open(const std::string& name, const std::filesystem::path dir,
             Options options);
+
+  /**
+   * @brief Returns the path to the data directory, if needed.
+   * If the database has not been Open()ed, throws a DatabaseClosedException
+   * exception.
+   *
+   * @return std::filesystem::path
+   */
+  std::filesystem::path DataDirectory() const;
 
   /**
    * @brief Paired operation with `Open()`, closes the
