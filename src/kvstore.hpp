@@ -31,6 +31,32 @@ class DatabaseInUseException : public std::exception {
 };
 
 struct Options {
+  /**
+   * @brief The number of elements to buffer in-memory before flushing to the
+   * filesystem.
+   *
+   * Fewer elements flush more often. This leads to better data volatility, but
+   * also might impact performance.
+   *
+   * Defaults to roughly 8MB worth of elements.
+   */
+  std::size_t buffer_elements;
+
+  /**
+   * @brief The number of runs within an LSM-level. This also is the fan-out
+   * factor that the database grows by, meaning level L will have `tiers` times
+   * more capacity than level L-1.
+   *
+   * @example If level 1 can store 2GB, and `tiers == 4`, then level 2 can store
+   * 8GB of data.
+   *
+   * Defaults to 2.
+   */
+  std::uint8_t tiers;
+
+  /**
+   * @brief Currently does nothing.
+   */
   bool overwrite;
 };
 
