@@ -10,6 +10,7 @@
 #include "constants.hpp"
 #include "manifest.hpp"
 #include "naming.hpp"
+#include "sstable.hpp"
 
 class LSMRun {
  public:
@@ -25,7 +26,8 @@ class LSMRun {
    * number of files that this run is allowed to manage.
    */
   LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
-         std::size_t memtable_capacity, Manifest& manifest, BufPool& buf);
+         std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
+         Sstable& serializer);
   ~LSMRun();
 
   /**
@@ -72,7 +74,7 @@ class LSMRun {
    *
    * @param filename The file to register into the run.
    */
-  void RegisterNewFile(std::string& filename);
+  void RegisterNewFile(int intermediate);
 
  private:
   class LSMRunImpl;

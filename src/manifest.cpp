@@ -176,7 +176,7 @@ class Manifest::ManifestHandleImpl {
     }
   }
 
-  [[nodiscard]] std::vector<std::string> GetPotentialFiles(uint32_t level,
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level, int run,
                                                            K key) {
     if (level >= this->levels.size()) {
       return {};
@@ -184,7 +184,7 @@ class Manifest::ManifestHandleImpl {
 
     std::vector<std::string> matches{};
     for (const auto& file : this->levels.at(level)) {
-      if (file.minimum <= key && key <= file.maximum) {
+      if (file.id.run == run && file.minimum <= key && key <= file.maximum) {
         matches.push_back(data_file(this->naming, file.id.level, file.id.run,
                                     file.id.intermediate));
       }
@@ -192,6 +192,22 @@ class Manifest::ManifestHandleImpl {
 
     return matches;
   };
+
+  [[nodiscard]] bool InRange(int level, int run, int intermediate,
+                             K key) const {
+    if (level >= this->levels.size()) {
+      return false;
+    }
+
+    for (const auto& file : this->levels.at(level)) {
+      if (file.id.run == run && file.id.intermediate == intermediate &&
+          file.minimum <= key && key <= file.maximum) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   void RegisterNewFiles(std::vector<FileMetadata> files) {
     for (const auto& file : files) {
@@ -257,8 +273,12 @@ Manifest::Manifest(const DbNaming& naming, uint8_t tiers,
 Manifest::~Manifest() = default;
 
 [[nodiscard]] std::vector<std::string> Manifest::GetPotentialFiles(
-    int level, K key) const {
-  return this->impl->GetPotentialFiles(level, key);
+    int level, int run, K key) const {
+  return this->impl->GetPotentialFiles(level, run, key);
+}
+[[nodiscard]] bool Manifest::InRange(int level, int run, int intermediate,
+                                     K key) const {
+  return this->impl->InRange(level, run, intermediate, key);
 }
 
 void Manifest::RegisterNewFiles(std::vector<FileMetadata> files) {

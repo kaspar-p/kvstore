@@ -50,12 +50,24 @@ class Manifest {
    * @brief For a Get(key) request, search for files in a level if that key is
    * in the files min/max range.
    *
-   * @param key The key to search for
+   * @param level The level to search in.
+   * @param run The run to search in.
+   * @param key The key to search for.
    * @return std::vector<std::string> A list of filenames where key is in the
    * range of the keys in that file.
    */
-  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level,
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level, int run,
                                                            K key) const;
+  /**
+   * @brief Similar to GetPotentialFiles, but the other way around. Asks the
+   * manifest file if a key is in a files range. Returns true if the datafile
+   * might contain the key.
+   *
+   * @param level The level of the datafile.
+   * @param filename The name of the datafile.
+   * @param key The key to search for.
+   */
+  [[nodiscard]] bool InRange(int level, int run, int intermediate, K key) const;
 
   [[nodiscard]] int NumLevels() const;
   [[nodiscard]] int NumRuns(int level) const;

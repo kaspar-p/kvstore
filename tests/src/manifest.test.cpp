@@ -14,7 +14,7 @@ TEST(Manifest, Initialization) {
   std::filesystem::remove(manifest_file(naming));
 
   Manifest m(naming, 2, serializer);
-  ASSERT_EQ(m.GetPotentialFiles(1, 0), std::vector<std::string>{});
+  ASSERT_EQ(m.GetPotentialFiles(1, 0, 0), std::vector<std::string>{});
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
 }
 
@@ -57,25 +57,25 @@ TEST(Manifest, GetFileMemory) {
       },
   });
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
-  ASSERT_EQ(m.GetPotentialFiles(0, 1000), std::vector<std::string>({
-                                              data_file(naming, 0, 0, 0),
-                                          }));
-  ASSERT_EQ(m.GetPotentialFiles(0, 2000), std::vector<std::string>({
-                                              data_file(naming, 0, 0, 0),
-                                          }));
-  ASSERT_EQ(m.GetPotentialFiles(0, 4500), std::vector<std::string>({
-                                              data_file(naming, 0, 0, 0),
-                                              data_file(naming, 0, 0, 1),
-                                          }));
-  ASSERT_EQ(m.GetPotentialFiles(0, 10500), std::vector<std::string>({
-                                               data_file(naming, 0, 0, 1),
-                                               data_file(naming, 0, 0, 2),
-                                           }));
-  ASSERT_EQ(m.GetPotentialFiles(0, 13500), std::vector<std::string>({
-                                               data_file(naming, 0, 0, 2),
-                                           }));
-  ASSERT_EQ(m.GetPotentialFiles(0, 16000), std::vector<std::string>({}));
-  ASSERT_EQ(m.GetPotentialFiles(5, 16000), std::vector<std::string>({}));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 1000), std::vector<std::string>({
+                                                 data_file(naming, 0, 0, 0),
+                                             }));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 2000), std::vector<std::string>({
+                                                 data_file(naming, 0, 0, 0),
+                                             }));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 4500), std::vector<std::string>({
+                                                 data_file(naming, 0, 0, 0),
+                                                 data_file(naming, 0, 0, 1),
+                                             }));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 10500), std::vector<std::string>({
+                                                  data_file(naming, 0, 0, 1),
+                                                  data_file(naming, 0, 0, 2),
+                                              }));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 13500), std::vector<std::string>({
+                                                  data_file(naming, 0, 0, 2),
+                                              }));
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 16000), std::vector<std::string>({}));
+  ASSERT_EQ(m.GetPotentialFiles(5, 0, 16000), std::vector<std::string>({}));
 }
 
 TEST(Manifest, GetFileRecovery) {
@@ -122,22 +122,22 @@ TEST(Manifest, GetFileRecovery) {
   {
     Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
-    ASSERT_EQ(m.GetPotentialFiles(0, 1000),
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 1000),
               std::vector<std::string>({data_file(naming, 0, 0, 0)}));
-    ASSERT_EQ(m.GetPotentialFiles(0, 2000),
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 2000),
               std::vector<std::string>({data_file(naming, 0, 0, 0)}));
-    ASSERT_EQ(m.GetPotentialFiles(0, 4500), std::vector<std::string>({
-                                                data_file(naming, 0, 0, 0),
-                                                data_file(naming, 0, 0, 1),
-                                            }));
-    ASSERT_EQ(m.GetPotentialFiles(0, 10500), std::vector<std::string>({
-                                                 data_file(naming, 0, 0, 1),
-                                                 data_file(naming, 0, 0, 2),
-                                             }));
-    ASSERT_EQ(m.GetPotentialFiles(0, 13500),
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 4500), std::vector<std::string>({
+                                                   data_file(naming, 0, 0, 0),
+                                                   data_file(naming, 0, 0, 1),
+                                               }));
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 10500), std::vector<std::string>({
+                                                    data_file(naming, 0, 0, 1),
+                                                    data_file(naming, 0, 0, 2),
+                                                }));
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 13500),
               std::vector<std::string>({data_file(naming, 0, 0, 2)}));
-    ASSERT_EQ(m.GetPotentialFiles(0, 16000), std::vector<std::string>({}));
-    ASSERT_EQ(m.GetPotentialFiles(5, 16000), std::vector<std::string>({}));
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 16000), std::vector<std::string>({}));
+    ASSERT_EQ(m.GetPotentialFiles(5, 0, 16000), std::vector<std::string>({}));
   }
 }
 
@@ -165,10 +165,10 @@ TEST(Manifest, GetFileRecoveryMany) {
   {
     Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
-    ASSERT_EQ(m.GetPotentialFiles(0, 0).size(), 1000);
-    ASSERT_EQ(m.GetPotentialFiles(0, 500).size(), 500);
-    ASSERT_EQ(m.GetPotentialFiles(0, 999).size(), 1);
-    ASSERT_EQ(m.GetPotentialFiles(0, 1000).size(), 0);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 0).size(), 1000);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 500).size(), 500);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 999).size(), 1);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 1000).size(), 0);
   }
 }
 
@@ -190,7 +190,7 @@ TEST(Manifest, RemoveFileSimple) {
   }});
 
   m.RemoveFiles({data_file(naming, 0, 0, 0)});
-  ASSERT_EQ(m.GetPotentialFiles(0, 0), std::vector<std::string>{});
+  ASSERT_EQ(m.GetPotentialFiles(0, 0, 0), std::vector<std::string>{});
 }
 
 TEST(Manifest, RemoveFileRecovery) {
@@ -216,14 +216,14 @@ TEST(Manifest, RemoveFileRecovery) {
     m.RegisterNewFiles(files);
     m.RemoveFiles(filenames);
 
-    ASSERT_EQ(m.GetPotentialFiles(0, 500).size(), 0);
-    ASSERT_EQ(m.GetPotentialFiles(0, 0).size(), 0);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 500).size(), 0);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 0).size(), 0);
   }
 
   {
     Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
-    ASSERT_EQ(m.GetPotentialFiles(0, 500).size(), 0);
-    ASSERT_EQ(m.GetPotentialFiles(0, 0).size(), 0);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 500).size(), 0);
+    ASSERT_EQ(m.GetPotentialFiles(0, 0, 0).size(), 0);
   }
 }

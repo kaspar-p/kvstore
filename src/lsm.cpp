@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,46 +14,83 @@
 #include "constants.hpp"
 #include "manifest.hpp"
 #include "naming.hpp"
+#include "sstable.hpp"
 
 class LSMRun::LSMRunImpl {
  private:
   const DbNaming& naming;
+  const int level;
+  const int run;
+  const uint8_t tiers;
 
   Manifest& manifest;
   BufPool& buf;
+  Sstable& serializer;
 
-  std::vector<std::string> files;
+  std::vector<int> files;
 
  public:
   LSMRunImpl(const DbNaming& naming, int level, int run, uint8_t tiers,
-             std::size_t memtable_capacity, Manifest& manifest, BufPool& buf)
-      : naming(naming), manifest(manifest), buf(buf) {}
+             std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
+             Sstable& serializer)
+      : naming(naming),
+        level(level),
+        run(run),
+        tiers(tiers),
+        manifest(manifest),
+        buf(buf),
+        serializer(serializer) {}
 
   ~LSMRunImpl() = default;
 
   [[nodiscard]] int NextFile() const { return this->files.size(); }
-  void RegisterNewFile(std::string& filename) {
-    this->files.push_back(filename);
+  void RegisterNewFile(int intermediate) {
+    this->files.push_back(intermediate);
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    (void)key;
+    std::cout << "Get from run " << this->run << '\n';
+
+    for (const auto& file : this->files) {
+      bool in_range = this->manifest.InRange(this->level, this->run, file, key);
+      std::cout << "In range for file: "
+                << data_file(this->naming, this->level, this->run, file) << "? "
+                << in_range << '\n';
+      if (in_range) {
+        std::fstream f(data_file(this->naming, this->level, this->run, file),
+                       std::fstream::binary | std::fstream::in);
+        std::optional<V> ret = this->serializer.GetFromFile(f, key);
+        if (ret.has_value()) {
+          return ret;
+        }
+      }
+    }
+
     return std::nullopt;
+  }
+
+  [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const {
+    (void)lower;
+    (void)upper;
+    std::vector<std::pair<K, V>> l{};
+    return l;
   }
 };
 
 LSMRun::LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
-               std::size_t memtable_capacity, Manifest& manifest, BufPool& buf)
+               std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
+               Sstable& serializer)
     : impl(std::make_unique<LSMRunImpl>(naming, level, run, tiers,
-                                        memtable_capacity, manifest, buf)) {}
+                                        memtable_capacity, manifest, buf,
+                                        serializer)) {}
 LSMRun::~LSMRun() = default;
 
 [[nodiscard]] std::optional<V> LSMRun::Get(K key) const {
   return this->impl->Get(key);
 }
 [[nodiscard]] int LSMRun::NextFile() const { return this->impl->NextFile(); }
-void LSMRun::RegisterNewFile(std::string& filename) {
-  return this->impl->RegisterNewFile(filename);
+void LSMRun::RegisterNewFile(int intermediate) {
+  return this->impl->RegisterNewFile(intermediate);
 }
 
 class LSMLevel::LSMLevelImpl {
@@ -83,6 +121,8 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
+    std::cout << "Get from level " << this->level << '\n';
+
     for (const auto& run : this->runs) {
       std::optional<V> val = run->Get(key);
       if (val.has_value()) {

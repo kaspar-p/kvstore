@@ -58,6 +58,27 @@ TEST(SstableBTree, GetSingleElems) {
   ASSERT_EQ(val.value(), 0);
 }
 
+TEST(SstableBTree, GetManySingleElems) {
+  MemTable memtable(2000);
+  for (int i = 0; i < 2000; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.GetManySingleElems",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  t.Flush(f, memtable.ScanAll());
+
+  for (int i = 0; i < 2000; i++) {
+    std::optional<V> val = t.GetFromFile(f, i);
+    ASSERT_TRUE(val.has_value());
+    ASSERT_EQ(val.value(), 2 * i);
+  }
+}
+
 TEST(SstableBTree, GetSingleMissing) {
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {

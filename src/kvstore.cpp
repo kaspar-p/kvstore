@@ -66,15 +66,26 @@ class KvStore::KvStoreImpl {
       this->levels.push_back(std::move(level));
     }
 
-    int run_idx = this->levels.front()->NextRun();
+    uint32_t run_idx = this->levels.front()->NextRun();
 
     std::cout << "NEXT RUN: " << run_idx << '\n';
 
-    std::string filename = data_file(this->naming, 0, run_idx, 0);
+    assert(this->manifest.has_value());
+    assert(this->buf.has_value());
+    std::unique_ptr<LSMRun> run = std::make_unique<LSMRun>(
+        this->naming, 0, run_idx, this->tiers, this->memtable.GetCapacity(),
+        this->manifest.value(), this->buf.value(), *this->sstable_serializer);
+
+    uint32_t intermediate = run->NextFile();
+    std::string filename = data_file(this->naming, 0, run_idx, intermediate);
     std::fstream file(filename, std::fstream::binary | std::fstream::in |
                                     std::fstream::out | std::fstream::trunc);
     assert(file.good());
-    this->sstable_serializer->Flush(file, this->memtable.ScanAll());
+    auto v = this->memtable.ScanAll();
+    K min = v->front().first;
+    K max = v->back().first;
+
+    this->sstable_serializer->Flush(file, std::move(v));
     if (!file.good()) {
       perror("Failed to write serialized block!");
       exit(1);
@@ -82,16 +93,20 @@ class KvStore::KvStoreImpl {
 
     std::cout << "FILE CREATED!!" << '\n';
 
-    this->memtable.Clear();
-
-    assert(this->manifest.has_value());
-    assert(this->buf.has_value());
-    std::unique_ptr<LSMRun> run = std::make_unique<LSMRun>(
-        this->naming, 0, run_idx, this->tiers, this->memtable.GetCapacity(),
-        this->manifest.value(), this->buf.value());
-
-    run->RegisterNewFile(filename);
+    run->RegisterNewFile(intermediate);
     this->levels.front()->RegisterNewRun(std::move(run));
+    this->manifest.value().RegisterNewFiles({FileMetadata{
+        .id =
+            SstableId{
+                .level = 0,
+                .run = run_idx,
+                .intermediate = intermediate,
+            },
+        .minimum = min,
+        .maximum = max,
+    }});
+
+    this->memtable.Clear();
   };
 
   /**

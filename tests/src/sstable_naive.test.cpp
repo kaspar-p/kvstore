@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -13,16 +14,19 @@
 #include "sstable.hpp"
 
 TEST(SstableNaive, AddElems) {
+  std::cout << "tip" << std::endl;
+
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
   SstableNaive t{};
   std::fstream f;
-  f.open("/tmp/SstableNaive_AddElems.bin",
-         std::fstream::binary | std::fstream::in | std::fstream::out |
-             std::fstream::trunc);
+  f.open("/tmp/SstableNaive.AddElems", std::fstream::binary | std::fstream::in |
+                                           std::fstream::out |
+                                           std::fstream::trunc);
   ASSERT_EQ(f.good(), true);
+  std::cout << "nefore flush" << std::endl;
   t.Flush(f, memtable.ScanAll());
 
   ASSERT_EQ(1, 1);
@@ -35,7 +39,7 @@ TEST(SstableNaive, GetSingleElems) {
   }
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.GetSingleElems.bin",
+  std::fstream f("/tmp/SstableNaive.GetSingleElems",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -48,22 +52,49 @@ TEST(SstableNaive, GetSingleElems) {
   ASSERT_EQ(val.value(), 32);
 }
 
+TEST(SstableNaive, GetManySingleElems) {
+  MemTable memtable(2000);
+  for (int i = 0; i < 2000; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableNaive t{};
+  std::fstream f("/tmp/SstableNaive.GetManySingleElems",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto v = memtable.ScanAll();
+
+  t.Flush(f, std::move(v));
+
+  for (int i = 0; i < 2000; i++) {
+    std::optional<V> val = t.GetFromFile(f, i);
+    ASSERT_TRUE(val.has_value());
+    ASSERT_EQ(val.value(), 2 * i);
+  }
+}
+
 TEST(SstableNaive, GetSingleMissing) {
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
+    if (i == 54) continue;
     memtable.Put(i, i);
   }
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.GetSingleMissing.bin",
+  std::fstream f("/tmp/SstableNaive.GetSingleMissing",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
   t.Flush(f, memtable.ScanAll());
 
-  std::optional<V> val = t.GetFromFile(f, 100);
+  std::optional<V> val = t.GetFromFile(f, 54);
+  ASSERT_EQ(val.has_value(), false);
 
+  // out of range
+  val = t.GetFromFile(f, 100);
   ASSERT_EQ(val.has_value(), false);
 }
 
@@ -74,7 +105,7 @@ TEST(SstableNaive, ScanDenseRange) {
   }
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanDenseRange.bin",
+  std::fstream f("/tmp/SstableNaive.ScanDenseRange",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -101,7 +132,7 @@ TEST(SstableNaive, ScanSparseRangeIncludes) {
   memtable.Put(99, 109);
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeIncludes.bin",
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeIncludes",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -135,7 +166,7 @@ TEST(SstableNaive, ScanSparseRangeHuge) {
   memtable.Put(99, 109);
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeHuge.bin",
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeHuge",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -179,7 +210,7 @@ TEST(SstableNaive, ScanSparseRangeLeftHanging) {
   memtable.Put(99, 109);
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeLeftHanging.bin",
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeLeftHanging",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -207,7 +238,7 @@ TEST(SstableNaive, ScanSparseRangeRightHanging) {
   memtable.Put(99, 109);
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeRightHanging.bin",
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeRightHanging",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
@@ -232,7 +263,7 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
   memtable.Put(99, 109);
 
   SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeOutOfBounds.bin",
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeOutOfBounds",
                  std::fstream::binary | std::fstream::in | std::fstream::out |
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
