@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <memory>
@@ -31,7 +32,7 @@ class DatabaseInUseException : public std::exception {
   [[nodiscard]] const char* what() const noexcept override;
 };
 
-enum DataFileFormat { BTree, FlatSorted };
+enum DataFileFormat { kBTree, kFlatSorted };
 
 struct Options {
   /**
@@ -125,7 +126,7 @@ class KvStore {
    *
    * @return std::filesystem::path
    */
-  std::filesystem::path DataDirectory() const;
+  [[nodiscard]] std::filesystem::path DataDirectory() const;
 
   /**
    * @brief Paired operation with `Open()`, closes the

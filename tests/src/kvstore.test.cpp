@@ -284,7 +284,7 @@ TEST(KvStore, InsertAndDeleteThousands) {
              Options{
                  .dir = "/tmp",
                  .memory_buffer_elements = 100,
-                 .serialization = DataFileFormat::FlatSorted,
+                 .serialization = DataFileFormat::kFlatSorted,
              });
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 10 * i);
@@ -358,7 +358,7 @@ TEST(KvStore, InsertVeryManyAndGet) {
              Options{
                  .dir = "/tmp",
                  .memory_buffer_elements = 1000,
-                 .serialization = DataFileFormat::FlatSorted,
+                 .serialization = DataFileFormat::kFlatSorted,
              });
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 2 * i);

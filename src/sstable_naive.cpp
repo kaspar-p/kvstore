@@ -4,16 +4,14 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include "constants.hpp"
-#include "memtable.hpp"
 #include "sstable.hpp"
 
-SstableNaive::SstableNaive() {}
+SstableNaive::SstableNaive() = default;
 
 K SstableNaive::GetMinimum(std::fstream& file) const {
   assert(file.is_open());
@@ -43,10 +41,10 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
 
 void SstableNaive::Flush(std::fstream& file,
                          std::vector<std::pair<K, V>>& pairs) const {
-  constexpr int zeroes_in_page = kPageSize / sizeof(uint64_t);
+  constexpr int kZeroesInPage = kPageSize / sizeof(uint64_t);
   const std::size_t element_size = 4 + 2 * pairs.size();
   const std::size_t bufsize =
-      element_size + (zeroes_in_page - (element_size % zeroes_in_page));
+      element_size + (kZeroesInPage - (element_size % kZeroesInPage));
   uint64_t wbuf[bufsize];
 
   // Insert the metadata.
@@ -85,11 +83,11 @@ struct BinarySearchResult {
 
 std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
                                                 K key, bool get_closest_bound) {
-  constexpr int header_size = 4;
-  constexpr int pair_size = 2;
+  constexpr int kHeaderSize = 4;
+  constexpr int kPairSize = 2;
 
-  uint64_t left = header_size;
-  uint64_t right = header_size + elems * pair_size;
+  uint64_t left = kHeaderSize;
+  uint64_t right = kHeaderSize + elems * kPairSize;
   uint64_t mid = left + floor((right - left) / 4) * 2;
   while (left <= right) {
     mid = left + floor((right - left) / 4) * 2;
@@ -111,9 +109,9 @@ std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
     }
 
     if (found_key < key) {
-      left = mid + pair_size;
+      left = mid + kPairSize;
     } else {
-      right = mid - pair_size;
+      right = mid - kPairSize;
     }
   }
 
@@ -136,7 +134,7 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file,
 
   if (metadata[0] != 0x11223344) {
     std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
-              << metadata[0] << std::endl;
+              << metadata[0] << '\n';
     exit(1);
   }
 
@@ -176,7 +174,7 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
 
   if (buf[0] != 0x11223344) {
     std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
-              << buf[0] << std::endl;
+              << buf[0] << '\n';
     exit(1);
   }
 
@@ -195,15 +193,15 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
     return l;
   }
 
-  int header_size = 4;
-  int pair_size = 2;
+  int kHeaderSize = 4;
+  int kPairSize = 2;
 
   std::optional<BinarySearchResult> res =
       binary_search(file, elems, lower, true);
   assert(res.has_value());
 
   int walk = res.value().key_index;
-  while (buf[walk] <= upper && walk < header_size + elems * pair_size) {
+  while (buf[walk] <= upper && walk < kHeaderSize + elems * kPairSize) {
     l.emplace_back(buf[walk], buf[walk + 1]);
     walk += 2;
   }

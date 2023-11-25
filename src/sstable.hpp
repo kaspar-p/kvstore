@@ -1,14 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <fstream>
-#include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
 #include "constants.hpp"
-#include "memtable.hpp"
 
 struct SstableId {
   uint32_t level;

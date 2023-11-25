@@ -1,26 +1,23 @@
 #include "kvstore.hpp"
 
 #include <cassert>
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include "buf.hpp"
 #include "constants.hpp"
-#include "dbg.hpp"
 #include "filter.hpp"
 #include "lsm.hpp"
 #include "manifest.hpp"
 #include "memtable.hpp"
+#include "naming.hpp"
 #include "sstable.hpp"
 
 const char* OnlyTheDatabaseCanUseFunnyValuesException::what() const noexcept {
@@ -51,7 +48,7 @@ class KvStore::KvStoreImpl {
   std::optional<Manifest> manifest;
   std::optional<BufPool> buf;
 
-  bool open;
+  bool open{false};
   std::vector<std::unique_ptr<LSMLevel>> levels;
   uint8_t tiers;
 
@@ -68,7 +65,6 @@ class KvStore::KvStoreImpl {
     }
 
     uint32_t run_idx = this->levels.front()->NextRun();
-
 
     assert(this->manifest.has_value());
     assert(this->buf.has_value());
@@ -96,10 +92,9 @@ class KvStore::KvStoreImpl {
         filter_file(this->naming, 0, run_idx, intermediate);
     this->filter_serializer->Create(filter_name, *v);
 
-
     run->RegisterNewFile(intermediate);
     this->levels.front()->RegisterNewRun(std::move(run));
-    this->manifest.value().RegisterNewFiles({FileMetadata{
+    std::vector<FileMetadata> files = {FileMetadata{
         .id =
             SstableId{
                 .level = 0,
@@ -108,8 +103,8 @@ class KvStore::KvStoreImpl {
             },
         .minimum = min,
         .maximum = max,
-    }});
-
+    }};
+    this->manifest.value().RegisterNewFiles(files);
     this->memtable.Clear();
   };
 
@@ -121,11 +116,11 @@ class KvStore::KvStoreImpl {
     std::string lockfile_name = lock_file(this->naming);
     if (std::filesystem::exists(lockfile_name)) {
       throw DatabaseInUseException();
-    } else {
-      std::fstream f(lockfile_name, std::fstream::binary | std::fstream::out |
-                                        std::fstream::trunc);
-      f.close();
     }
+
+    std::fstream f(lockfile_name, std::fstream::binary | std::fstream::out |
+                                      std::fstream::trunc);
+    f.close();
   }
 
   void unlock_directory() {
@@ -135,7 +130,7 @@ class KvStore::KvStoreImpl {
     }
   }
 
-  void init_directory(const std::filesystem::path& parent_dir) {
+  void init_directory(const std::filesystem::path& parent_dir) const {
     if (std::filesystem::exists(parent_dir)) {
       std::filesystem::create_directory(this->naming.dirpath);
     }
@@ -152,7 +147,6 @@ class KvStore::KvStoreImpl {
           this->manifest.value(), this->buf.value());
       this->levels.push_back(std::move(lvl));
     };
-
   }
 
  public:
@@ -163,7 +157,7 @@ class KvStore::KvStoreImpl {
     this->open = true;
 
     if (!options.serialization.has_value() ||
-        options.serialization.value() == DataFileFormat::BTree) {
+        options.serialization.value() == DataFileFormat::kBTree) {
       this->sstable_serializer = std::make_unique<SstableBTree>();
     } else {
       this->sstable_serializer = std::make_unique<SstableNaive>();
@@ -200,7 +194,7 @@ class KvStore::KvStoreImpl {
     this->init_levels();
   }
 
-  std::filesystem::path DataDirectory() const {
+  [[nodiscard]] std::filesystem::path DataDirectory() const {
     if (!this->open) {
       throw DatabaseClosedException();
     }

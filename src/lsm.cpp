@@ -1,14 +1,9 @@
 #include "lsm.hpp"
 
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <iostream>
-#include <memory>
 #include <optional>
-#include <string>
-#include <vector>
 
 #include "buf.hpp"
 #include "constants.hpp"

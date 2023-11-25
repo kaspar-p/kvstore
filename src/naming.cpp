@@ -1,8 +1,6 @@
 #include "naming.hpp"
 
 #include <cassert>
-#include <cstdint>
-#include <iostream>
 #include <regex>
 #include <string>
 

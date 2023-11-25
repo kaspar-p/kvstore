@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -52,9 +53,8 @@ class Manifest::ManifestHandleImpl {
                             static_cast<uint64_t>(levels.at(level).size());
       page.push_back(next_level);
 
-      for (int file = 0; file < this->levels.at(level).size(); file++) {
-        const auto& f = this->levels.at(level).at(file);
-        uint64_t file_next =
+      for (const auto& f : this->levels.at(level)) {
+        auto file_next =
             static_cast<uint64_t>((static_cast<uint64_t>(f.id.run) << 32) |
                                   static_cast<uint64_t>(f.id.intermediate));
         page.push_back(file_next);
@@ -199,14 +199,14 @@ class Manifest::ManifestHandleImpl {
       return false;
     }
 
-    for (const auto& file : this->levels.at(level)) {
-      if (file.id.run == run && file.id.intermediate == intermediate &&
-          file.minimum <= key && key <= file.maximum) {
-        return true;
-      }
-    }
+    bool in_range = std::any_of(
+        this->levels.at(level).begin(), this->levels.at(level).end(),
+        [&](const auto& file) {
+          return file.id.run == run && file.id.intermediate == intermediate &&
+                 file.minimum <= key && key <= file.maximum;
+        });
 
-    return false;
+    return in_range;
   }
 
   void RegisterNewFiles(std::vector<FileMetadata> files) {
@@ -285,8 +285,8 @@ void Manifest::RegisterNewFiles(std::vector<FileMetadata> files) {
   return this->impl->RegisterNewFiles(files);
 }
 
-void Manifest::RemoveFiles(std::vector<std::string> files) {
-  return this->impl->RemoveFiles(files);
+void Manifest::RemoveFiles(std::vector<std::string> filenames) {
+  return this->impl->RemoveFiles(filenames);
 }
 
 int Manifest::NumLevels() const { return this->impl->NumLevels(); };

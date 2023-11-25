@@ -18,13 +18,19 @@ TEST(Manifest, Initialization) {
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
 }
 
+TEST(Manifest, InRange) {
+  auto naming = create_dir("Manifest.InRange");
+  SstableNaive serializer;
+  std::filesystem::remove(manifest_file(naming));
+}
+
 TEST(Manifest, GetFileMemory) {
   auto naming = create_dir("Manifest.GetFileMemory");
   SstableNaive serializer;
   std::filesystem::remove(manifest_file(naming));
 
   Manifest m(naming, 2, serializer);
-  m.RegisterNewFiles({
+  std::vector<FileMetadata> to_add = {
       FileMetadata{
           .id =
               SstableId{
@@ -55,7 +61,9 @@ TEST(Manifest, GetFileMemory) {
           .minimum = 10 * 1000,
           .maximum = 15 * 1000,
       },
-  });
+  };
+  m.RegisterNewFiles(to_add);
+
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
   ASSERT_EQ(m.GetPotentialFiles(0, 0, 1000), std::vector<std::string>({
                                                  data_file(naming, 0, 0, 0),
@@ -85,7 +93,7 @@ TEST(Manifest, GetFileRecovery) {
   {
     std::filesystem::remove(manifest_file(naming));
     Manifest m(naming, 2, serializer);
-    m.RegisterNewFiles({
+    std::vector<FileMetadata> to_add = {
         FileMetadata{
             .id =
                 SstableId{
@@ -116,7 +124,8 @@ TEST(Manifest, GetFileRecovery) {
             .minimum = 10 * 1000,
             .maximum = 15 * 1000,
         },
-    });
+    };
+    m.RegisterNewFiles(to_add);
   }
 
   {
@@ -178,7 +187,7 @@ TEST(Manifest, RemoveFileSimple) {
   SstableNaive serializer;
 
   Manifest m(naming, 2, serializer);
-  m.RegisterNewFiles({FileMetadata{
+  std::vector<FileMetadata> files = {FileMetadata{
       .id =
           SstableId{
               .level = 0,
@@ -187,9 +196,11 @@ TEST(Manifest, RemoveFileSimple) {
           },
       .minimum = 1000,
       .maximum = 5000,
-  }});
+  }};
+  m.RegisterNewFiles(files);
 
-  m.RemoveFiles({data_file(naming, 0, 0, 0)});
+  std::vector<std::string> to_remove = {data_file(naming, 0, 0, 0)};
+  m.RemoveFiles(to_remove);
   ASSERT_EQ(m.GetPotentialFiles(0, 0, 0), std::vector<std::string>{});
 }
 
