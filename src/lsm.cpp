@@ -49,13 +49,14 @@ class LSMRun::LSMRunImpl {
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get from run " << this->run << '\n';
+    // std::cout << "Get from run " << this->run << '\n';
 
     for (const auto& file : this->files) {
       bool in_range = this->manifest.InRange(this->level, this->run, file, key);
-      std::cout << "In range for file: "
-                << data_file(this->naming, this->level, this->run, file) << "? "
-                << in_range << '\n';
+      // std::cout << "In range for file: "
+      //           << data_file(this->naming, this->level, this->run, file) <<
+      //           "? "
+      //           << in_range << '\n';
       if (in_range) {
         std::fstream f(data_file(this->naming, this->level, this->run, file),
                        std::fstream::binary | std::fstream::in);
@@ -121,10 +122,10 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get from level " << this->level << '\n';
+    // std::cout << "Get from level " << this->level << '\n';
 
-    for (const auto& run : this->runs) {
-      std::optional<V> val = run->Get(key);
+    for (auto run = this->runs.rbegin(); run != this->runs.rend(); ++run) {
+      std::optional<V> val = (*run)->Get(key);
       if (val.has_value()) {
         return val;
       }

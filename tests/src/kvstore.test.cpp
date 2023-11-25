@@ -284,6 +284,7 @@ TEST(KvStore, InsertAndDeleteThousands) {
              Options{
                  .dir = "/tmp",
                  .memory_buffer_elements = 100,
+                 .serialization = DataFileFormat::FlatSorted,
              });
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 10 * i);
@@ -291,9 +292,6 @@ TEST(KvStore, InsertAndDeleteThousands) {
 
   for (int i = 0; i < 10 * 1000; i++) {
     ASSERT_EQ(table.Get(i), std::make_optional(10 * i));
-  }
-
-  for (int i = 0; i < 10 * 1000; i++) {
     table.Delete(i);
   }
 
@@ -350,4 +348,25 @@ TEST(KvStore, InsertManyAndGetMany) {
   const std::optional<V> val4 = table.Get(4);
   ASSERT_NE(val4, std::nullopt);
   ASSERT_EQ(val4.value(), 40);
+}
+
+TEST(KvStore, InsertVeryManyAndGet) {
+  std::filesystem::remove_all("/tmp/KvStore.InsertVeryManyAndGet");
+
+  KvStore table;
+  table.Open("KvStore.InsertVeryManyAndGet",
+             Options{
+                 .dir = "/tmp",
+                 .memory_buffer_elements = 1000,
+                 .serialization = DataFileFormat::FlatSorted,
+             });
+  for (int i = 0; i < 10 * 1000; i++) {
+    table.Put(i, 2 * i);
+  }
+
+  for (int i = 0; i < 10 * 1000; i++) {
+    const auto val = table.Get(i);
+    ASSERT_TRUE(val.has_value());
+    ASSERT_EQ(val.value(), 2 * i);
+  }
 }

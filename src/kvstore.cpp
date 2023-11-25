@@ -54,7 +54,7 @@ class KvStore::KvStoreImpl {
   uint8_t tiers;
 
   void flush_memtable() {
-    std::cout << "FLUSHING!" << '\n';
+    // std::cout << "FLUSHING!" << '\n';
     assert(this->buf.has_value());
     assert(this->manifest.has_value());
 
@@ -68,7 +68,7 @@ class KvStore::KvStoreImpl {
 
     uint32_t run_idx = this->levels.front()->NextRun();
 
-    std::cout << "NEXT RUN: " << run_idx << '\n';
+    // std::cout << "NEXT RUN: " << run_idx << '\n';
 
     assert(this->manifest.has_value());
     assert(this->buf.has_value());
@@ -91,7 +91,7 @@ class KvStore::KvStoreImpl {
       exit(1);
     }
 
-    std::cout << "FILE CREATED!!" << '\n';
+    // std::cout << "FILE CREATED!!" << '\n';
 
     run->RegisterNewFile(intermediate);
     this->levels.front()->RegisterNewRun(std::move(run));
@@ -149,7 +149,7 @@ class KvStore::KvStoreImpl {
       this->levels.push_back(std::move(lvl));
     };
 
-    std::cout << "levels is now " << levels.size() << " big" << '\n';
+    // std::cout << "levels is now " << levels.size() << " big" << '\n';
   }
 
  public:
@@ -245,7 +245,10 @@ class KvStore::KvStoreImpl {
     // Then search through each level, starting at the smallest
     for (const auto& level : this->levels) {
       std::optional<V> val = level->Get(key);
-      if (val.has_value() && val.value() != kTombstoneValue) {
+      if (val.has_value()) {
+        if (val.value() == kTombstoneValue) {
+          return std::nullopt;
+        }
         return val;
       }
     }
