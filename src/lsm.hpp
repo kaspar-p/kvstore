@@ -8,6 +8,7 @@
 
 #include "buf.hpp"
 #include "constants.hpp"
+#include "filter.hpp"
 #include "manifest.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
@@ -27,7 +28,7 @@ class LSMRun {
    */
   LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
          std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
-         Sstable& serializer);
+         Sstable& sstable_serializer, Filter& filter_serializer);
   ~LSMRun();
 
   /**

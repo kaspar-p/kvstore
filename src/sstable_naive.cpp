@@ -41,25 +41,24 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
   return buf[3];
 }
 
-void SstableNaive::Flush(
-    std::fstream& file,
-    std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const {
+void SstableNaive::Flush(std::fstream& file,
+                         std::vector<std::pair<K, V>>& pairs) const {
   constexpr int zeroes_in_page = kPageSize / sizeof(uint64_t);
-  const std::size_t element_size = 4 + 2 * pairs->size();
+  const std::size_t element_size = 4 + 2 * pairs.size();
   const std::size_t bufsize =
       element_size + (zeroes_in_page - (element_size % zeroes_in_page));
   uint64_t wbuf[bufsize];
 
   // Insert the metadata.
   wbuf[0] = 0x11223344;
-  wbuf[1] = pairs->size();
-  wbuf[2] = pairs->front().first;
-  wbuf[3] = pairs->back().first;
+  wbuf[1] = pairs.size();
+  wbuf[2] = pairs.front().first;
+  wbuf[3] = pairs.back().first;
 
   // Insert the key value pairs
-  for (int i = 0; i < pairs->size(); i++) {
-    wbuf[4 + (2 * i) + 0] = pairs->at(i).first;
-    wbuf[4 + (2 * i) + 1] = pairs->at(i).second;
+  for (int i = 0; i < pairs.size(); i++) {
+    wbuf[4 + (2 * i) + 0] = pairs.at(i).first;
+    wbuf[4 + (2 * i) + 1] = pairs.at(i).second;
   }
 
   // Pad the rest of the page with zeroes

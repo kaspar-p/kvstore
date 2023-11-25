@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "buf.hpp"
@@ -22,38 +23,31 @@ class Filter {
 
  public:
   /**
-   * @brief Construct a handler for an _existing_ Bloom Filter. See
-   * `docs/file_filter.md` for format. This constructor will NOT overwrite files
-   * in the filesystem, the other one will!
+   * @brief Construct a new filter serializer object.
    *
-   * @param id The ID of the filter. There is one unique one of these per filter
-   * file in the DB.
-   * @param buf The buffer pool of pages from disk.
-   * @param seed An initial randomization seed.
-   */
-  Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
-         uint64_t seed);
-
-  /**
-   * @brief Construct a NEW Bloom Filter. See `docs/file_filter.md` for format.
-   * This will create a new Bloom Filter in the filesystem, potentially
-   * overwriting existing data! Please ensure that you intend this!
-   *
-   * @param id The ID of the filter. There is one unique one of these per filter
-   * file in the DB.
    * @param buf A buffer pool cache for accessing pages in the filesystem.
    * @param seed A starting random seed for the hash functions in the
    * Blocked BloomFilter.
-   * @param keys A large list of keys to write into the bloom filter with. There
-   * are no other write methods on this class.
    */
-  Filter(const DbNaming& dbname, const FilterId id, BufPool& buf, uint64_t seed,
-         std::vector<K> keys);
+  Filter(const DbNaming& dbname, BufPool& buf, uint64_t seed);
   ~Filter();
 
   /**
-   * @brief Returns `true` if the filter MIGHT have the key, `false` if the
-   * filter DEFINITELY does not have the key.
+   * @brief Create a new filter file
+   *
+   * @param file The file to create
+   * @param keys The (key, value) pairs going into the filter. In theory, only
+   * keys need to be passed in, but during flushing of the Memtable we have
+   * (key, values), meaning it's easy to just pass them in by reference.
    */
-  [[nodiscard]] bool Has(K key) const;
+  void Create(std::string& filename, const std::vector<std::pair<K, V>>& keys);
+
+  /**
+   * @brief Returns `true` if the filter MIGHT have the key, `false` if the
+   * filter DEFINITELY DOES NOT have the key.
+   *
+   * @param file The filter file to search.
+   * @param key The key to query for.
+   */
+  [[nodiscard]] bool Has(std::string& filename, K key) const;
 };

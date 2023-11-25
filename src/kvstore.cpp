@@ -17,6 +17,7 @@
 
 #include "constants.hpp"
 #include "dbg.hpp"
+#include "filter.hpp"
 #include "lsm.hpp"
 #include "manifest.hpp"
 #include "memtable.hpp"
@@ -42,6 +43,7 @@ const char* FailedToOpenException::what() const noexcept {
 
 class KvStore::KvStoreImpl {
  private:
+  std::unique_ptr<Filter> filter_serializer;
   std::unique_ptr<Sstable> sstable_serializer;
   DbNaming naming;
   MemTable memtable;
@@ -74,22 +76,27 @@ class KvStore::KvStoreImpl {
     assert(this->buf.has_value());
     std::unique_ptr<LSMRun> run = std::make_unique<LSMRun>(
         this->naming, 0, run_idx, this->tiers, this->memtable.GetCapacity(),
-        this->manifest.value(), this->buf.value(), *this->sstable_serializer);
+        this->manifest.value(), this->buf.value(), *this->sstable_serializer,
+        *this->filter_serializer);
 
     uint32_t intermediate = run->NextFile();
-    std::string filename = data_file(this->naming, 0, run_idx, intermediate);
-    std::fstream file(filename, std::fstream::binary | std::fstream::in |
-                                    std::fstream::out | std::fstream::trunc);
-    assert(file.good());
+    std::fstream sstable(data_file(this->naming, 0, run_idx, intermediate),
+                         std::fstream::binary | std::fstream::in |
+                             std::fstream::out | std::fstream::trunc);
+    assert(sstable.good());
     auto v = this->memtable.ScanAll();
     K min = v->front().first;
     K max = v->back().first;
-
-    this->sstable_serializer->Flush(file, std::move(v));
-    if (!file.good()) {
+    this->sstable_serializer->Flush(sstable, *v);
+    if (!sstable.good()) {
       perror("Failed to write serialized block!");
       exit(1);
     }
+    sstable.close();
+
+    std::string filter_name =
+        filter_file(this->naming, 0, run_idx, intermediate);
+    this->filter_serializer->Create(filter_name, *v);
 
     // std::cout << "FILE CREATED!!" << '\n';
 
@@ -184,6 +191,10 @@ class KvStore::KvStoreImpl {
         .initial_elements = options.buffer_pages_initial.value_or(16),
         .max_elements = options.buffer_pages_maximum.value_or(128),
     });
+
+    // Initialize filter serializer
+    this->filter_serializer =
+        std::make_unique<Filter>(this->naming, this->buf.value(), 0xbeef);
 
     // Initialize the manifest file
     this->manifest.emplace(this->naming, this->tiers,

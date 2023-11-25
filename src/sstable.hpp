@@ -29,9 +29,8 @@ class Sstable {
    * @param filename The name of the file to create
    * @param memtable The MemTable to flush.
    */
-  virtual void Flush(
-      std::fstream& filename,
-      std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const = 0;
+  virtual void Flush(std::fstream& filename,
+                     std::vector<std::pair<K, V>>& pairs) const = 0;
 
   /**
    * @brief Get a value from a file, or std::nullopt if it doesn't exist.
@@ -67,9 +66,8 @@ class Sstable {
 class SstableNaive : public Sstable {
  public:
   SstableNaive();
-  void Flush(
-      std::fstream& filename,
-      std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const override;
+  void Flush(std::fstream& filename,
+             std::vector<std::pair<K, V>>& pairs) const override;
   std::optional<V> GetFromFile(std::fstream& file, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                           K upper) const override;
@@ -80,9 +78,8 @@ class SstableNaive : public Sstable {
 class SstableBTree : public Sstable {
  public:
   SstableBTree();
-  void Flush(
-      std::fstream& filename,
-      std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const override;
+  void Flush(std::fstream& filename,
+             std::vector<std::pair<K, V>>& pairs) const override;
   std::optional<V> GetFromFile(std::fstream& file, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                           K upper) const override;

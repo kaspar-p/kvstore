@@ -12,6 +12,7 @@
 
 #include "buf.hpp"
 #include "constants.hpp"
+#include "filter.hpp"
 #include "manifest.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
@@ -25,21 +26,23 @@ class LSMRun::LSMRunImpl {
 
   Manifest& manifest;
   BufPool& buf;
-  Sstable& serializer;
+  Sstable& sstable_serializer;
+  Filter& filter_serializer;
 
   std::vector<int> files;
 
  public:
   LSMRunImpl(const DbNaming& naming, int level, int run, uint8_t tiers,
              std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
-             Sstable& serializer)
+             Sstable& sstable_serializer, Filter& filter_serializer)
       : naming(naming),
         level(level),
         run(run),
         tiers(tiers),
         manifest(manifest),
         buf(buf),
-        serializer(serializer) {}
+        sstable_serializer(sstable_serializer),
+        filter_serializer(filter_serializer) {}
 
   ~LSMRunImpl() = default;
 
@@ -58,11 +61,16 @@ class LSMRun::LSMRunImpl {
       //           "? "
       //           << in_range << '\n';
       if (in_range) {
-        std::fstream f(data_file(this->naming, this->level, this->run, file),
-                       std::fstream::binary | std::fstream::in);
-        std::optional<V> ret = this->serializer.GetFromFile(f, key);
-        if (ret.has_value()) {
-          return ret;
+        auto filter_name =
+            filter_file(this->naming, this->level, this->run, file);
+        bool in_filter = this->filter_serializer.Has(filter_name, key);
+        if (in_filter) {
+          std::fstream f(data_file(this->naming, this->level, this->run, file),
+                         std::fstream::binary | std::fstream::in);
+          std::optional<V> ret = this->sstable_serializer.GetFromFile(f, key);
+          if (ret.has_value()) {
+            return ret;
+          }
         }
       }
     }
@@ -80,10 +88,10 @@ class LSMRun::LSMRunImpl {
 
 LSMRun::LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
                std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
-               Sstable& serializer)
-    : impl(std::make_unique<LSMRunImpl>(naming, level, run, tiers,
-                                        memtable_capacity, manifest, buf,
-                                        serializer)) {}
+               Sstable& sstable_serializer, Filter& filter_serializer)
+    : impl(std::make_unique<LSMRunImpl>(
+          naming, level, run, tiers, memtable_capacity, manifest, buf,
+          sstable_serializer, filter_serializer)) {}
 LSMRun::~LSMRun() = default;
 
 [[nodiscard]] std::optional<V> LSMRun::Get(K key) const {

@@ -26,8 +26,8 @@ TEST(SstableNaive, AddElems) {
                                            std::fstream::out |
                                            std::fstream::trunc);
   ASSERT_EQ(f.good(), true);
-  std::cout << "nefore flush" << std::endl;
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   ASSERT_EQ(1, 1);
 }
@@ -44,7 +44,8 @@ TEST(SstableNaive, GetSingleElems) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::optional<V> val = t.GetFromFile(f, 32);
 
@@ -64,9 +65,8 @@ TEST(SstableNaive, GetManySingleElems) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  auto v = memtable.ScanAll();
-
-  t.Flush(f, std::move(v));
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   for (int i = 0; i < 2000; i++) {
     std::optional<V> val = t.GetFromFile(f, i);
@@ -88,7 +88,8 @@ TEST(SstableNaive, GetSingleMissing) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::optional<V> val = t.GetFromFile(f, 54);
   ASSERT_EQ(val.has_value(), false);
@@ -110,7 +111,8 @@ TEST(SstableNaive, ScanDenseRange) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
 
@@ -137,7 +139,8 @@ TEST(SstableNaive, ScanSparseRangeIncludes) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 50);
 
@@ -171,7 +174,8 @@ TEST(SstableNaive, ScanSparseRangeHuge) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 100);
 
@@ -215,7 +219,8 @@ TEST(SstableNaive, ScanSparseRangeLeftHanging) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 10);
 
@@ -243,7 +248,8 @@ TEST(SstableNaive, ScanSparseRangeRightHanging) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 50, 1000);
 
@@ -268,8 +274,8 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
                      std::fstream::trunc);
   ASSERT_EQ(f.is_open(), true);
   ASSERT_EQ(f.good(), true);
-  t.Flush(f, memtable.ScanAll());
-
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
   // Above range
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 100, 1000);
   ASSERT_EQ(val.size(), 0);
