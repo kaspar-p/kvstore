@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <filesystem>
 #include <vector>
 
 #include "constants.hpp"
@@ -15,3 +16,5 @@ bool has_magic_numbers(uint64_t page[kPageSize / sizeof(uint64_t)],
                        FileType type);
 void put_magic_numbers(uint64_t page[kPageSize / sizeof(uint64_t)],
                        FileType type);
+
+bool is_file_type(const std::filesystem::path& file, FileType type);

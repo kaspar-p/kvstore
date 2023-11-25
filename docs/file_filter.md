@@ -13,9 +13,10 @@ These files host the filters for each level of the LSM tree. Each level has a
 block-bloom filter to enhance the read performance of the tree.
 
 As discussed, the first page in the file is the metadata block, and has structure:
-```
+
+```txt
 00 db 00 be ef 00 db 00   (8 bytes)
-00 00 00 00 00 00 00 02   (8 bytes) 
+00 00 00 00 00 00 00 02   (8 bytes)
 [ uint64_t ]              (8 bytes, maximum number of elements)
 <zero padding>
 ```
@@ -32,12 +33,14 @@ maximum is saved into the file.
 The cache line is taken in the code to be 128 bytes, so each bloom filter has 
 128*8 = 1024 bits. We use M=5 in the code, but any M is supported. Each bloom filter
 has:
-```
+
+```txt
 entries = bits / bits_per_entry = 1024 / 5 = 204
 ```
 
 That is, the number of bloom blocks that need to be read are is:
-```
+
+```txt
 number of blocks to read = maximum number / entries = maximum number / 204
 ```
 

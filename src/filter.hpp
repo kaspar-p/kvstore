@@ -18,7 +18,7 @@ struct FilterId {
 class Filter {
  private:
   class FilterImpl;
-  const std::unique_ptr<FilterImpl> impl_;
+  const std::unique_ptr<FilterImpl> impl;
 
  public:
   /**

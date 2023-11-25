@@ -52,6 +52,16 @@ class Sstable {
    */
   virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                                   K upper) const = 0;
+
+  /**
+   * @brief Get the minimum key in the file. Assumes file is a datafile.
+   */
+  virtual K GetMinimum(std::fstream& file) const = 0;
+
+  /**
+   * @brief Get the maximum key in the file. Assumes file is a datafile.
+   */
+  virtual K GetMaximum(std::fstream& file) const = 0;
 };
 
 class SstableNaive : public Sstable {
@@ -63,6 +73,8 @@ class SstableNaive : public Sstable {
   std::optional<V> GetFromFile(std::fstream& file, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                           K upper) const override;
+  K GetMinimum(std::fstream& file) const override;
+  K GetMaximum(std::fstream& file) const override;
 };
 
 class SstableBTree : public Sstable {
@@ -74,4 +86,6 @@ class SstableBTree : public Sstable {
   std::optional<V> GetFromFile(std::fstream& file, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
                                           K upper) const override;
+  K GetMinimum(std::fstream& file) const override;
+  K GetMaximum(std::fstream& file) const override;
 };

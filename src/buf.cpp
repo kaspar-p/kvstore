@@ -275,34 +275,34 @@ class BufPool::BufPoolImpl {
 
 BufPool::BufPool(const BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
                  PageHashFn hash)
-    : impl_(std::make_unique<BufPoolImpl>(tuning.initial_elements,
+    : impl(std::make_unique<BufPoolImpl>(tuning.initial_elements,
                                           tuning.max_elements,
                                           std::move(evictor), hash)) {}
 
 BufPool::BufPool(const BufPoolTuning tuning, PageHashFn hash)
-    : impl_(std::make_unique<BufPoolImpl>(
+    : impl(std::make_unique<BufPoolImpl>(
           tuning.initial_elements, tuning.max_elements,
           std::make_unique<ClockEvictor>(), hash)) {}
 
 BufPool::BufPool(const BufPoolTuning tuning)
-    : impl_(std::make_unique<BufPoolImpl>(
+    : impl(std::make_unique<BufPoolImpl>(
           tuning.initial_elements, tuning.max_elements,
           std::make_unique<ClockEvictor>(), &Hash)) {}
 
 BufPool::~BufPool() = default;
 
-bool BufPool::HasPage(PageId& page) const { return this->impl_->HasPage(page); }
+bool BufPool::HasPage(PageId& page) const { return this->impl->HasPage(page); }
 
 std::optional<BufferedPage> BufPool::GetPage(PageId& page) const {
-  return this->impl_->GetPage(page);
+  return this->impl->GetPage(page);
 }
 
 void BufPool::PutPage(PageId& page, const std::any contents) {
-  return this->impl_->PutPage(page, contents);
+  return this->impl->PutPage(page, contents);
 }
 
 std::string BufPool::DebugPrint(uint32_t bit_length) {
-  return this->impl_->DebugPrint(bit_length);
+  return this->impl->DebugPrint(bit_length);
 }
 
-std::string BufPool::DebugPrint() { return this->impl_->DebugPrint(32); }
+std::string BufPool::DebugPrint() { return this->impl->DebugPrint(32); }

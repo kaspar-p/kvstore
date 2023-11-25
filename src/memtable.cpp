@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <iterator>
@@ -261,7 +262,7 @@ class MemTable::MemTableImpl {
     RbNode* y = z;
     Color y_original_color = y->color();
 
-    RbNode* x;
+    RbNode* x = nullptr;
     if (z->left()->is_none()) {
       x = z->right();
       this->rb_transplant(z, z->right());
@@ -516,10 +517,12 @@ class MemTable::MemTableImpl {
   MemTableImpl(const MemTableImpl& t) = default;
   MemTableImpl& operator=(const MemTableImpl& t) = default;
 
-  void IncreaseCapacity(uint64_t capacity) {
+  void IncreaseCapacity(std::size_t capacity) {
     assert(this->capacity <= capacity);
     this->capacity = capacity;
   }
+
+  [[nodiscard]] std::size_t GetCapacity() const { return this->capacity; }
 
   [[nodiscard]] std::string Print() const { return this->root->print(); }
 
@@ -589,10 +592,8 @@ class MemTable::MemTableImpl {
 
     this->rb_delete(node);
 
-    V* ret;
-    if (node->is_none()) {
-      ret = nullptr;
-    } else {
+    V* ret = nullptr;
+    if (node->is_some()) {
       ret = node->value();
     }
     delete node;
@@ -615,44 +616,46 @@ class MemTable::MemTableImpl {
 };
 
 MemTable::MemTable(uint64_t capacity) {
-  this->impl_ = std::make_unique<MemTableImpl>(capacity);
+  this->impl = std::make_unique<MemTableImpl>(capacity);
 }
 
-MemTable::MemTable(const MemTable& t) : impl_(new MemTableImpl(*t.impl_)) {}
+MemTable::MemTable(const MemTable& t) : impl(new MemTableImpl(*t.impl)) {}
 
 MemTable& MemTable::operator=(const MemTable& t) {
-  *this->impl_ = *t.impl_;
+  *this->impl = *t.impl;
   return *this;
 }
 
-void MemTable::IncreaseCapacity(uint64_t capacity) {
-  return this->impl_->IncreaseCapacity(capacity);
+void MemTable::IncreaseCapacity(std::size_t capacity) {
+  return this->impl->IncreaseCapacity(capacity);
 }
 
-std::string MemTable::Print() const { return this->impl_->Print(); }
+std::size_t MemTable::GetCapacity() const { return this->impl->GetCapacity(); }
 
-V* MemTable::Get(const K key) const { return this->impl_->Get(key); }
+std::string MemTable::Print() const { return this->impl->Print(); }
+
+V* MemTable::Get(const K key) const { return this->impl->Get(key); }
 
 std::optional<V> MemTable::Put(const K key, const V value) {
-  return this->impl_->Put(key, value);
+  return this->impl->Put(key, value);
 }
 
 std::vector<std::pair<K, V>> MemTable::Scan(const K lower_bound,
                                             const K upper_bound) const {
-  return this->impl_->Scan(lower_bound, upper_bound);
+  return this->impl->Scan(lower_bound, upper_bound);
 }
 
-V* MemTable::Delete(const K key) { return this->impl_->Delete(key); }
+V* MemTable::Delete(const K key) { return this->impl->Delete(key); }
 
 std::unique_ptr<std::vector<std::pair<K, V>>> MemTable::ScanAll() const {
-  return this->impl_->ScanAll();
+  return this->impl->ScanAll();
 }
 
-void MemTable::Clear() { this->impl_->Clear(); }
+void MemTable::Clear() { this->impl->Clear(); }
 
 MemTable::~MemTable() {
   try {
-    this->impl_->Clear();
+    this->impl->Clear();
   } catch (std::exception& e) {
     std::cerr << "FAILED TO CLEAR MEMTABLE: " << e.what() << '\n';
   }

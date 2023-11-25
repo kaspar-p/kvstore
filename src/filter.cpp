@@ -312,12 +312,12 @@ class Filter::FilterImpl {
 
 Filter::Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
                const uint64_t seed, const std::vector<K> keys)
-    : impl_(std::make_unique<FilterImpl>(dbname, id, buf, seed, keys)) {}
+    : impl(std::make_unique<FilterImpl>(dbname, id, buf, seed, keys)) {}
 
 Filter::Filter(const DbNaming& dbname, const FilterId id, BufPool& buf,
                const uint64_t seed)
-    : impl_(std::make_unique<FilterImpl>(dbname, id, buf, seed)) {}
+    : impl(std::make_unique<FilterImpl>(dbname, id, buf, seed)) {}
 
 Filter::~Filter() = default;
 
-bool Filter::Has(K key) const { return this->impl_->Has(key); }
+bool Filter::Has(K key) const { return this->impl->Has(key); }

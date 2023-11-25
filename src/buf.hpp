@@ -45,8 +45,8 @@ struct BufferedPage {
 };
 
 struct BufPoolTuning {
-  uint32_t initial_elements;
-  uint32_t max_elements;
+  std::size_t initial_elements;
+  std::size_t max_elements;
 };
 
 using PageHashFn = std::function<uint32_t(const PageId&)>;
@@ -55,7 +55,7 @@ uint32_t Hash(const PageId& page_id);
 class BufPool {
  private:
   class BufPoolImpl;
-  const std::unique_ptr<BufPoolImpl> impl_;
+  const std::unique_ptr<BufPoolImpl> impl;
 
  public:
   BufPool(BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,

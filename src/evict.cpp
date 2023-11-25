@@ -59,17 +59,17 @@ class ClockEvictor::ClockEvictorImpl : Evictor {
 };
 
 ClockEvictor::ClockEvictor() {
-  this->impl_ = std::make_unique<ClockEvictorImpl>();
+  this->impl = std::make_unique<ClockEvictorImpl>();
 };
 
 ClockEvictor::~ClockEvictor() = default;
 
-void ClockEvictor::Resize(const uint32_t n) { return this->impl_->Resize(n); }
+void ClockEvictor::Resize(const uint32_t n) { return this->impl->Resize(n); }
 
 void ClockEvictor::MarkUsed(DataRef page) {
-  return this->impl_->MarkUsed(page);
+  return this->impl->MarkUsed(page);
 };
 
 std::optional<DataRef> ClockEvictor::Insert(DataRef page) {
-  return this->impl_->Insert(page);
+  return this->impl->Insert(page);
 }

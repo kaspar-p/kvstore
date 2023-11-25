@@ -13,7 +13,7 @@ struct FileMetadata {
   K maximum;
 };
 
-class ManifestHandle {
+class Manifest {
  private:
   class ManifestHandleImpl;
   std::unique_ptr<ManifestHandleImpl> impl;
@@ -27,8 +27,8 @@ class ManifestHandle {
    *
    * @param naming The DB naming scheme.
    */
-  ManifestHandle(DbNaming& naming);
-  ~ManifestHandle();
+  Manifest(const DbNaming& naming, uint8_t tiers, const Sstable& serializer);
+  ~Manifest();
 
   /**
    * @brief When new files are created, put that information into the manifest
@@ -54,5 +54,10 @@ class ManifestHandle {
    * @return std::vector<std::string> A list of filenames where key is in the
    * range of the keys in that file.
    */
-  std::vector<std::string> GetPotentialFiles(uint32_t level, K key) const;
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level,
+                                                           K key) const;
+
+  [[nodiscard]] int NumLevels() const;
+  [[nodiscard]] int NumRuns(int level) const;
+  [[nodiscard]] int NumFiles(int level, int run) const;
 };

@@ -280,7 +280,11 @@ TEST(KvStore, InsertAndDeleteThousands) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndDeleteThousands");
 
   KvStore table;
-  table.Open("KvStore.InsertAndDeleteThousands", Options{.dir = "/tmp"});
+  table.Open("KvStore.InsertAndDeleteThousands",
+             Options{
+                 .dir = "/tmp",
+                 .memory_buffer_elements = 100,
+             });
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 10 * i);
   }

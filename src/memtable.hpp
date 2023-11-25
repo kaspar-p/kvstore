@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <memory>
 #include <optional>
@@ -18,7 +19,7 @@ class MemTableFullException : public std::exception {
 class MemTable {
  private:
   class MemTableImpl;
-  std::unique_ptr<MemTableImpl> impl_;
+  std::unique_ptr<MemTableImpl> impl;
 
  public:
   /**
@@ -38,7 +39,12 @@ class MemTable {
   /**
    * @brief Increase the capacity of the memtable.
    */
-  void IncreaseCapacity(uint64_t capacity);
+  void IncreaseCapacity(std::size_t capacity);
+
+  /**
+   * @brief Get the capacity, in elements, of the memtable.
+   */
+  [[nodiscard]] std::size_t GetCapacity() const;
 
   /**
    * @brief Returns a string representation of the tree, meant only for

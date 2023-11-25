@@ -1,6 +1,9 @@
 #include "fileutil.hpp"
 
+#include <cassert>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include "constants.hpp"
@@ -39,3 +42,19 @@ void put_magic_numbers(uint64_t page[kPageSize / sizeof(uint64_t)],
   put_contents(page, 0, {file_magic()});
   put_contents(page, 1, {type_magic(type)});
 }
+
+bool is_file_type(const std::filesystem::path& file, FileType type) {
+  if (!std::filesystem::exists(file)) {
+    return false;
+  }
+
+  std::fstream f(file, std::fstream::binary | std::fstream::in);
+  uint64_t page[kPageSize / sizeof(uint64_t)];
+  assert(f.good());
+  f.seekg(0);
+  f.read(reinterpret_cast<char*>(page), kPageSize);
+  assert(f.good());
+
+  return has_magic_numbers(page, type);
+}
+

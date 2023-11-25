@@ -33,12 +33,17 @@ std::vector<K> test_keys(int num) {
 }
 
 int main() {
-  std::filesystem::remove_all("./Main.DataTesting");
+  std::filesystem::remove_all("./kvstore.db");
 
   KvStore table;
-  table.Open("Main.DataTesting", Options{.dir = "./"});
+  Options opts = Options{
+      .dir = "./",
+      .memory_buffer_elements = 100,
+      .serialization = DataFileFormat::FlatSorted,
+  };
+  table.Open("kvstore.db", opts);
 
-  for (int i = 0; i < 1000 * 1000; i++) {
+  for (int i = 0; i < 201; i++) {
     table.Put(i, 2 * i);
   }
 }

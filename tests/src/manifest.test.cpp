@@ -10,18 +10,20 @@
 
 TEST(Manifest, Initialization) {
   auto naming = create_dir("Manifest.Initialization");
+  SstableNaive serializer;
   std::filesystem::remove(manifest_file(naming));
 
-  ManifestHandle m(naming);
+  Manifest m(naming, 2, serializer);
   ASSERT_EQ(m.GetPotentialFiles(1, 0), std::vector<std::string>{});
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
 }
 
 TEST(Manifest, GetFileMemory) {
   auto naming = create_dir("Manifest.GetFileMemory");
+  SstableNaive serializer;
   std::filesystem::remove(manifest_file(naming));
 
-  ManifestHandle m(naming);
+  Manifest m(naming, 2, serializer);
   m.RegisterNewFiles({
       FileMetadata{
           .id =
@@ -78,9 +80,11 @@ TEST(Manifest, GetFileMemory) {
 
 TEST(Manifest, GetFileRecovery) {
   auto naming = create_dir("Manifest.GetFileRecovery");
+  SstableNaive serializer;
+
   {
     std::filesystem::remove(manifest_file(naming));
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
     m.RegisterNewFiles({
         FileMetadata{
             .id =
@@ -116,7 +120,7 @@ TEST(Manifest, GetFileRecovery) {
   }
 
   {
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 1000),
               std::vector<std::string>({data_file(naming, 0, 0, 0)}));
@@ -139,9 +143,11 @@ TEST(Manifest, GetFileRecovery) {
 
 TEST(Manifest, GetFileRecoveryMany) {
   auto naming = create_dir("Manifest.GetFileRecoveryMany");
+  SstableNaive serializer;
+
   {
     std::filesystem::remove(manifest_file(naming));
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
 
     std::vector<FileMetadata> files{};
     for (int i = 0; i < 1000; i++) {
@@ -157,7 +163,7 @@ TEST(Manifest, GetFileRecoveryMany) {
   }
 
   {
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0).size(), 1000);
     ASSERT_EQ(m.GetPotentialFiles(0, 500).size(), 500);
@@ -169,7 +175,9 @@ TEST(Manifest, GetFileRecoveryMany) {
 TEST(Manifest, RemoveFileSimple) {
   auto naming = create_dir("Manifest.GetFileRecoveryMany");
   std::filesystem::remove(manifest_file(naming));
-  ManifestHandle m(naming);
+  SstableNaive serializer;
+
+  Manifest m(naming, 2, serializer);
   m.RegisterNewFiles({FileMetadata{
       .id =
           SstableId{
@@ -187,9 +195,11 @@ TEST(Manifest, RemoveFileSimple) {
 
 TEST(Manifest, RemoveFileRecovery) {
   auto naming = create_dir("Manifest.RemoveFileRecovery");
+  SstableNaive serializer;
+
   {
     std::filesystem::remove(manifest_file(naming));
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
 
     std::vector<FileMetadata> files{};
     std::vector<std::string> filenames{};
@@ -211,7 +221,7 @@ TEST(Manifest, RemoveFileRecovery) {
   }
 
   {
-    ManifestHandle m(naming);
+    Manifest m(naming, 2, serializer);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 500).size(), 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0).size(), 0);

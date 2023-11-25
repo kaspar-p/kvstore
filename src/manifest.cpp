@@ -12,10 +12,14 @@
 
 #include "constants.hpp"
 #include "fileutil.hpp"
+#include "naming.hpp"
+#include "sstable.hpp"
 
-class ManifestHandle::ManifestHandleImpl {
+class Manifest::ManifestHandleImpl {
  private:
   const DbNaming& naming;
+  const uint8_t tiers;
+  const Sstable& serializer;
 
   std::fstream file;
   std::vector<std::vector<FileMetadata>> levels;
@@ -129,17 +133,51 @@ class ManifestHandle::ManifestHandleImpl {
     this->file.close();
   }
 
- public:
-  ManifestHandleImpl(DbNaming& naming) : naming(naming) {
-    bool exists = std::filesystem::exists(manifest_file(naming));
-    if (!exists) {
-      this->to_file();
-    } else {
-      this->from_file();
+  void discover_data() {
+    assert(std::filesystem::exists(this->naming.dirpath));
+
+    for (auto const& entry :
+         std::filesystem::directory_iterator(this->naming.dirpath)) {
+      auto name = entry.path().filename();
+      if (is_file_type(name, FileType::kData)) {
+        uint32_t level = parse_data_file_level(name);
+        uint32_t run = parse_data_file_run(name);
+        uint32_t intermediate = parse_data_file_intermediate(name);
+        if (this->levels.size() <= level) {
+          this->levels.resize(level);
+        }
+
+        std::fstream f(entry.path(), std::fstream::binary | std::fstream::in);
+        this->levels.at(level).push_back(FileMetadata{
+            .id =
+                SstableId{
+                    .level = level,
+                    .run = run,
+                    .intermediate = intermediate,
+                },
+            .minimum = this->serializer.GetMinimum(f),
+            .maximum = this->serializer.GetMaximum(f),
+        });
+      }
+      // TODO(kfp@) recognize filters!
     }
   }
 
-  std::vector<std::string> GetPotentialFiles(uint32_t level, K key) {
+ public:
+  ManifestHandleImpl(const DbNaming& naming, uint8_t tiers,
+                     const Sstable& serializer)
+      : naming(naming), tiers(tiers), serializer(serializer) {
+    bool exists = std::filesystem::exists(manifest_file(naming));
+    if (exists) {
+      this->from_file();
+    } else {
+      this->discover_data();
+      this->to_file();
+    }
+  }
+
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(uint32_t level,
+                                                           K key) {
     if (level >= this->levels.size()) {
       return {};
     }
@@ -180,22 +218,59 @@ class ManifestHandle::ManifestHandleImpl {
 
     this->to_file();
   }
+
+  [[nodiscard]] int NumLevels() const { return this->levels.size(); }
+
+  [[nodiscard]] int NumRuns(int level) const {
+    std::vector<int> unique_runs;
+    unique_runs.resize(this->tiers);
+
+    for (const auto& file : this->levels.at(level)) {
+      if (unique_runs.at(file.id.run) == 0) {
+        unique_runs.at(file.id.run) = 1;
+      }
+    }
+
+    int count = 0;
+    for (const auto& run_bit : unique_runs) {
+      count += run_bit;
+    }
+
+    return count;
+  }
+
+  [[nodiscard]] int NumFiles(int level, int run) const {
+    int count = 0;
+    for (const auto& file : this->levels.at(level)) {
+      if (file.id.run == run) {
+        count++;
+      }
+    }
+
+    return count;
+  }
 };
 
-ManifestHandle::ManifestHandle(DbNaming& naming)
-    : impl(std::make_unique<ManifestHandleImpl>(naming)) {}
+Manifest::Manifest(const DbNaming& naming, uint8_t tiers,
+                   const Sstable& serializer)
+    : impl(std::make_unique<ManifestHandleImpl>(naming, tiers, serializer)) {}
+Manifest::~Manifest() = default;
 
-ManifestHandle::~ManifestHandle() = default;
-
-std::vector<std::string> ManifestHandle::GetPotentialFiles(uint32_t level,
-                                                           K key) const {
+[[nodiscard]] std::vector<std::string> Manifest::GetPotentialFiles(
+    int level, K key) const {
   return this->impl->GetPotentialFiles(level, key);
 }
 
-void ManifestHandle::RegisterNewFiles(std::vector<FileMetadata> files) {
+void Manifest::RegisterNewFiles(std::vector<FileMetadata> files) {
   return this->impl->RegisterNewFiles(files);
 }
 
-void ManifestHandle::RemoveFiles(std::vector<std::string> files) {
+void Manifest::RemoveFiles(std::vector<std::string> files) {
   return this->impl->RemoveFiles(files);
 }
+
+int Manifest::NumLevels() const { return this->impl->NumLevels(); };
+int Manifest::NumRuns(int level) const { return this->impl->NumRuns(level); };
+int Manifest::NumFiles(int level, int run) const {
+  return this->impl->NumFiles(level, run);
+};

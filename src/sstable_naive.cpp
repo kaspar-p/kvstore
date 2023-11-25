@@ -15,6 +15,32 @@
 
 SstableNaive::SstableNaive() {}
 
+K SstableNaive::GetMinimum(std::fstream& file) const {
+  assert(file.is_open());
+  assert(file.good());
+
+  file.seekg(0);
+  assert(file.good());
+  uint64_t buf[4];
+  file.read(reinterpret_cast<char*>(buf), 4 * sizeof(uint64_t));
+  assert(file.good());
+
+  return buf[2];
+}
+
+K SstableNaive::GetMaximum(std::fstream& file) const {
+  assert(file.is_open());
+  assert(file.good());
+
+  file.seekg(0);
+  assert(file.good());
+  uint64_t buf[4];
+  file.read(reinterpret_cast<char*>(buf), 4 * sizeof(uint64_t));
+  assert(file.good());
+
+  return buf[3];
+}
+
 void SstableNaive::Flush(
     std::fstream& file,
     std::unique_ptr<std::vector<std::pair<K, V>>> pairs) const {

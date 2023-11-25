@@ -50,7 +50,25 @@ struct Options {
    *
    * Defaults to roughly 1MB worth of elements.
    */
-  std::optional<std::size_t> buffer_elements;
+  std::optional<std::size_t> memory_buffer_elements;
+
+  /**
+   * @brief The initial amount of memory to allocate towards the page buffer.
+   * Pages are usually around 4KB, though the metadata to allocate that is very
+   * small. Must be <= buffer_pages_maximum.
+   *
+   * Defaults to 16.
+   */
+  std::optional<std::size_t> buffer_pages_initial;
+
+  /**
+   * @brief The maximum number of filesystem pages to buffer. They are usually
+   * around 4KB. After this limit is reached, pages are evicted to make space
+   * for new pages. Must be >= buffer_pages_initial.
+   *
+   * Defaults to 128
+   */
+  std::optional<std::size_t> buffer_pages_maximum;
 
   /**
    * @brief The number of runs within an LSM-level. This also is the fan-out
@@ -81,7 +99,7 @@ struct Options {
 class KvStore {
  private:
   class KvStoreImpl;
-  std::unique_ptr<KvStoreImpl> impl_;
+  std::unique_ptr<KvStoreImpl> impl;
 
  public:
   KvStore();

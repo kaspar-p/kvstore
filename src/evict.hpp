@@ -50,7 +50,7 @@ class Evictor {
 class ClockEvictor : public Evictor {
  private:
   class ClockEvictorImpl;
-  std::unique_ptr<ClockEvictorImpl> impl_;
+  std::unique_ptr<ClockEvictorImpl> impl;
 
  public:
   ClockEvictor();

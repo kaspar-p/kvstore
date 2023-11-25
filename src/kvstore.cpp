@@ -18,6 +18,7 @@
 #include "constants.hpp"
 #include "dbg.hpp"
 #include "lsm.hpp"
+#include "manifest.hpp"
 #include "memtable.hpp"
 #include "sstable.hpp"
 
@@ -44,26 +45,53 @@ class KvStore::KvStoreImpl {
   std::unique_ptr<Sstable> sstable_serializer;
   DbNaming naming;
   MemTable memtable;
-  bool open;
-  std::vector<LSMLevel> levels;
-  uint8_t tiers;
 
-  // Might not be necessary
-  uint64_t blocks;
+  std::optional<Manifest> manifest;
+  std::optional<BufPool> buf;
+
+  bool open;
+  std::vector<std::unique_ptr<LSMLevel>> levels;
+  uint8_t tiers;
 
   void flush_memtable() {
     std::cout << "FLUSHING!" << '\n';
-    std::fstream file(data_file(this->naming, 0, 0, 0), std::fstream::binary |
-                                                            std::fstream::in |
-                                                            std::fstream::out);
+    assert(this->buf.has_value());
+    assert(this->manifest.has_value());
+
+    // Initialize the first level on the first flush
+    if (this->levels.size() == 0) {
+      auto level = std::make_unique<LSMLevel>(
+          this->naming, 0, false, this->memtable.GetCapacity(),
+          this->manifest.value(), this->buf.value());
+      this->levels.push_back(std::move(level));
+    }
+
+    int run_idx = this->levels.front()->NextRun();
+
+    std::cout << "NEXT RUN: " << run_idx << '\n';
+
+    std::string filename = data_file(this->naming, 0, run_idx, 0);
+    std::fstream file(filename, std::fstream::binary | std::fstream::in |
+                                    std::fstream::out | std::fstream::trunc);
     assert(file.good());
     this->sstable_serializer->Flush(file, this->memtable.ScanAll());
     if (!file.good()) {
       perror("Failed to write serialized block!");
+      exit(1);
     }
 
-    this->blocks++;
+    std::cout << "FILE CREATED!!" << '\n';
+
     this->memtable.Clear();
+
+    assert(this->manifest.has_value());
+    assert(this->buf.has_value());
+    std::unique_ptr<LSMRun> run = std::make_unique<LSMRun>(
+        this->naming, 0, run_idx, this->tiers, this->memtable.GetCapacity(),
+        this->manifest.value(), this->buf.value());
+
+    run->RegisterNewFile(filename);
+    this->levels.front()->RegisterNewRun(std::move(run));
   };
 
   /**
@@ -82,13 +110,9 @@ class KvStore::KvStoreImpl {
   }
 
   void unlock_directory() {
-    assert(this->open);
-
     std::string lockfile_name = lock_file(this->naming);
     if (std::filesystem::exists(lockfile_name)) {
       std::filesystem::remove(lockfile_name);
-    } else {
-      throw DatabaseClosedException();
     }
   }
 
@@ -98,10 +122,24 @@ class KvStore::KvStoreImpl {
     }
   }
 
- public:
-  KvStoreImpl() : open(false), blocks(0), memtable(0){};
+  void init_levels() {
+    assert(this->manifest.has_value());
+    assert(this->buf.has_value());
 
-  ~KvStoreImpl() = default;
+    for (int level = 0; level < this->manifest.value().NumLevels(); level++) {
+      bool is_final = level == this->manifest.value().NumLevels() - 1;
+      auto lvl = std::make_unique<LSMLevel>(
+          this->naming, level, is_final, this->memtable.GetCapacity(),
+          this->manifest.value(), this->buf.value());
+      this->levels.push_back(std::move(lvl));
+    };
+
+    std::cout << "levels is now " << levels.size() << " big" << '\n';
+  }
+
+ public:
+  KvStoreImpl() : open(false), memtable(0){};
+  ~KvStoreImpl() { this->Close(); };
 
   void Open(const std::string& name, const Options options) {
     this->open = true;
@@ -117,15 +155,27 @@ class KvStore::KvStoreImpl {
     std::filesystem::path dir = options.dir.value_or("./");
     this->naming = DbNaming{.dirpath = dir / name, .name = name};
 
+    // Initialize the data directory
     this->init_directory(dir);
     this->lock_directory();
 
-    if (options.buffer_elements.has_value()) {
-      this->memtable.IncreaseCapacity(options.buffer_elements.value());
-    } else {
-      constexpr uint64_t mbData = kMegabyteSize / (kKeySize + kValSize);
-      this->memtable.IncreaseCapacity(mbData);
-    }
+    // Initialize the memtable capacity
+    std::size_t memtable_capacity = options.memory_buffer_elements.value_or(
+        kMegabyteSize / (kKeySize + kValSize));
+    this->memtable.IncreaseCapacity(memtable_capacity);
+
+    // Initialize the page buffer
+    this->buf.emplace(BufPoolTuning{
+        .initial_elements = options.buffer_pages_initial.value_or(16),
+        .max_elements = options.buffer_pages_maximum.value_or(128),
+    });
+
+    // Initialize the manifest file
+    this->manifest.emplace(this->naming, this->tiers,
+                           *this->sstable_serializer);
+
+    // Initialize the levels
+    this->init_levels();
   }
 
   std::filesystem::path DataDirectory() const {
@@ -153,7 +203,7 @@ class KvStore::KvStoreImpl {
 
     // And each level
     for (const auto& level : this->levels) {
-      std::vector<std::pair<K, V>> level_range = level.Scan(lower, upper);
+      std::vector<std::pair<K, V>> level_range = level->Scan(lower, upper);
       memtable_range.insert(memtable_range.end(), level_range.begin(),
                             level_range.end());
     }
@@ -179,7 +229,7 @@ class KvStore::KvStoreImpl {
 
     // Then search through each level, starting at the smallest
     for (const auto& level : this->levels) {
-      std::optional<V> val = level.Get(key);
+      std::optional<V> val = level->Get(key);
       if (val.has_value() && val.value() != kTombstoneValue) {
         return val;
       }
@@ -224,30 +274,30 @@ class KvStore::KvStoreImpl {
 
 /* Connect the pImpl (pointer-to-implementation) to the actual class */
 
-KvStore::KvStore() { this->impl_ = std::make_unique<KvStoreImpl>(); }
+KvStore::KvStore() { this->impl = std::make_unique<KvStoreImpl>(); }
 
 KvStore::~KvStore() = default;
 
 void KvStore::Open(const std::string& name, Options options) {
-  return this->impl_->Open(name, options);
+  return this->impl->Open(name, options);
 }
 
 std::filesystem::path KvStore::DataDirectory() const {
-  return this->impl_->DataDirectory();
+  return this->impl->DataDirectory();
 }
 
-void KvStore::Close() { return this->impl_->Close(); }
+void KvStore::Close() { return this->impl->Close(); }
 
 std::vector<std::pair<K, V>> KvStore::Scan(const K lower, const K upper) const {
-  return this->impl_->Scan(lower, upper);
+  return this->impl->Scan(lower, upper);
 }
 
 std::optional<V> KvStore::Get(const K key) const {
-  return this->impl_->Get(key);
+  return this->impl->Get(key);
 }
 
 void KvStore::Put(const K key, const V value) {
-  return this->impl_->Put(key, value);
+  return this->impl->Put(key, value);
 }
 
-void KvStore::Delete(const K key) { return this->impl_->Delete(key); }
+void KvStore::Delete(const K key) { return this->impl->Delete(key); }
