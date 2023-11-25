@@ -14,8 +14,6 @@
 #include "sstable.hpp"
 
 TEST(SstableNaive, AddElems) {
-  std::cout << "tip" << std::endl;
-
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);

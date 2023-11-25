@@ -14,7 +14,6 @@
 BufPool test_buffer() {
   return BufPool(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
 }
-BufPool buf = test_buffer();
 
 std::vector<std::pair<K, V>> test_keys(int num) {
   std::vector<std::pair<K, V>> keys;
@@ -26,6 +25,7 @@ std::vector<std::pair<K, V>> test_keys(int num) {
 
 TEST(Filter, Initialization) {
   auto naming = create_dir("Filter.Initialization");
+  auto buf = test_buffer();
   Filter f(naming, buf, 0);
 
   std::string filt_name = filter_file(naming, 0, 0, 0);
@@ -37,6 +37,7 @@ TEST(Filter, Initialization) {
 
 TEST(Filter, PointRead) {
   auto naming = create_dir("Filter.PointRead");
+  auto buf = test_buffer();
 
   std::vector<std::pair<K, V>> keys;
   keys.push_back(std::make_pair(928137, 928137));
@@ -69,6 +70,7 @@ TEST(Filter, PointRead) {
 
 TEST(Filter, Recovery) {
   auto naming = create_dir("Filter.Recovery");
+  auto buf = test_buffer();
   auto keys = test_keys(128);
   Filter f(naming, buf, 0);
   auto filt_name = filter_file(naming, 0, 0, 0);
@@ -92,6 +94,7 @@ TEST(Filter, Recovery) {
 
 TEST(Filter, RecoveryRandom) {
   auto naming = create_dir("Filter.RecoveryRandom");
+  auto buf = test_buffer();
   auto filename = filter_file(naming, 0, 0, 0);
 
   std::vector<std::pair<K, V>> keys;
@@ -133,6 +136,7 @@ TEST(Filter, RecoveryRandom) {
 
 TEST(Filter, HasVeryMany) {
   auto naming = create_dir("Filter.HasVeryMany");
+  auto buf = test_buffer();
   auto filename = filter_file(naming, 0, 0, 0);
 
   std::vector<std::pair<K, V>> keys = test_keys(10 * 1000);
@@ -140,13 +144,13 @@ TEST(Filter, HasVeryMany) {
   f.Create(filename, keys);
 
   for (auto const &key : keys) {
-    std::cout << "testing " << key.first << std::endl;
     ASSERT_TRUE(f.Has(filename, key.first));
   }
 }
 
 TEST(Filter, FilledFilterGetsFalsePositives) {
   auto naming = create_dir("Filter.FilledFilterGetsFalsePositives");
+  auto buf = test_buffer();
   Filter f(naming, buf, 0);
 
   auto filt_name = filter_file(naming, 0, 0, 0);
@@ -165,6 +169,7 @@ TEST(Filter, FilledFilterGetsFalsePositives) {
 
 TEST(Filter, DoesNotHaveElement) {
   auto naming = create_dir("Filter.DoesNotHaveElement");
+  auto buf = test_buffer();
   auto keys = test_keys(1024);
 
   auto filt_name = filter_file(naming, 0, 0, 0);

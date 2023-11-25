@@ -68,6 +68,7 @@ class BufPool {
 
   [[nodiscard]] std::optional<BufferedPage> GetPage(PageId& page) const;
   void PutPage(PageId& page, std::any contents);
+  void RemovePage(PageId& page);
 
   std::string DebugPrint(uint32_t);
   std::string DebugPrint();

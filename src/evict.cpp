@@ -55,21 +55,28 @@ class ClockEvictor::ClockEvictorImpl : Evictor {
     }
   };
 
+  void MarkForRemoval(DataRef page_id) override {
+    for (auto& elem : this->clock_) {
+      if (elem.has_value() && elem.value().page == page_id) {
+        elem.value().dirty = false;
+        return;
+      }
+    }
+  }
+
   void Resize(uint32_t n) override { this->clock_.resize(n); }
 };
 
 ClockEvictor::ClockEvictor() {
   this->impl = std::make_unique<ClockEvictorImpl>();
 };
-
 ClockEvictor::~ClockEvictor() = default;
 
 void ClockEvictor::Resize(const uint32_t n) { return this->impl->Resize(n); }
-
-void ClockEvictor::MarkUsed(DataRef page) {
-  return this->impl->MarkUsed(page);
+void ClockEvictor::MarkUsed(DataRef page) { return this->impl->MarkUsed(page); }
+void ClockEvictor::MarkForRemoval(DataRef page) {
+  return this->impl->MarkForRemoval(page);
 };
-
 std::optional<DataRef> ClockEvictor::Insert(DataRef page) {
   return this->impl->Insert(page);
 }

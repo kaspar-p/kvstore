@@ -93,7 +93,24 @@ class BufPool::BufPoolImpl {
       }
     });
     node.bucket.value().push_front(page);
-    return removed > 0;
+    return removed;
+  }
+
+  static bool trie_remove_from_bucket(TrieNode& node, const PageId& page_id) {
+    assert(node.bucket.has_value());
+    assert(!node.children.has_value());
+
+    bool removed = false;
+    node.bucket.value().remove_if([&](const BufferedPage& entry) {
+      if (entry.id == page_id) {
+        removed = true;
+        return true;
+      } else {
+        return false;
+      }
+    });
+
+    return removed;
   }
 
   [[nodiscard]] TrieNode& trie_find_bucket(uint32_t hash,
@@ -260,6 +277,16 @@ class BufPool::BufPoolImpl {
     }
   }
 
+  void RemovePage(const PageId& page_id) {
+    uint32_t hash = hash_func_(page_id);
+
+    TrieNode& node = BufPoolImpl::trie_find_bucket(hash, this->bits);
+    bool removed = BufPoolImpl::trie_remove_from_bucket(node, page_id);
+    if (removed) {
+      this->evictor->MarkForRemoval(page_id);
+    }
+  }
+
   [[nodiscard]] std::string DebugPrint(uint32_t bit_length) const {
     std::ostringstream s;
     s << "max: " << std::to_string(this->max_elements) << "\n";
@@ -276,8 +303,8 @@ class BufPool::BufPoolImpl {
 BufPool::BufPool(const BufPoolTuning tuning, std::unique_ptr<Evictor> evictor,
                  PageHashFn hash)
     : impl(std::make_unique<BufPoolImpl>(tuning.initial_elements,
-                                          tuning.max_elements,
-                                          std::move(evictor), hash)) {}
+                                         tuning.max_elements,
+                                         std::move(evictor), hash)) {}
 
 BufPool::BufPool(const BufPoolTuning tuning, PageHashFn hash)
     : impl(std::make_unique<BufPoolImpl>(
@@ -300,6 +327,8 @@ std::optional<BufferedPage> BufPool::GetPage(PageId& page) const {
 void BufPool::PutPage(PageId& page, const std::any contents) {
   return this->impl->PutPage(page, contents);
 }
+
+void BufPool::RemovePage(PageId& page) { return this->impl->RemovePage(page); }
 
 std::string BufPool::DebugPrint(uint32_t bit_length) {
   return this->impl->DebugPrint(bit_length);

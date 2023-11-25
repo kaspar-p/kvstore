@@ -59,8 +59,6 @@ class Filter::FilterImpl {
     bool val = true;
     for (const auto& fn : this->bit_hashes) {
       val = this->bloom_test(filter, fn(key) % kFilterBits);
-      std::cout << "testing bit " << fn(key) % kFilterBits << " for key " << key
-                << " ::: " << val << std::endl;
 
       // If the bloom filter returns a 0 for any of the values, this is the
       // DEFINITE_NO answer
@@ -177,22 +175,26 @@ class Filter::FilterImpl {
 
       BloomFilter& filter = filters.at(filter_idx);
       for (const auto& fn : this->bit_hashes) {
-        std::cout << "setting bit " << fn(key) % kFilterBits << " for key "
-                  << key << " in filter " << filter_idx << std::endl;
         bloom_set(filter, fn(key) % kFilterBits);
       }
     }
 
     std::vector<BytePage> pages{};
+    pages.resize(ceil(static_cast<float>(num_filters) / kFiltersPerPage));
 
+    int page_idx = 0;
     int filter_idx = 0;
-    while (filter_idx < num_filters) {
-      std::array<BloomFilter, kFiltersPerPage> page_filters;
-      for (int batch = 0; batch < kFiltersPerPage; batch++) {
+
+    for (int page_idx; page_idx < pages.size(); page_idx++) {
+      std::array<BloomFilter, kFiltersPerPage> page_filters{};
+      int batch = 0;
+      while (batch < kFiltersPerPage && filter_idx < num_filters) {
         page_filters.at(batch) = filters.at(filter_idx);
+        filter_idx++;
+        batch++;
       }
-      pages.push_back(this->to_buf(page_filters));
-      filter_idx += kFiltersPerPage;
+
+      pages.at(page_idx) = this->to_buf(page_filters);
     }
 
     // Write the file data
@@ -217,8 +219,6 @@ class Filter::FilterImpl {
     assert(file.is_open());
     assert(file.good());
 
-    std::cout << "num_filters " << num_filters(pairs.size()) << '\n';
-
     this->write_metadata_block(file, pairs.size());
     this->batch_write_keys(file, pairs);
   }
@@ -241,16 +241,9 @@ class Filter::FilterImpl {
 
     uint64_t num_filters = this->num_filters(num_elements);
 
-    std::cout << "num_filters " << num_filters << '\n';
-
     uint64_t global_filter_idx = block_hash(key, this->seed) % num_filters;
-    std::cout << "checking filter " << global_filter_idx << " for key " << key
-              << '\n';
     uint32_t page_idx = calc_page_idx(global_filter_idx);
     uint64_t filter_offset = calc_page_offset(global_filter_idx);
-
-    std::cout << "in page " << page_idx << " within page at index "
-              << filter_offset << std::endl;
 
     // Attempt to read the page out of the buffer
     PageId page_id = PageId{.filename = filename, .page = page_idx};

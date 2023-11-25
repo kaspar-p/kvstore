@@ -42,6 +42,15 @@ class Evictor {
   virtual void MarkUsed(DataRef page) = 0;
 
   /**
+   * @brief Mark a page for removal, e.g. mark as clean.
+   *
+   * Does nothing if the page does not exist.
+   *
+   * @param page The page that was accessed.
+   */
+  virtual void MarkForRemoval(DataRef page) = 0;
+
+  /**
    * @brief Resize the eviction data to now have @param n elements
    */
   virtual void Resize(uint32_t n) = 0;
@@ -58,5 +67,6 @@ class ClockEvictor : public Evictor {
 
   std::optional<DataRef> Insert(DataRef page) override;
   void MarkUsed(DataRef page) override;
+  void MarkForRemoval(DataRef page) override;
   void Resize(uint32_t n) override;
 };
