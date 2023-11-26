@@ -81,11 +81,11 @@ struct BinarySearchResult {
   uint64_t key_index;
 };
 
+constexpr int kHeaderSize = 4;
+constexpr int kPairSize = 2;
+
 std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
                                                 K key, bool get_closest_bound) {
-  constexpr int kHeaderSize = 4;
-  constexpr int kPairSize = 2;
-
   uint64_t left = kHeaderSize;
   uint64_t right = kHeaderSize + elems * kPairSize;
   uint64_t mid = left + floor((right - left) / 4) * 2;
@@ -192,9 +192,6 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
   if ((upper < page_lower) || (lower > page_upper)) {
     return l;
   }
-
-  int kHeaderSize = 4;
-  int kPairSize = 2;
 
   std::optional<BinarySearchResult> res =
       binary_search(file, elems, lower, true);
