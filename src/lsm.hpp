@@ -73,6 +73,24 @@ class LSMRun {
    */
   void RegisterNewFile(int intermediate);
 
+  /**
+   * @brief Flush vector to file
+   *
+   * @param fstream the file to flush to
+   * @param pairs the vector of pairs to flush
+   */
+  void Flush(std::fstream& file, std::vector<std::pair<K, V>>& pairs);
+
+  /**
+   * @brief Get the contents of the file_numth file in this level as a vector
+   * of key-value pairs.
+   *
+   * @param run_num The index of the run to get.
+   * @param file_num The index of the file to get.
+   * @return The contents of the file as a vector of key-value pairs.
+   */
+  std::vector<std::pair<K, V>> GetVectorFromFile(uint32_t file_num);
+
  private:
   class LSMRunImpl;
   std::unique_ptr<LSMRunImpl> impl;
@@ -145,6 +163,15 @@ class LSMLevel {
   //  merged.
   //  */
   // [[nodiscard]] LSMLevel MergeWith(LSMLevel level);
+
+  /**
+   * @brief Merge-sort all runs in the level into LSMRun new_run in LSMLevel next_level.
+   *
+   * @param new_run The new LSMRun to merge the existing runs into.
+   * @param run
+   * @param level
+   */
+  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level);
 
  private:
   class LSMLevelImpl;

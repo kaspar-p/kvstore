@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <iostream>
 #include <optional>
 
 #include "buf.hpp"
@@ -79,6 +80,22 @@ class LSMRun::LSMRunImpl {
     std::vector<std::pair<K, V>> l{};
     return l;
   }
+
+  void Flush(std::fstream& file, std::vector<std::pair<K, V>>& pairs) {
+    this->sstable_serializer.Flush(file, pairs);
+  }
+
+  std::vector<std::pair<K, V>> GetVectorFromFile(uint32_t file_num) {
+    std::string filename = data_file(this->naming, this->level, this->run, file_num);
+    std::fstream f(filename, std::fstream::binary | std::fstream::in);
+    if (!f.is_open()) {
+      std::vector<std::pair<K, V>> vector;
+      return vector;
+    }
+    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(f, 0, 1000); // TODO do we have a ScanAll for this?
+    return vector;
+  }
+
 };
 
 LSMRun::LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
@@ -95,6 +112,12 @@ LSMRun::~LSMRun() = default;
 [[nodiscard]] int LSMRun::NextFile() const { return this->impl->NextFile(); }
 void LSMRun::RegisterNewFile(int intermediate) {
   return this->impl->RegisterNewFile(intermediate);
+}
+void LSMRun::Flush(std::fstream& file, std::vector<std::pair<K, V>>& pairs) {
+  return this->impl->Flush(file, pairs);
+}
+std::vector<std::pair<K, V>> LSMRun::GetVectorFromFile(uint32_t file_num) {
+  return this->impl->GetVectorFromFile(file_num);
 }
 
 class LSMLevel::LSMLevelImpl {
@@ -148,6 +171,91 @@ class LSMLevel::LSMLevelImpl {
     this->runs.push_back(std::move(run));
   }
 
+  int GetIndexOfSmallestKey(std::vector<K> keys) {
+    // TODO: implement min-heap for this
+    // TODO: use more recent run if two runs have same key, also need to remove the duplicate
+    // TODO: figure out how to remove the duplicate too
+    // TODO: also tombstones
+    int smallest_index = -1;
+    int smallest_key = -1;
+    for (int i = 0; i < keys.size(); i++) {
+      if (keys[i] != -1 && (smallest_key == -1 || keys[i] <= smallest_key)) {
+        smallest_key = keys[i];
+        smallest_index = i;
+      }
+    }
+    return smallest_index;
+  }
+
+  bool KeysEmpty(const std::vector<K>& keys) {
+    for (K key : keys) {
+      if (key != -1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level) {
+      std::vector<std::pair<K, V>> buffer;
+      buffer.reserve(memory_buffer_size);
+
+      // Load first file from each run into current_file_contents_per_run
+      // Each contains sorted vector of KV pairs
+      std::vector<uint32_t> current_file_num_per_run(this->runs.size(), 0);
+      std::vector<std::vector<std::pair<K, V>>> current_file_contents_per_run(this->runs.size());
+      std::vector<uint32_t> current_key_index_per_run(this->runs.size(), 0);
+      std::vector<K> current_key_per_run(this->runs.size(), 0);
+
+      for (int run_num = 0; run_num < this->runs.size(); run_num++) {
+        std::vector<std::pair<K, V>> file_contents = this->runs[run_num]->GetVectorFromFile(current_file_num_per_run[run_num]);
+        current_file_contents_per_run[run_num] = file_contents;
+        current_key_per_run[run_num] = file_contents[0].first;
+      }
+
+      while (!KeysEmpty(current_key_per_run)) {
+        // if all vectors are empty, we have merged everything
+        while (buffer.size() < memory_buffer_size) {
+          // If the end of a file has been reached, get next file
+          for (int run_num = 0; run_num < this->runs.size(); run_num++) {
+            if (current_key_index_per_run[run_num] >= current_file_contents_per_run[run_num].size()) {
+              // load next file from run run_num
+              current_file_num_per_run[run_num]++;
+              current_key_index_per_run[run_num] = 0;
+              current_file_contents_per_run[run_num] = this->runs[run_num]->GetVectorFromFile(current_file_num_per_run[run_num]);
+              if (current_file_contents_per_run[run_num].empty()) {
+                current_key_per_run[run_num] = -1;
+              } else {
+                current_key_per_run[run_num] = current_file_contents_per_run[run_num][0].first;
+              }
+            }
+          }
+
+          int smallest_run_num = this->GetIndexOfSmallestKey(current_key_per_run);
+          if (smallest_run_num == -1) {
+            // no keys left
+            break;
+          }
+          buffer.push_back(current_file_contents_per_run[smallest_run_num][current_key_index_per_run[smallest_run_num]]);
+          current_key_index_per_run[smallest_run_num]++;
+          // TODO: make this an sstable instead of a sorted vector?
+        }
+
+        // If buffer is full, flush to file in new run
+        if (buffer.size() == memory_buffer_size) {
+          uint32_t intermediate = new_run->NextFile();
+          std::fstream new_file(data_file(this->dbname, level, run, intermediate),
+                               std::fstream::binary | std::fstream::in |
+                                   std::fstream::out | std::fstream::trunc);
+          new_run->Flush(new_file, buffer);
+          new_run->RegisterNewFile(intermediate);
+
+        buffer.clear();
+        }
+      }
+      return new_run;
+  }
+
   // LSMLevel MergeWith(const LSMLevel& level) {
   //   assert(level.Level() == this->Level());
 
@@ -173,3 +281,6 @@ std::optional<V> LSMLevel::Get(K key) const { return this->impl->Get(key); }
 std::vector<std::pair<K, V>> LSMLevel::Scan(K lower, K upper) const {
   return this->impl->Scan(lower, upper);
 };
+std::unique_ptr<LSMRun> LSMLevel::CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level) {
+  return this->impl->CompactRuns(std::move(new_run), run, level);
+}

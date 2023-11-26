@@ -106,6 +106,29 @@ class KvStore::KvStoreImpl {
     }};
     this->manifest.value().RegisterNewFiles(files);
     this->memtable.Clear();
+
+    for (size_t i = 0; i < this->levels.size(); ++i) {
+      if (this->levels[i]->NextRun() == this->tiers) {
+        if (i == this->levels.size() - 1) {
+          // TODO set is_final to false for current level
+          auto level = std::make_unique<LSMLevel>(
+              this->naming, this->levels[i]->Level() + 1, true, this->memtable.GetCapacity(),
+              this->manifest.value(), this->buf.value());
+          this->levels.push_back(std::move(level));
+        }
+
+        std::unique_ptr<LSMRun> new_run = std::make_unique<LSMRun>(
+            this->naming, this->levels[i+1]->Level(), this->levels[i]->NextRun(), this->tiers, this->memtable.GetCapacity(),
+            this->manifest.value(), this->buf.value(), *this->sstable_serializer,
+            *this->filter_serializer);
+
+        this->levels[i]->CompactRuns(std::move(new_run), this->levels[i + 1]->NextRun(), this->levels[i + 1]->Level());
+        this->levels[i + 1]->RegisterNewRun(std::move(new_run));
+      } else {
+        // if this level is not full, later levels cannot be full
+        break;
+      }
+    }
   };
 
   /**
