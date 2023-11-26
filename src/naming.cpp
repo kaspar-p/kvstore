@@ -36,7 +36,7 @@ int parse_data_file_run(const std::string& filename) {
 int parse_data_file_intermediate(const std::string& filename) {
   std::smatch m;
   std::regex_match(filename, m,
-                   std::regex(R"(^.*\.DATA\.L\\d+\.R\\d+\.I(\d+)$)"));
+                   std::regex(R"(^.*\.DATA\.L\d+\.R\d+\.I(\d+)$)"));
   assert(m.size() == 2);
 
   int level = std::stoull(m[1].str());
