@@ -68,7 +68,7 @@ void SstableBTree::Flush(std::fstream& file,
         .offset = (1 + i / order) * kPageSize,
         .global_max = 0,
     };
-    std::cout <<info_node.offset << std::endl;
+    
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
     leaf_node.magic_number = 0x00db0011;
@@ -121,13 +121,11 @@ void SstableBTree::Flush(std::fstream& file,
     uint64_t start_offset = creation_queue.back().offset + kPageSize;
 
     int i = 0;
-    std::cout << "iteration\n";
+    
     while (i < queue_length) {
       // info node used for the queue
       SstableBtreeNode info_node;
       info_node.offset = start_offset + i/order * kPageSize;
-      std::cout << i << std::endl;
-      std::cout << "info_node.offset" << info_node.offset << std::endl;
       // if i = last don't make internal node
 
       // create internal node
@@ -213,9 +211,9 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   if (elems == 0) {
     return std::nullopt;
   }
-  std::cout << "elems:" << elems << std::endl;
-  std::cout << "cur_offset:" << buf[3] << std::endl;
+
   uint64_t cur_offset = buf[3];  // meta block size + root block ptr
+  std::cout << "cur_offset:" << cur_offset << std::endl;
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
@@ -242,6 +240,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
         right = header_size + elems % ((kPageSize - 16) / 16) * pair_size;
       }
       int mid = left + floor((right - left) / 4) * 2;
+      
       while (left <= right) {
         int mid = left + floor((right - left) / 4) * 2;
         if (buf[mid] == key) {
@@ -258,27 +257,29 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
 
     } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
-      std::cout << "num children" << num_children << "\n";
       int left = header_size;
-      int right = header_size + num_children * pair_size;
+      int right = header_size + (num_children-1) * pair_size;
+      std::cout << "4" << buf[4] << '\n';
       if (key <= buf[left]) {
         cur_offset = buf[left + 1];
-      } else if (key > buf[right]) {
+      } else if (key > buf[right-2]) {
         cur_offset = buf[1];
       } else {
-        int mid = left + floor((right - left) / 2);
+        int mid = left + floor((right - left) / 4) * 2;
+        std::cout << "mid:" << mid << std::endl;
+        std::cout << "buf[mid]:" << buf[mid-2] << std::endl;
         while (left <= right) {
-          int mid = left + floor((right - left) / 2);
-          if (buf[mid] == key) {
+          mid = left + floor((right - left) / 4) * 2;
+          if (buf[mid-2] < key && key <= buf[mid]) {
+            std::cout << "miasdfasd:" << mid << std::endl;
             cur_offset = buf[mid + 1];
-          }
-          if (buf[mid] < key) {
+            break;
+          } else if (buf[mid] < key) {
             left = mid + 2;
           } else {
             right = mid - 2;
           }
         }
-        cur_offset = buf[mid + 1];
       }
 
     } else {
@@ -362,24 +363,23 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
     } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
-      int right = header_size + num_children * pair_size;
+      int right = header_size + (num_children-1) * pair_size;
       if (lower <= buf[left]) {
         cur_offset = buf[left + 1];
-      } else if (lower > buf[right]) {
+      } else if (lower > buf[right-2]) {
         cur_offset = buf[1];
       } else {
         while (left <= right) {
-          mid = left + floor((right - left) / 2);
-          if (buf[mid] == lower) {
+          int mid = left + floor((right - left) / 4) * 2;
+          if (buf[mid-2] < lower && lower <= buf[mid]) {
             cur_offset = buf[mid + 1];
-          }
-          if (buf[mid] < lower) {
+            break;
+          } else if (buf[mid] < lower) {
             left = mid + 2;
           } else {
             right = mid - 2;
           }
         }
-        cur_offset = buf[mid + 1];
       }
 
     } else {
