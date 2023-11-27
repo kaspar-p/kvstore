@@ -12,6 +12,7 @@
 #include "manifest.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
+#include "minheap.hpp"
 
 class LSMRun::LSMRunImpl {
  private:
@@ -92,7 +93,7 @@ class LSMRun::LSMRunImpl {
       std::vector<std::pair<K, V>> vector;
       return vector;
     }
-    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(f, 0, 1000); // TODO do we have a ScanAll for this?
+    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(f, 0, UINT64_MAX); // TODO do we have a ScanAll for this?
     return vector;
   }
 
@@ -171,86 +172,76 @@ class LSMLevel::LSMLevelImpl {
     this->runs.push_back(std::move(run));
   }
 
-  int GetIndexOfSmallestKey(std::vector<K> keys) {
-    // TODO: implement min-heap for this
-    // TODO: use more recent run if two runs have same key, also need to remove the duplicate
-    // TODO: figure out how to remove the duplicate too
-    // TODO: also tombstones
-    int smallest_index = -1;
-    int smallest_key = -1;
-    for (int i = 0; i < keys.size(); i++) {
-      if (keys[i] != -1 && (smallest_key == -1 || keys[i] <= smallest_key)) {
-        smallest_key = keys[i];
-        smallest_index = i;
-      }
-    }
-    return smallest_index;
-  }
-
-  bool KeysEmpty(const std::vector<K>& keys) {
-    for (K key : keys) {
-      if (key != -1) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level) {
       std::vector<std::pair<K, V>> buffer;
       buffer.reserve(memory_buffer_size);
 
-      // Load first file from each run into current_file_contents_per_run
-      // Each contains sorted vector of KV pairs
-      std::vector<uint32_t> current_file_num_per_run(this->runs.size(), 0);
-      std::vector<std::vector<std::pair<K, V>>> current_file_contents_per_run(this->runs.size());
-      std::vector<uint32_t> current_key_index_per_run(this->runs.size(), 0);
-      std::vector<K> current_key_per_run(this->runs.size(), 0);
+      // Index of current file to read from for each run
+      std::vector<int> file_number(this->runs.size(), 0);
 
-      for (int run_num = 0; run_num < this->runs.size(); run_num++) {
-        std::vector<std::pair<K, V>> file_contents = this->runs[run_num]->GetVectorFromFile(current_file_num_per_run[run_num]);
-        current_file_contents_per_run[run_num] = file_contents;
-        current_key_per_run[run_num] = file_contents[0].first;
+      // Contents of current file for each run
+      std::vector<std::vector<std::pair<K, V>>> file_contents(this->runs.size());
+
+      // Initialize heap from first key in each run
+      std::vector<K> first_keys(this->runs.size(), 0);
+      for (int run = 0; run < this->runs.size(); run++) {
+        std::vector<std::pair<K, V>> contents = this->runs[run]->GetVectorFromFile(file_number[run]);
+        file_contents[run] = contents;
+        first_keys[run] = contents[0].first;
       }
 
-      while (!KeysEmpty(current_key_per_run)) {
-        // if all vectors are empty, we have merged everything
-        while (buffer.size() < memory_buffer_size) {
-          // If the end of a file has been reached, get next file
-          for (int run_num = 0; run_num < this->runs.size(); run_num++) {
-            if (current_key_index_per_run[run_num] >= current_file_contents_per_run[run_num].size()) {
-              // load next file from run run_num
-              current_file_num_per_run[run_num]++;
-              current_key_index_per_run[run_num] = 0;
-              current_file_contents_per_run[run_num] = this->runs[run_num]->GetVectorFromFile(current_file_num_per_run[run_num]);
-              if (current_file_contents_per_run[run_num].empty()) {
-                current_key_per_run[run_num] = -1;
-              } else {
-                current_key_per_run[run_num] = current_file_contents_per_run[run_num][0].first;
-              }
-            }
+      // Index of current position in file for each run
+      std::vector<int> file_cursor(this->runs.size(), 1);
+//
+      auto minheap = std::make_unique<MinHeap>(first_keys);
+
+      std::optional<std::pair<K, int>> min_pair = std::nullopt;
+      std::optional<std::pair<K, int>> new_min_pair = minheap->Extract();
+      std::optional<std::pair<K, int>> next_pair_to_insert = std::nullopt;
+      int min_run;
+
+      while (!minheap->IsEmpty()) {
+        while (!minheap->IsEmpty() && buffer.size() < memory_buffer_size) {
+          min_run = new_min_pair->second;
+
+          // If new key matches previous key, it is out of date, so don't write it
+          if (min_pair == std::nullopt || new_min_pair->first != min_pair->first) {
+            std::pair<K, V> min_kv = file_contents[min_run][file_cursor[min_run]];
+            buffer.push_back(min_kv);
           }
 
-          int smallest_run_num = this->GetIndexOfSmallestKey(current_key_per_run);
-          if (smallest_run_num == -1) {
-            // no keys left
-            break;
+          min_pair = new_min_pair;
+          file_cursor[min_run]++;
+
+          // If file position has reached the end of the file, try to load the next file from the same run
+          if (file_cursor[min_run] >= file_contents[min_run].size()) {
+            file_number[min_run]++;
+            file_cursor[min_run] = 0;
+            file_contents[min_run] = this->runs[min_run]->GetVectorFromFile(file_number[min_run]);
           }
-          buffer.push_back(current_file_contents_per_run[smallest_run_num][current_key_index_per_run[smallest_run_num]]);
-          current_key_index_per_run[smallest_run_num]++;
-          // TODO: make this an sstable instead of a sorted vector?
+
+          // Get new smallest key from same file
+          if (file_contents[min_run].empty()) {
+            // no more files in this run, so no new key to insert
+            min_pair = minheap->Extract();
+          } else {
+            // insert next key from this file
+            std::pair<K, V> next_key_from_file = file_contents[min_run][file_cursor[min_run]];
+            next_pair_to_insert = std::make_pair(next_key_from_file.first, min_run);
+            new_min_pair = minheap->InsertAndExtract(next_pair_to_insert.value());
+          }
         }
 
-        // If buffer is full, flush to file in new run
-        if (buffer.size() == memory_buffer_size) {
+        // Flush buffer to file
+        if (!buffer.empty()) {
           uint32_t intermediate = new_run->NextFile();
           std::fstream new_file(data_file(this->dbname, level, run, intermediate),
-                               std::fstream::binary | std::fstream::in |
-                                   std::fstream::out | std::fstream::trunc);
+                                std::fstream::binary | std::fstream::in |
+                                    std::fstream::out | std::fstream::trunc);
+          // TODO: make buffer an sstable instead of a sorted vector
           new_run->Flush(new_file, buffer);
           new_run->RegisterNewFile(intermediate);
-
-        buffer.clear();
+          buffer.clear();
         }
       }
       return new_run;
