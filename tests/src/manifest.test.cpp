@@ -22,6 +22,8 @@ TEST(Manifest, InRange) {
   auto naming = create_dir("Manifest.InRange");
   SstableNaive serializer;
   std::filesystem::remove(manifest_file(naming));
+
+  // TODO(kfp@): do this!
 }
 
 TEST(Manifest, GetFileMemory) {
