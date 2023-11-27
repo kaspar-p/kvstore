@@ -25,5 +25,5 @@ filter file = 0x02
 After that point, each file contains other metadata in the metadata block, and the rest of the blocks are also up to the file.
 
 To read more about each structure, see:
-- Data files: [sstable.md](./sstable.md)
-- Filter files: [filter.md](./filter.md)
+- Data files: [file_sstable.md](./file_sstable.md)
+- Filter files: [file_filter.md](./file_filter.md)
