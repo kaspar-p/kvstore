@@ -81,6 +81,16 @@ target_include_directories(
 target_compile_features(kvstore_sstable PUBLIC cxx_std_17)
 target_link_libraries(kvstore_sstable PRIVATE xxHash::xxhash)
 
+# minheap.cpp
+add_library(kvstore_minheap OBJECT src/minheap.cpp)
+target_include_directories(
+        kvstore_minheap ${warning_guard}
+        PUBLIC
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_compile_features(kvstore_minheap PUBLIC cxx_std_17)
+target_link_libraries(kvstore_minheap PRIVATE xxHash::xxhash)
+
 # evict.cpp
 add_library(kvstore_evict OBJECT src/evict.cpp)
 target_include_directories(
@@ -161,6 +171,7 @@ target_link_libraries(benchmarks_exe PRIVATE xxHash::xxhash)
 # ---- Link internal libraries ----
 target_link_libraries(kvstore_exe PRIVATE kvstore_kvstore)
 target_link_libraries(kvstore_exe PRIVATE kvstore_sstable)
+target_link_libraries(kvstore_exe PRIVATE kvstore_minheap)
 target_link_libraries(kvstore_exe PRIVATE kvstore_buf)
 target_link_libraries(kvstore_exe PRIVATE kvstore_evict)
 target_link_libraries(kvstore_exe PRIVATE kvstore_dbg)
@@ -173,6 +184,7 @@ target_link_libraries(kvstore_exe PRIVATE kvstore_manifest)
 
 target_link_libraries(benchmarks_exe PRIVATE kvstore_kvstore)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_sstable)
+target_link_libraries(benchmarks_exe PRIVATE kvstore_minheap)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_buf)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_evict)
 target_link_libraries(benchmarks_exe PRIVATE kvstore_dbg)

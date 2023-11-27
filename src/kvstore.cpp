@@ -122,6 +122,7 @@ class KvStore::KvStoreImpl {
             this->manifest.value(), this->buf.value(), *this->sstable_serializer,
             *this->filter_serializer);
 
+        // TODO merge into single run and delete tombstones if next level is final
         this->levels[i]->CompactRuns(std::move(new_run), this->levels[i + 1]->NextRun(), this->levels[i + 1]->Level());
         this->levels[i + 1]->RegisterNewRun(std::move(new_run));
       } else {
