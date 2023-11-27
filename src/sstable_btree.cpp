@@ -213,7 +213,6 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   }
 
   uint64_t cur_offset = buf[3];  // meta block size + root block ptr
-  std::cout << "cur_offset:" << cur_offset << std::endl;
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
@@ -259,19 +258,15 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
       int right = header_size + (num_children-1) * pair_size;
-      std::cout << "4" << buf[4] << '\n';
       if (key <= buf[left]) {
         cur_offset = buf[left + 1];
       } else if (key > buf[right-2]) {
         cur_offset = buf[1];
       } else {
         int mid = left + floor((right - left) / 4) * 2;
-        std::cout << "mid:" << mid << std::endl;
-        std::cout << "buf[mid]:" << buf[mid-2] << std::endl;
         while (left <= right) {
           mid = left + floor((right - left) / 4) * 2;
           if (buf[mid-2] < key && key <= buf[mid]) {
-            std::cout << "miasdfasd:" << mid << std::endl;
             cur_offset = buf[mid + 1];
             break;
           } else if (buf[mid] < key) {
@@ -394,8 +389,6 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
     if (buf[1] == 0xffffffffffffffff &&
         elems % ((kPageSize - 16) / 16) != 0 &&
         walk >= 2 + (elems % ((kPageSize-16)/16)) * 2) {
-      std::cout << "elems:" << elems << std::endl;
-      std::cout << "break" << std::endl;
       break;
     }; 
     l.push_back(std::make_pair(buf[walk], buf[walk + 1]));
