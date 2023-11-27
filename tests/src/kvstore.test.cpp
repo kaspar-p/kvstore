@@ -287,6 +287,10 @@ TEST(KvStore, InsertAndDeleteThousands) {
                  .serialization = DataFileFormat::kFlatSorted,
              });
   for (int i = 0; i < 10 * 1000; i++) {
+<<<<<<< Updated upstream
+=======
+    // std::cout << "Putting " << i << '\n';
+>>>>>>> Stashed changes
     table.Put(i, 10 * i);
   }
 

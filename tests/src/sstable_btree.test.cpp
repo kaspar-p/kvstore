@@ -123,7 +123,29 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
   ASSERT_EQ(val.value(), 509);
 }
 
+// TEST(SstableBTree, GetSingleElems3layers) {
+//   MemTable memtable(65025);
+//   for (int i = 0; i < 130050; i++) {
+//     memtable.Put(i, i);
+//   }
+
+//   SstableBTree t{};
+//   std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
+//                  std::fstream::binary | std::fstream::in | std::fstream::out |
+//                      std::fstream::trunc);
+//   ASSERT_EQ(f.is_open(), true);
+//   ASSERT_EQ(f.good(), true);
+//   t.Flush(f,
+//           std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
+
+//   std::optional<V> val = t.GetFromFile(f, 130049);
+
+//   ASSERT_EQ(val.has_value(), true);
+//   ASSERT_EQ(val.value(), 130049);
+// }
+
 // Further test layers of internal nodes (like 3+ layers)
+// TODO: taking max of maxes for internal layers
 
 TEST(SstableBTree, ScanDenseRange1LeafNode) {
   MemTable memtable(64);

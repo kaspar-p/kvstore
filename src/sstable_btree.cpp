@@ -68,7 +68,7 @@ void SstableBTree::Flush(std::fstream& file,
         .offset = (1 + i / order) * kPageSize,
         .global_max = 0,
     };
-
+    std::cout <<info_node.offset << std::endl;
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
     leaf_node.magic_number = 0x00db0011;
@@ -115,17 +115,19 @@ void SstableBTree::Flush(std::fstream& file,
   // note that the address of the first internal node is the address of the last
   // leaf node + 1 since this is offsets we can calculate this using the length
   // of the queue at the start of the algorithm
-
+  
   while (creation_queue.size() > 1) {
     uint64_t queue_length = creation_queue.size();
     uint64_t start_offset = creation_queue.back().offset + kPageSize;
-    int i = 0;
 
+    int i = 0;
+    std::cout << "iteration\n";
     while (i < queue_length) {
       // info node used for the queue
       SstableBtreeNode info_node;
-      info_node.offset = start_offset + i * kPageSize;
-
+      info_node.offset = start_offset + i/order * kPageSize;
+      std::cout << i << std::endl;
+      std::cout << "info_node.offset" << info_node.offset << std::endl;
       // if i = last don't make internal node
 
       // create internal node
@@ -173,7 +175,6 @@ void SstableBTree::Flush(std::fstream& file,
       }
       // TODO: child ptr is BLOCK_NULL if there isn't a leaf node, in
       // documentation??
-      std::cout << i << "," << queue_length << "\n";
     }
   }
   // the last node in the queue is the parent
@@ -196,7 +197,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
-
+  
   file.seekg(0);
   file.read(reinterpret_cast<char*>(buf), kPageSize);
   assert(file.good());
@@ -212,13 +213,15 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   if (elems == 0) {
     return std::nullopt;
   }
+  std::cout << "elems:" << elems << std::endl;
+  std::cout << "cur_offset:" << buf[3] << std::endl;
   uint64_t cur_offset = buf[3];  // meta block size + root block ptr
   bool leaf_node = false;
   while (!leaf_node) {
     file.seekg(cur_offset);
     file.read(reinterpret_cast<char*>(buf), kPageSize);
     assert(file.good());
-
+    
     int header_size = 2;
     int pair_size = 2;
 
@@ -255,9 +258,10 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
 
     } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
+      std::cout << "num children" << num_children << "\n";
       int left = header_size;
       int right = header_size + num_children * pair_size;
-      if (key < buf[left]) {
+      if (key <= buf[left]) {
         cur_offset = buf[left + 1];
       } else if (key > buf[right]) {
         cur_offset = buf[1];
@@ -359,7 +363,7 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
       int right = header_size + num_children * pair_size;
-      if (lower < buf[left]) {
+      if (lower <= buf[left]) {
         cur_offset = buf[left + 1];
       } else if (lower > buf[right]) {
         cur_offset = buf[1];
@@ -388,9 +392,12 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
   while ((buf[0] >> 32 == 0x00db0011) && buf[walk] <= upper &&
          walk < kPageSize / sizeof(uint64_t)) {
     if (buf[1] == 0xffffffffffffffff &&
-        walk > elems % (kPageSize / sizeof(uint64_t) - 1) * 2) {
+        elems % ((kPageSize - 16) / 16) != 0 &&
+        walk >= 2 + (elems % ((kPageSize-16)/16)) * 2) {
+      std::cout << "elems:" << elems << std::endl;
+      std::cout << "break" << std::endl;
       break;
-    };
+    }; 
     l.push_back(std::make_pair(buf[walk], buf[walk + 1]));
     walk += 2;
 
