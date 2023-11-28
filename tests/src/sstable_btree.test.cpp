@@ -85,6 +85,7 @@ TEST(SstableBTree, GetManySingleElems) {
 TEST(SstableBTree, GetSingleMissing) {
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
+    if (i == 54) continue;
     memtable.Put(i, i);
   }
 
@@ -97,8 +98,11 @@ TEST(SstableBTree, GetSingleMissing) {
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs);
 
-  std::optional<V> val = t.GetFromFile(f, 100);
+  std::optional<V> val = t.GetFromFile(f, 54);
+  ASSERT_EQ(val.has_value(), false);
 
+  // out of range
+  val = t.GetFromFile(f, 100);
   ASSERT_EQ(val.has_value(), false);
 }
 
@@ -123,9 +127,33 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
   ASSERT_EQ(val.value(), 509);
 }
 
+TEST(SstableBTree, GetSingleElems2LayersFull) {
+  MemTable memtable(65025);
+  for (int i = 0; i < 65025; i++) {
+    memtable.Put(i, i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.GetSingleElems2LeafNodes.bin",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto pairs = memtable.ScanAll();
+  t.Flush(f, *pairs);
+
+  std::optional<V> val = t.GetFromFile(f, 0);
+  ASSERT_EQ(val.has_value(), true);
+  ASSERT_EQ(val.value(), 0);
+
+  val = t.GetFromFile(f, 65024);
+  ASSERT_EQ(val.has_value(), true);
+  ASSERT_EQ(val.value(), 65024);
+}
+
 // TEST(SstableBTree, GetSingleElems3layers) {
 //   MemTable memtable(65025);
-//   for (int i = 0; i < 130050; i++) {
+//   for (int i = 0; i < 65025; i++) {
 //     memtable.Put(i, i);
 //   }
 
@@ -136,14 +164,13 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
 //                      std::fstream::trunc);
 //   ASSERT_EQ(f.is_open(), true);
 //   ASSERT_EQ(f.good(), true);
-//   t.Flush(f,
-//           std::make_unique<std::vector<std::pair<K,
-//           V>>>(memtable.ScanAll()));
+//   auto pairs = memtable.ScanAll();
+//   t.Flush(f, *pairs);
 
-//   std::optional<V> val = t.GetFromFile(f, 130049);
+//   std::optional<V> val = t.GetFromFile(f, 65025);
 
 //   ASSERT_EQ(val.has_value(), true);
-//   ASSERT_EQ(val.value(), 130049);
+//   ASSERT_EQ(val.value(), 65025);
 // }
 
 // Further test layers of internal nodes (like 3+ layers)
@@ -237,21 +264,12 @@ TEST(SstableBTree, ScanDenseRange2LeafNodes) {
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs);
 
-  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
-
+  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 240, 282);
   ASSERT_EQ(val.size(), 43);
-  ASSERT_EQ(val.front().first, 10);
-  ASSERT_EQ(val.front().second, 10);
-  ASSERT_EQ(val.back().first, 52);
-  ASSERT_EQ(val.back().second, 52);
-
-  val = t.ScanInFile(f, 10, 509);
-
-  ASSERT_EQ(val.size(), 500);
-  ASSERT_EQ(val.front().first, 10);
-  ASSERT_EQ(val.front().second, 10);
-  ASSERT_EQ(val.back().first, 509);
-  ASSERT_EQ(val.back().second, 509);
+  ASSERT_EQ(val.front().first, 240);
+  ASSERT_EQ(val.front().second, 240);
+  ASSERT_EQ(val.back().first, 282);
+  ASSERT_EQ(val.back().second, 282);
 }
 
 TEST(SstableBTree, ScanSparseRangeIncludes) {
