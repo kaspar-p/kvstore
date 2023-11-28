@@ -45,6 +45,13 @@ std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
   return ScanInFile(file, 0, UINT64_MAX);
 }
 
+std::vector<std::pair<K,V>> SstableBTree::Drain(std::fstream& file) const {
+  assert(file.is_open());
+  assert(file.good());
+
+  return SstableBTree::ScanInFile(file, 0, UINT64_MAX);
+}
+
 void SstableBTree::Flush(std::fstream& file,
                          std::vector<std::pair<K, V>>& pairs) const {
   // questions
@@ -185,11 +192,12 @@ void SstableBTree::Flush(std::fstream& file,
     }
   }
   // the last node in the queue is the parent
-  SstableBtreeNode root = creation_queue.front();
-  creation_queue.pop();
-  wbuf[3] =
-      root.offset;  // update dummy root block ptr to actual root block ptr
-
+  if (!creation_queue.empty()) {
+    SstableBtreeNode root = creation_queue.front();
+    creation_queue.pop();
+    wbuf[3] = root.offset;  // update dummy root block ptr to actual root block ptr
+  }
+      
   for (uint64_t& elem : wbuf) {
     file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
     assert(file.good());
