@@ -90,7 +90,7 @@ class Filter::FilterImpl {
   std::array<KeyHashFn, kNumHashFuncs> create_hash_funcs(
       uint64_t starting_seed) const {
     std::array<KeyHashFn, kNumHashFuncs> fns;
-    for (int i = 0; i < kNumHashFuncs; i++) {
+    for (std::size_t i = 0; i < kNumHashFuncs; i++) {
       fns.at(i) = [starting_seed, i](K key) {
         return static_cast<uint64_t>(
             XXH64(&key, kKeySize, (i + 1) + starting_seed + 1));
@@ -105,9 +105,10 @@ class Filter::FilterImpl {
 
   BytePage to_buf(std::array<BloomFilter, kFiltersPerPage>& filters) const {
     BytePage buffer{};
-    for (int filt = 0; filt < filters.size(); filt++) {
+    for (std::size_t filt = 0; filt < filters.size(); filt++) {
       std::array<uint8_t, kFilterBytes> data_vec = filters.at(filt);
-      for (int data_offset = 0; data_offset < data_vec.size(); data_offset++) {
+      for (std::size_t data_offset = 0; data_offset < data_vec.size();
+           data_offset++) {
         std::byte data = std::byte{data_vec.at(data_offset)};
         buffer.at(filt * kFilterBytes + data_offset) = data;
       }
@@ -118,9 +119,10 @@ class Filter::FilterImpl {
 
   std::array<BloomFilter, kFiltersPerPage> from_buf(BytePage& buffer) const {
     std::array<BloomFilter, kFiltersPerPage> filters;
-    for (int i = 0; i < kFiltersPerPage; i++) {
+    for (std::size_t i = 0; i < kFiltersPerPage; i++) {
       std::array<uint8_t, kFilterBytes> filter_buf;
-      for (int data_offset = 0; data_offset < kFilterBytes; data_offset++) {
+      for (std::size_t data_offset = 0; data_offset < kFilterBytes;
+           data_offset++) {
         filter_buf.at(data_offset) =
             static_cast<uint8_t>(buffer.at(i * kFilterBytes + data_offset));
       }
@@ -147,18 +149,16 @@ class Filter::FilterImpl {
     assert(file.good());
 
     uint64_t num_filters = this->num_filters(num_entries);
-    for (int filter_idx = 0; filter_idx < num_filters; filter_idx++) {
-      int page = (filter_idx * kFilterBytes) / kPageSize;
-
-      char zeroes[kFilterBytes]{};
-      file.write(zeroes, kFilterBytes);
+    for (uint64_t filter_idx = 0; filter_idx < num_filters; filter_idx++) {
+      std::array<uint8_t, kFilterBytes> zeroes{};
+      file.write(reinterpret_cast<char*>(zeroes.data()), kFilterBytes);
     }
 
     int pad = kPageSize - ((num_filters % kFiltersPerPage) * kFilterBytes);
-    char buf_pad[pad];
-    std::memset(buf_pad, 0, pad);
+    std::vector<uint8_t> buf_pad{};
+    buf_pad.resize(pad);
 
-    file.write(buf_pad, pad);
+    file.write(reinterpret_cast<char*>(buf_pad.data()), buf_pad.size());
     assert(file.good());
   }
 
@@ -182,12 +182,10 @@ class Filter::FilterImpl {
     std::vector<BytePage> pages{};
     pages.resize(ceil(static_cast<float>(num_filters) / kFiltersPerPage));
 
-    int page_idx = 0;
-    int filter_idx = 0;
-
-    for (int page_idx; page_idx < pages.size(); page_idx++) {
+    std::size_t filter_idx = 0;
+    for (std::size_t page_idx = 0; page_idx < pages.size(); page_idx++) {
       std::array<BloomFilter, kFiltersPerPage> page_filters{};
-      int batch = 0;
+      std::size_t batch = 0;
       while (batch < kFiltersPerPage && filter_idx < num_filters) {
         page_filters.at(batch) = filters.at(filter_idx);
         filter_idx++;
@@ -200,7 +198,7 @@ class Filter::FilterImpl {
     // Write the file data
     assert(file.good());
     file.seekp(1 * kPageSize);  // Leave room for metadata block
-    for (int page = 0; page < pages.size(); page++) {
+    for (std::size_t page = 0; page < pages.size(); page++) {
       file.write(reinterpret_cast<char*>(pages.at(page).data()), kPageSize);
     }
     assert(file.good());
@@ -210,8 +208,8 @@ class Filter::FilterImpl {
   FilterImpl(const DbNaming& dbname, BufPool& buf, const uint64_t starting_seed)
       : dbname(dbname),
         seed(starting_seed),
-        buf(buf),
-        bit_hashes(create_hash_funcs(starting_seed)) {}
+        bit_hashes(create_hash_funcs(starting_seed)),
+        buf(buf) {}
 
   void Create(std::string& filename, std::vector<std::pair<K, V>> pairs) {
     std::fstream file(filename, std::fstream::binary | std::fstream::out |

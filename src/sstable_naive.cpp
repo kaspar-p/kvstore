@@ -63,7 +63,7 @@ void SstableNaive::Flush(std::fstream& file,
   data_buf.resize(2 * pairs.size() + padding);
 
   // Insert the key value pairs
-  for (int i = 0; i < pairs.size(); i++) {
+  for (std::size_t i = 0; i < pairs.size(); i++) {
     data_buf.at((2 * i) + 0) = pairs.at(i).first;
     data_buf.at((2 * i) + 1) = pairs.at(i).second;
   }

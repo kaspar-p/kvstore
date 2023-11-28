@@ -49,7 +49,7 @@ class Manifest::ManifestHandleImpl {
     page[2] = this->levels.size();
     page[3] = this->total_number_of_files();
 
-    for (int level = 0; level < this->levels.size(); level++) {
+    for (std::size_t level = 0; level < this->levels.size(); level++) {
       uint64_t next_level = (static_cast<uint64_t>(level) << 32) |
                             static_cast<uint64_t>(levels.at(level).size());
       page.push_back(next_level);
@@ -95,24 +95,26 @@ class Manifest::ManifestHandleImpl {
     this->levels.resize(total_levels);
 
     std::size_t data_size = (total_files * 3) + total_levels + 4;
-    uint64_t data[data_size];
+    std::vector<uint64_t> data;
+    data.resize(data_size);
+
     this->file.seekg(0);
-    this->file.read(reinterpret_cast<char*>(data),
+    this->file.read(reinterpret_cast<char*>(data.data()),
                     data_size * sizeof(uint64_t));
     assert(this->file.good());
 
     uint64_t level_start = 4;
     for (uint32_t level = 0; level < total_levels; level++) {
-      uint32_t level_num = (data[level_start] >> 32);
-      uint32_t level_files = (data[level_start] << 32) >> 32;
+      uint32_t level_num = (data.at(level_start) >> 32);
+      uint32_t level_files = (data.at(level_start) << 32) >> 32;
       assert(level_num == level);
 
       for (uint32_t file = 0; file < level_files; file++) {
         uint32_t idx = level_start + (3 * file) + 1;
-        uint32_t run = (data[idx + 0] >> 32);
-        uint32_t intermediate = (data[idx + 0] << 32) >> 32;
-        K min = data[idx + 1];
-        K max = data[idx + 2];
+        uint32_t run = (data.at(idx + 0) >> 32);
+        uint32_t intermediate = (data.at(idx + 0) << 32) >> 32;
+        K min = data.at(idx + 1);
+        K max = data.at(idx + 2);
 
         if (level >= this->levels.size()) {
           this->levels.resize(level + 1);
@@ -179,7 +181,7 @@ class Manifest::ManifestHandleImpl {
 
   [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level, int run,
                                                            K key) {
-    if (level >= this->levels.size()) {
+    if (static_cast<std::size_t>(level) >= this->levels.size()) {
       return {};
     }
 

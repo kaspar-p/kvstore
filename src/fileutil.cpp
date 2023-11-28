@@ -18,7 +18,7 @@ uint64_t type_magic(FileType type) {
 bool has_contents(uint64_t page[kPageSize / sizeof(uint64_t)],
                   std::size_t start, std::vector<uint64_t> contents) {
   bool val = true;
-  for (int i = 0; i < contents.size(); i++) {
+  for (std::size_t i = 0; i < contents.size(); i++) {
     val &= page[i + start] == contents.at(i);
   }
   return val;
@@ -33,7 +33,7 @@ bool has_magic_numbers(std::array<uint64_t, kPageSize / sizeof(uint64_t)>& page,
 
 void put_contents(uint64_t page[kPageSize / sizeof(uint64_t)],
                   std::size_t start, std::vector<uint64_t> contents) {
-  for (int i = 0; i < contents.size(); i++) {
+  for (std::size_t i = 0; i < contents.size(); i++) {
     page[i + start] = contents.at(i);
   }
 }

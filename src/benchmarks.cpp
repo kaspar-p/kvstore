@@ -43,6 +43,7 @@ auto benchmark_get_sequential(KvStore& db, K lower, K upper) {
   auto t1 = high_resolution_clock::now();
   for (K i = lower; i < upper; i++) {
     const std::optional<V> v = db.Get(i);
+    (void)v;
   }
   auto t2 = high_resolution_clock::now();
   auto ms_int = duration_cast<microseconds>(t2 - t1);
@@ -56,13 +57,14 @@ auto benchmark_get_random(KvStore& db, uint64_t nodes_to_get, K lower,
   std::uniform_int_distribution<K> dist(lower, upper);
   std::vector<K> random_keys(nodes_to_get);
 
-  for (int i = 0; i < nodes_to_get; i++) {
+  for (std::size_t i = 0; i < nodes_to_get; i++) {
     random_keys[i] = static_cast<K>(dist(eng));
   }
 
   auto t1 = high_resolution_clock::now();
   for (K key : random_keys) {
     const std::optional<V> value = db.Get(key);
+    (void)value;
   }
   auto t2 = high_resolution_clock::now();
   auto ms_int = duration_cast<microseconds>(t2 - t1);

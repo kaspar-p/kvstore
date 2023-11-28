@@ -54,8 +54,8 @@ class MinHeap::MinHeapImpl {
  public:
   explicit MinHeapImpl(std::vector<K> initial_keys) {
     this->heap.resize(initial_keys.size());
-    for (int i = 0; i < this->heap.size(); i++) {
-      this->heap.at(i) = std::make_pair(initial_keys[i], i);
+    for (std::size_t i = 0; i < this->heap.size(); i++) {
+      this->heap.at(i) = std::make_pair(initial_keys.at(i), i);
     }
     std::sort(this->heap.begin(), this->heap.end(), sortByKey);
   }

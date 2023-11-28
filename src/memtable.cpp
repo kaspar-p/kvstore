@@ -25,7 +25,7 @@ RbNode* nil_sentinel();
 
 class RbNode {
  public:
-  RbNode(K key, V value) : key_(key), is_nil_(false) {
+  RbNode(K key, V value) : is_nil_(false), key_(key) {
     this->data_ = value;
 
     this->color_ = kBlack;
@@ -33,7 +33,7 @@ class RbNode {
     this->left_ = this;
     this->right_ = this;
   }
-  RbNode() : key_(0), is_nil_(true) {
+  RbNode() : is_nil_(true), key_(0) {
     this->data_ = 0;
     this->color_ = kBlack;
 

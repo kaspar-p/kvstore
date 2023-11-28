@@ -18,7 +18,7 @@ std::string repeat(const std::string& input, uint32_t num) {
 std::string bit_string(uint32_t num, uint32_t bits) {
   std::ostringstream s;
 
-  for (int j = 0; j < bits; j++) {
+  for (int64_t j = 0; j < bits; j++) {
     s << std::to_string((num >> (32 - j - 1)) & 1);
   }
 

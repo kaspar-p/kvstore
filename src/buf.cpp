@@ -115,7 +115,7 @@ class BufPool::BufPoolImpl {
 
   [[nodiscard]] TrieNode& trie_find_bucket(uint32_t hash,
                                            uint32_t prefix_length) const {
-    int offset = 0;
+    std::size_t offset = 0;
     uint32_t idx;
 
     std::reference_wrapper<TrieNode> curr = *this->root;

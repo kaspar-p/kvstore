@@ -112,18 +112,24 @@ class KvStore::KvStoreImpl {
         if (i == this->levels.size() - 1) {
           // TODO set is_final to false for current level
           auto level = std::make_unique<LSMLevel>(
-              this->naming, this->levels[i]->Level() + 1, true, this->memtable.GetCapacity(),
-              this->manifest.value(), this->buf.value());
+              this->naming, this->levels[i]->Level() + 1, true,
+              this->memtable.GetCapacity(), this->manifest.value(),
+              this->buf.value());
           this->levels.push_back(std::move(level));
         }
 
         std::unique_ptr<LSMRun> new_run = std::make_unique<LSMRun>(
-            this->naming, this->levels[i+1]->Level(), this->levels[i]->NextRun(), this->tiers, this->memtable.GetCapacity(),
-            this->manifest.value(), this->buf.value(), *this->sstable_serializer,
+            this->naming, this->levels[i + 1]->Level(),
+            this->levels[i]->NextRun(), this->tiers,
+            this->memtable.GetCapacity(), this->manifest.value(),
+            this->buf.value(), *this->sstable_serializer,
             *this->filter_serializer);
 
-        // TODO merge into single run and delete tombstones if next level is final
-        this->levels[i]->CompactRuns(std::move(new_run), this->levels[i + 1]->NextRun(), this->levels[i + 1]->Level());
+        // TODO merge into single run and delete tombstones if next level is
+        // final
+        this->levels[i]->CompactRuns(std::move(new_run),
+                                     this->levels[i + 1]->NextRun(),
+                                     this->levels[i + 1]->Level());
         this->levels[i + 1]->RegisterNewRun(std::move(new_run));
       } else {
         // if this level is not full, later levels cannot be full
@@ -174,7 +180,7 @@ class KvStore::KvStoreImpl {
   }
 
  public:
-  KvStoreImpl() : open(false), memtable(0){};
+  KvStoreImpl() : memtable(0), open(false){};
   ~KvStoreImpl() { this->Close(); };
 
   void Open(const std::string& name, const Options options) {

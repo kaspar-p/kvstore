@@ -98,6 +98,7 @@ TEST(KvStore, UnopenedGetThrow) {
       {
         try {
           auto v = db.Get(1);
+          (void)v;
         } catch (const DatabaseClosedException& e) {
           ASSERT_TRUE(std::string(e.what()).find("closed") !=
                       std::string::npos);

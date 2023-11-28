@@ -121,14 +121,14 @@ TEST(Filter, RecoveryRandom) {
     ASSERT_FALSE(f.Has(filename, 999));
     ASSERT_EQ(std::filesystem::file_size(filename) % kPageSize, 0);
 
-    for (int i = 0; i < keys.size(); i++) {
+    for (std::size_t i = 0; i < keys.size(); i++) {
       ASSERT_TRUE(f.Has(filename, keys.at(i).first));
     }
   }
 
   {
     ASSERT_EQ(std::filesystem::file_size(filename) % kPageSize, 0);
-    for (int i = 0; i < keys.size(); i++) {
+    for (std::size_t i = 0; i < keys.size(); i++) {
       ASSERT_TRUE(f.Has(filename, keys.at(i).first));
     }
   }
