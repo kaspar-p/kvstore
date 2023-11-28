@@ -8,9 +8,11 @@ class MinHeap {
  public:
   /**
    * @brief Construct a minheap to store the next key from a set of LSMRuns.
-
+   * @param initial_keys The initial keys to add to the minheap.
+   * Assumes each key's index in the initial_keys vector is equal to the index
+   * of that key's run in its LSMLevel.
    */
-   MinHeap(const std::vector<K>& initial_keys);
+   explicit MinHeap(const std::vector<K>& initial_keys);
    ~MinHeap();
 
   /**

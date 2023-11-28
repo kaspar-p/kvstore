@@ -35,7 +35,7 @@ class MinHeap::MinHeapImpl {
     int right = 2 * index + 2;
     int smallest = index;
 
-    smallest = GetSmallerIndex(index, left);
+    smallest = GetSmallerIndex(smallest, left);
     smallest = GetSmallerIndex(smallest, right);
 
     if (smallest != index) {

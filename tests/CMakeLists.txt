@@ -42,6 +42,7 @@ add_executable(kvstore_test
   src/fileutil.test.cpp
   src/manifest.test.cpp
   src/naming.test.cpp
+  src/minheap.test.cpp
 )
 
 target_link_libraries(kvstore_test PRIVATE kvstore_naming)
