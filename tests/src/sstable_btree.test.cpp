@@ -141,14 +141,12 @@ TEST(SstableBTree, GetSingleElems2LayersFull) {
   ASSERT_EQ(f.good(), true);
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs);
-
-  std::optional<V> val = t.GetFromFile(f, 0);
-  ASSERT_EQ(val.has_value(), true);
-  ASSERT_EQ(val.value(), 0);
-
-  val = t.GetFromFile(f, 65024);
-  ASSERT_EQ(val.has_value(), true);
-  ASSERT_EQ(val.value(), 65024);
+  
+  for (int i = 0; i < 65025; i++) {
+   std::optional<V> val = t.GetFromFile(f, i);
+    ASSERT_EQ(val.has_value(), true);
+    ASSERT_EQ(val.value(), i);
+  }
 }
 
 // TEST(SstableBTree, GetSingleElems3layers) {
