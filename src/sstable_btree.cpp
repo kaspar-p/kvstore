@@ -33,8 +33,14 @@ struct SstableBtreeNode {
 
 SstableBTree::SstableBTree() = default;
 
-K SstableBTree::GetMinimum(std::fstream& file) const { return 0; }
-K SstableBTree::GetMaximum(std::fstream& file) const { return 1; }
+K SstableBTree::GetMinimum(std::fstream& file) const {
+  (void)file;
+  return 0;
+}
+K SstableBTree::GetMaximum(std::fstream& file) const {
+  (void)file;
+  return 1;
+}
 std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
   return ScanInFile(file, 0, UINT64_MAX);
 }

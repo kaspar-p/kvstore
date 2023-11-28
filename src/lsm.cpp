@@ -10,9 +10,9 @@
 #include "constants.hpp"
 #include "filter.hpp"
 #include "manifest.hpp"
+#include "minheap.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
-#include "minheap.hpp"
 
 class LSMRun::LSMRunImpl {
  private:
@@ -87,16 +87,17 @@ class LSMRun::LSMRunImpl {
   }
 
   std::vector<std::pair<K, V>> GetVectorFromFile(uint32_t file_num) {
-    std::string filename = data_file(this->naming, this->level, this->run, file_num);
+    std::string filename =
+        data_file(this->naming, this->level, this->run, file_num);
     std::fstream f(filename, std::fstream::binary | std::fstream::in);
     if (!f.is_open()) {
       std::vector<std::pair<K, V>> vector;
       return vector;
     }
-    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(f, 0, UINT64_MAX); // TODO do we have a ScanAll for this?
+    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(
+        f, 0, UINT64_MAX);  // TODO do we have a ScanAll for this?
     return vector;
   }
-
 };
 
 LSMRun::LSMRun(const DbNaming& naming, int level, int run, uint8_t tiers,
@@ -172,79 +173,85 @@ class LSMLevel::LSMLevelImpl {
     this->runs.push_back(std::move(run));
   }
 
-  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level) {
-      std::vector<std::pair<K, V>> buffer;
-      buffer.reserve(memory_buffer_size);
+  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run,
+                                      uint32_t run, uint32_t level) {
+    std::vector<std::pair<K, V>> buffer;
+    buffer.reserve(memory_buffer_size);
 
-      // Index of current file to read from for each run
-      std::vector<int> file_number(this->runs.size(), 0);
+    // Index of current file to read from for each run
+    std::vector<int> file_number(this->runs.size(), 0);
 
-      // Contents of current file for each run
-      std::vector<std::vector<std::pair<K, V>>> file_contents(this->runs.size());
+    // Contents of current file for each run
+    std::vector<std::vector<std::pair<K, V>>> file_contents(this->runs.size());
 
-      // Initialize heap from first key in each run
-      std::vector<K> first_keys(this->runs.size(), 0);
-      for (int run = 0; run < this->runs.size(); run++) {
-        std::vector<std::pair<K, V>> contents = this->runs[run]->GetVectorFromFile(file_number[run]);
-        file_contents[run] = contents;
-        first_keys[run] = contents[0].first;
-      }
+    // Initialize heap from first key in each run
+    std::vector<K> first_keys(this->runs.size(), 0);
+    for (int run = 0; run < this->runs.size(); run++) {
+      std::vector<std::pair<K, V>> contents =
+          this->runs[run]->GetVectorFromFile(file_number[run]);
+      file_contents[run] = contents;
+      first_keys[run] = contents[0].first;
+    }
 
-      // Index of current position in file for each run
-      std::vector<int> file_cursor(this->runs.size(), 1);
-//
-      auto minheap = std::make_unique<MinHeap>(first_keys);
+    // Index of current position in file for each run
+    std::vector<int> file_cursor(this->runs.size(), 1);
+    auto minheap = std::make_unique<MinHeap>(first_keys);
 
-      std::optional<std::pair<K, int>> min_pair = std::nullopt;
-      std::optional<std::pair<K, int>> new_min_pair = minheap->Extract();
-      std::optional<std::pair<K, int>> next_pair_to_insert = std::nullopt;
-      int min_run;
+    std::optional<std::pair<K, int>> min_pair = std::nullopt;
+    std::optional<std::pair<K, int>> new_min_pair = minheap->Extract();
+    std::optional<std::pair<K, int>> next_pair_to_insert = std::nullopt;
+    int min_run;
 
-      while (!minheap->IsEmpty()) {
-        while (!minheap->IsEmpty() && buffer.size() < memory_buffer_size) {
-          min_run = new_min_pair->second;
+    while (!minheap->IsEmpty()) {
+      while (!minheap->IsEmpty() && buffer.size() < memory_buffer_size) {
+        min_run = new_min_pair->second;
 
-          // If new key matches previous key, it is out of date, so don't write it
-          if (min_pair == std::nullopt || new_min_pair->first != min_pair->first) {
-            std::pair<K, V> min_kv = file_contents[min_run][file_cursor[min_run]];
-            buffer.push_back(min_kv);
-          }
-
-          min_pair = new_min_pair;
-          file_cursor[min_run]++;
-
-          // If file position has reached the end of the file, try to load the next file from the same run
-          if (file_cursor[min_run] >= file_contents[min_run].size()) {
-            file_number[min_run]++;
-            file_cursor[min_run] = 0;
-            file_contents[min_run] = this->runs[min_run]->GetVectorFromFile(file_number[min_run]);
-          }
-
-          // Get new smallest key from same file
-          if (file_contents[min_run].empty()) {
-            // no more files in this run, so no new key to insert
-            min_pair = minheap->Extract();
-          } else {
-            // insert next key from this file
-            std::pair<K, V> next_key_from_file = file_contents[min_run][file_cursor[min_run]];
-            next_pair_to_insert = std::make_pair(next_key_from_file.first, min_run);
-            new_min_pair = minheap->InsertAndExtract(next_pair_to_insert.value());
-          }
+        // If new key matches previous key, it is out of date, so don't write it
+        if (min_pair == std::nullopt ||
+            new_min_pair->first != min_pair->first) {
+          std::pair<K, V> min_kv = file_contents[min_run][file_cursor[min_run]];
+          buffer.push_back(min_kv);
         }
 
-        // Flush buffer to file
-        if (!buffer.empty()) {
-          uint32_t intermediate = new_run->NextFile();
-          std::fstream new_file(data_file(this->dbname, level, run, intermediate),
-                                std::fstream::binary | std::fstream::in |
-                                    std::fstream::out | std::fstream::trunc);
-          // TODO: make buffer an sstable instead of a sorted vector
-          new_run->Flush(new_file, buffer);
-          new_run->RegisterNewFile(intermediate);
-          buffer.clear();
+        min_pair = new_min_pair;
+        file_cursor[min_run]++;
+
+        // If file position has reached the end of the file, try to load the
+        // next file from the same run
+        if (file_cursor[min_run] >= file_contents[min_run].size()) {
+          file_number[min_run]++;
+          file_cursor[min_run] = 0;
+          file_contents[min_run] =
+              this->runs[min_run]->GetVectorFromFile(file_number[min_run]);
+        }
+
+        // Get new smallest key from same file
+        if (file_contents[min_run].empty()) {
+          // no more files in this run, so no new key to insert
+          min_pair = minheap->Extract();
+        } else {
+          // insert next key from this file
+          std::pair<K, V> next_key_from_file =
+              file_contents[min_run][file_cursor[min_run]];
+          next_pair_to_insert =
+              std::make_pair(next_key_from_file.first, min_run);
+          new_min_pair = minheap->InsertAndExtract(next_pair_to_insert.value());
         }
       }
-      return new_run;
+
+      // Flush buffer to file
+      if (!buffer.empty()) {
+        uint32_t intermediate = new_run->NextFile();
+        std::fstream new_file(data_file(this->dbname, level, run, intermediate),
+                              std::fstream::binary | std::fstream::in |
+                                  std::fstream::out | std::fstream::trunc);
+        // TODO: make buffer an sstable instead of a sorted vector
+        new_run->Flush(new_file, buffer);
+        new_run->RegisterNewFile(intermediate);
+        buffer.clear();
+      }
+    }
+    return new_run;
   }
 
   // LSMLevel MergeWith(const LSMLevel& level) {
@@ -272,6 +279,7 @@ std::optional<V> LSMLevel::Get(K key) const { return this->impl->Get(key); }
 std::vector<std::pair<K, V>> LSMLevel::Scan(K lower, K upper) const {
   return this->impl->Scan(lower, upper);
 };
-std::unique_ptr<LSMRun> LSMLevel::CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level) {
+std::unique_ptr<LSMRun> LSMLevel::CompactRuns(std::unique_ptr<LSMRun> new_run,
+                                              uint32_t run, uint32_t level) {
   return this->impl->CompactRuns(std::move(new_run), run, level);
 }

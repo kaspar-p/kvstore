@@ -14,9 +14,10 @@ bool sortByKey(const std::pair<K, int> &a, const std::pair<K, int> &b) {
 
 class MinHeap::MinHeapImpl {
  private:
-  std::vector<std::pair<K, int>> heap;  // each key and its run number
+  std::vector<std::pair<K, std::size_t>> heap;  // each key and its run number
 
-  int GetSmallerIndex(int current_index, int new_index) {
+  std::size_t GetSmallerIndex(std::size_t current_index,
+                              std::size_t new_index) {
     // Assume current_index is always within vector, but new_index may not be
     if (new_index >= this->heap.size()) {
       return current_index;
@@ -100,11 +101,11 @@ MinHeap::~MinHeap() = default;
 
 bool MinHeap::IsEmpty() { return this->impl->IsEmpty(); }
 
-std::optional<std::pair<K, int>> MinHeap::Extract() {
+std::optional<std::pair<K, std::size_t>> MinHeap::Extract() {
   return this->impl->Extract();
 }
 
-std::optional<std::pair<K, int>> MinHeap::InsertAndExtract(
-    std::pair<K, int> next_pair) {
+std::optional<std::pair<K, std::size_t>> MinHeap::InsertAndExtract(
+    std::pair<K, std::size_t> next_pair) {
   return this->impl->InsertAndExtract(next_pair);
 }

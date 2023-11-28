@@ -165,13 +165,15 @@ class LSMLevel {
   // [[nodiscard]] LSMLevel MergeWith(LSMLevel level);
 
   /**
-   * @brief Merge-sort all runs in the level into LSMRun new_run in LSMLevel next_level.
+   * @brief Merge-sort all runs in the level into LSMRun new_run in LSMLevel
+   * next_level.
    *
    * @param new_run The new LSMRun to merge the existing runs into.
    * @param run
    * @param level
    */
-  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run, uint32_t run, uint32_t level);
+  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run,
+                                      uint32_t run, uint32_t level);
 
  private:
   class LSMLevelImpl;

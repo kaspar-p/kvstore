@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -15,8 +16,8 @@ class MinHeap {
    * Assumes each key's index in the initial_keys vector is equal to the index
    * of that key's run in its LSMLevel.
    */
-   explicit MinHeap(const std::vector<K>& initial_keys);
-   ~MinHeap();
+  explicit MinHeap(const std::vector<K>& initial_keys);
+  ~MinHeap();
 
   /**
    * @brief
@@ -28,7 +29,7 @@ class MinHeap {
    * @brief
    * @param
    */
-  std::optional<std::pair<K, int>> Extract();
+  std::optional<std::pair<K, std::size_t>> Extract();
 
   /**
    * @brief Insert a key and extract the previous minumum
@@ -36,8 +37,8 @@ class MinHeap {
    * @param key The key to insert
    * return
    */
-  std::optional<std::pair<K, int>> InsertAndExtract(
-      std::pair<K, int> next_pair);
+  std::optional<std::pair<K, std::size_t>> InsertAndExtract(
+      std::pair<K, std::size_t> next_pair);
 
  private:
   class MinHeapImpl;
