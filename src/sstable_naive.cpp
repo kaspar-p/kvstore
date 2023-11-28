@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -9,6 +10,7 @@
 #include <vector>
 
 #include "constants.hpp"
+#include "fileutil.hpp"
 #include "sstable.hpp"
 
 SstableNaive::SstableNaive() = default;
@@ -19,11 +21,11 @@ K SstableNaive::GetMinimum(std::fstream& file) const {
 
   file.seekg(0);
   assert(file.good());
-  uint64_t buf[4];
-  file.read(reinterpret_cast<char*>(buf), 4 * sizeof(uint64_t));
+  std::array<uint64_t, 4> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 4 * sizeof(uint64_t));
   assert(file.good());
 
-  return buf[2];
+  return buf.at(2);
 }
 
 K SstableNaive::GetMaximum(std::fstream& file) const {
@@ -32,45 +34,45 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
 
   file.seekg(0);
   assert(file.good());
-  uint64_t buf[4];
-  file.read(reinterpret_cast<char*>(buf), 4 * sizeof(uint64_t));
+  std::array<uint64_t, 4> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 4 * sizeof(uint64_t));
   assert(file.good());
 
-  return buf[3];
+  return buf.at(3);
 }
 
 void SstableNaive::Flush(std::fstream& file,
                          std::vector<std::pair<K, V>>& pairs) const {
-  constexpr int kZeroesInPage = kPageSize / sizeof(uint64_t);
-  const std::size_t element_size = 4 + 2 * pairs.size();
-  const std::size_t bufsize =
-      element_size + (kZeroesInPage - (element_size % kZeroesInPage));
-  uint64_t wbuf[bufsize];
+  constexpr int kPageKeys = kPageSize / sizeof(uint64_t);
+  std::array<uint64_t, kPageKeys> metadata_buf{};
+  put_magic_numbers(metadata_buf, FileType::kData);
 
   // Insert the metadata.
-  wbuf[0] = 0x11223344;
-  wbuf[1] = pairs.size();
-  wbuf[2] = pairs.front().first;
-  wbuf[3] = pairs.back().first;
-
-  // Insert the key value pairs
-  for (int i = 0; i < pairs.size(); i++) {
-    wbuf[4 + (2 * i) + 0] = pairs.at(i).first;
-    wbuf[4 + (2 * i) + 1] = pairs.at(i).second;
-  }
-
-  // Pad the rest of the page with zeroes
-  for (int i = element_size; i < bufsize; i++) {
-    wbuf[i] = 0;
-  }
+  metadata_buf.at(2) = pairs.size();
+  metadata_buf.at(3) = pairs.front().first;
+  metadata_buf.at(4) = pairs.back().first;
 
   assert(file.is_open());
   assert(file.good());
   file.seekp(0);
-  for (uint64_t& elem : wbuf) {
-    file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
-    assert(file.good());
+  file.write(reinterpret_cast<char*>(metadata_buf.data()), kPageSize);
+  assert(file.good());
+
+  std::vector<uint64_t> data_buf;
+  std::size_t padding = kPageKeys - ((2 * pairs.size()) % kPageKeys);
+  data_buf.resize(2 * pairs.size() + padding);
+
+  // Insert the key value pairs
+  for (int i = 0; i < pairs.size(); i++) {
+    data_buf.at((2 * i) + 0) = pairs.at(i).first;
+    data_buf.at((2 * i) + 1) = pairs.at(i).second;
   }
+
+  assert(file.good());
+  file.seekp(kPageSize);
+  file.write(reinterpret_cast<char*>(data_buf.data()),
+             data_buf.size() * sizeof(uint64_t));
+  assert(file.good());
 
   file.flush();
   assert(file.good());
@@ -81,30 +83,35 @@ struct BinarySearchResult {
   uint64_t key_index;
 };
 
-constexpr int kHeaderSize = 4;
 constexpr int kPairSize = 2;
 
-std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
-                                                K key, bool get_closest_bound) {
-  uint64_t left = kHeaderSize;
-  uint64_t right = kHeaderSize + elems * kPairSize;
-  uint64_t mid = left + floor((right - left) / 4) * 2;
+std::optional<BinarySearchResult> binary_search(std::fstream& file,
+                                                std::size_t elems, K key,
+                                                bool get_closest_bound) {
+  int left = 0;
+  int right = elems * kPairSize;
+  int mid = left + floor((right - left) / 4) * 2;
   while (left <= right) {
     mid = left + floor((right - left) / 4) * 2;
 
     // Read the page that `mid` is in
     // TODO(kfp) use BufPool!
-    uint64_t page_idx = (mid * sizeof(uint64_t)) / kPageSize;
-    file.seekg(page_idx * kPageSize);
-    uint64_t mid_page[kPageSize / sizeof(uint64_t)];
-    file.read(reinterpret_cast<char*>(mid_page), kPageSize);
+
+    // first page is metadata page
+    assert(file.good());
+    uint64_t page_idx = ((mid * sizeof(uint64_t)) / kPageSize) + 1;
+    file.seekg(static_cast<std::streamoff>(page_idx * kPageSize));
+    std::array<uint64_t, kPageSize / sizeof(uint64_t)> mid_page{};
+    assert(file.good());
+    file.read(reinterpret_cast<char*>(mid_page.data()), kPageSize);
+    assert(file.good());
 
     uint64_t mid_in_page = mid % (kPageSize / sizeof(uint64_t));
-    K found_key = mid_page[mid_in_page];
+    K found_key = mid_page.at(mid_in_page);
     if (found_key == key || (get_closest_bound && left == right)) {
       return std::make_optional(BinarySearchResult{
-          .val = mid_page[mid_in_page + 1],
-          .key_index = mid,
+          .val = mid_page.at(mid_in_page + 1),
+          .key_index = static_cast<uint64_t>(mid),
       });
     }
 
@@ -116,7 +123,8 @@ std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
   }
 
   if (get_closest_bound) {
-    return BinarySearchResult{.val = key, .key_index = mid};
+    return BinarySearchResult{.val = key,
+                              .key_index = static_cast<uint64_t>(mid)};
   }
 
   return std::nullopt;
@@ -124,29 +132,29 @@ std::optional<BinarySearchResult> binary_search(std::fstream& file, int elems,
 
 std::optional<V> SstableNaive::GetFromFile(std::fstream& file,
                                            const K key) const {
-  uint64_t metadata[kPageSize];
+  std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata{};
   assert(file.is_open());
   assert(file.good());
 
   file.seekg(0);
-  file.read(reinterpret_cast<char*>(metadata), kPageSize);
+  file.read(reinterpret_cast<char*>(metadata.data()), kPageSize);
   assert(file.good());
 
-  if (metadata[0] != 0x11223344) {
-    std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
+  if (!has_magic_numbers(metadata, FileType::kData)) {
+    std::cout << "Magic number wrong! Expected " << file_magic() << " but got "
               << metadata[0] << '\n';
     exit(1);
   }
 
   // If there are no elements
-  int elems = metadata[1];
+  uint64_t elems = metadata.at(2);
   if (elems == 0) {
     return std::nullopt;
   }
 
   // If the key is out of bounds for the page
-  K lower = metadata[2];
-  K upper = metadata[3];
+  K lower = metadata.at(3);
+  K upper = metadata.at(4);
   if (key < lower || key > upper) {
     return std::nullopt;
   }
@@ -164,31 +172,31 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
                                                       const K upper) const {
   assert(lower <= upper);
 
-  uint64_t buf[kPageSize];
+  std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata_page{};
   assert(file.is_open());
   assert(file.good());
 
   file.seekg(0);
-  file.read(reinterpret_cast<char*>(buf), kPageSize);
+  file.read(reinterpret_cast<char*>(metadata_page.data()), kPageSize);
   assert(file.good());
 
-  if (buf[0] != 0x11223344) {
-    std::cout << "Magic number wrong! Expected " << 0x11223344 << " but got "
-              << buf[0] << '\n';
+  if (!has_magic_numbers(metadata_page, FileType::kData)) {
+    std::cout << "Magic number wrong! Expected " << file_magic() << " but got "
+              << metadata_page.at(0) << '\n';
     exit(1);
   }
 
   std::vector<std::pair<K, V>> l;
 
   // If there are no elements
-  int elems = buf[1];
+  uint64_t elems = metadata_page.at(2);
   if (elems == 0) {
     return l;
   }
 
   // If the keys are out of bounds for the page
-  K page_lower = buf[2];
-  K page_upper = buf[3];
+  K page_lower = metadata_page.at(3);
+  K page_upper = metadata_page.at(4);
   if ((upper < page_lower) || (lower > page_upper)) {
     return l;
   }
@@ -197,10 +205,39 @@ std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
       binary_search(file, elems, lower, true);
   assert(res.has_value());
 
-  int walk = res.value().key_index;
-  while (buf[walk] <= upper && walk < kHeaderSize + elems * kPairSize) {
-    l.emplace_back(buf[walk], buf[walk + 1]);
+  std::array<uint64_t, kPageSize / sizeof(uint64_t)> data_buf;
+
+  int pages_read = 0;
+  assert(file.good());
+  file.seekg(((res.value().key_index / kPageSize) * (kPageSize)) + kPageSize);
+  file.read(reinterpret_cast<char*>(data_buf.data()), kPageSize);
+  assert(file.good());
+
+  // Walk along the file, collecting key value pairs
+  uint64_t walk = res.value().key_index % (kPageSize / sizeof(uint64_t));
+  uint64_t original_page_walk =
+      res.value().key_index % (kPageSize / sizeof(uint64_t));
+
+  constexpr std::size_t kPageKeys = kPageSize / sizeof(uint64_t);
+
+  // Keep walking until:
+  // 1. the key is out of bounds, or
+  // 2. the walking variable is greater than the number of elements
+  while (data_buf.at(walk) <= upper &&
+         walk + (pages_read * kPageKeys) < elems * kPairSize) {
+    l.emplace_back(data_buf.at(walk), data_buf.at(walk + 1));
     walk += 2;
+
+    // If we have walked an entire page already, read the next page
+    if (walk - original_page_walk == kPageKeys) {
+      walk = 0;
+      original_page_walk = 0;
+      pages_read++;
+
+      assert(file.good());
+      file.read(reinterpret_cast<char*>(data_buf.data()), kPageSize);
+      assert(file.good());
+    }
   }
 
   return l;

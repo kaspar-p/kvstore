@@ -139,11 +139,11 @@ class Filter::FilterImpl {
 
   void write_metadata_block(std::fstream& file, uint64_t num_entries) {
     assert(file.good());
-    uint64_t metadata_block[kPageSize / sizeof(uint64_t)]{};
+    std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata_block{};
     put_magic_numbers(metadata_block, FileType::kFilter);
     metadata_block[kNumEntries] = num_entries;
 
-    file.write(reinterpret_cast<char*>(metadata_block), kPageSize);
+    file.write(reinterpret_cast<char*>(metadata_block.data()), kPageSize);
     assert(file.good());
 
     uint64_t num_filters = this->num_filters(num_entries);
@@ -229,9 +229,9 @@ class Filter::FilterImpl {
     assert(file.is_open());
     assert(file.good());
 
-    uint64_t metadata_page[kPageSize / sizeof(uint64_t)];
+    std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata_page{};
     file.seekg(0);
-    file.read(reinterpret_cast<char*>(metadata_page), kPageSize);
+    file.read(reinterpret_cast<char*>(metadata_page.data()), kPageSize);
 
     assert(has_magic_numbers(metadata_page, FileType::kFilter));
 

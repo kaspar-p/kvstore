@@ -131,12 +131,14 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
 
 //   SstableBTree t{};
 //   std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
-//                  std::fstream::binary | std::fstream::in | std::fstream::out |
+//                  std::fstream::binary | std::fstream::in | std::fstream::out
+//                  |
 //                      std::fstream::trunc);
 //   ASSERT_EQ(f.is_open(), true);
 //   ASSERT_EQ(f.good(), true);
 //   t.Flush(f,
-//           std::make_unique<std::vector<std::pair<K, V>>>(memtable.ScanAll()));
+//           std::make_unique<std::vector<std::pair<K,
+//           V>>>(memtable.ScanAll()));
 
 //   std::optional<V> val = t.GetFromFile(f, 130049);
 
@@ -146,6 +148,55 @@ TEST(SstableBTree, GetSingleElems2LeafNodes) {
 
 // Further test layers of internal nodes (like 3+ layers)
 // TODO: taking max of maxes for internal layers
+
+TEST(SstableBTree, Scan10KEntries) {
+  int amt = 10000;
+  MemTable memtable(amt);
+  for (int i = 0; i < amt; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.Scan10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, amt);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i), keys->at(i));
+  }
+}
+
+TEST(SstableBTree, ScanDenseAround) {
+  MemTable memtable(100);
+  for (int i = 100; i < 200; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.ScanSparseRangeLeftHanging",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, UINT64_MAX);
+
+  ASSERT_EQ(val.size(), 100);
+  for (int i = 100; i < 200; i++) {
+    ASSERT_EQ(val.at(i - 100).first, i);
+    ASSERT_EQ(val.at(i - 100).second, 2 * i);
+  }
+}
+
 
 TEST(SstableBTree, ScanDenseRange1LeafNode) {
   MemTable memtable(64);

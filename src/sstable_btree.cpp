@@ -68,7 +68,7 @@ void SstableBTree::Flush(std::fstream& file,
         .offset = (1 + i / order) * kPageSize,
         .global_max = 0,
     };
-    
+
     LeafNode leaf_node;
     // magic number + garbage (4 + 4 bytes)
     leaf_node.magic_number = 0x00db0011;
@@ -115,17 +115,17 @@ void SstableBTree::Flush(std::fstream& file,
   // note that the address of the first internal node is the address of the last
   // leaf node + 1 since this is offsets we can calculate this using the length
   // of the queue at the start of the algorithm
-  
+
   while (creation_queue.size() > 1) {
     uint64_t queue_length = creation_queue.size();
     uint64_t start_offset = creation_queue.back().offset + kPageSize;
 
     int i = 0;
-    
+
     while (i < queue_length) {
       // info node used for the queue
       SstableBtreeNode info_node;
-      info_node.offset = start_offset + i/order * kPageSize;
+      info_node.offset = start_offset + i / order * kPageSize;
       // if i = last don't make internal node
 
       // create internal node
@@ -195,7 +195,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
-  
+
   file.seekg(0);
   file.read(reinterpret_cast<char*>(buf), kPageSize);
   assert(file.good());
@@ -218,7 +218,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
     file.seekg(cur_offset);
     file.read(reinterpret_cast<char*>(buf), kPageSize);
     assert(file.good());
-    
+
     int header_size = 2;
     int pair_size = 2;
 
@@ -239,7 +239,7 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
         right = header_size + elems % ((kPageSize - 16) / 16) * pair_size;
       }
       int mid = left + floor((right - left) / 4) * 2;
-      
+
       while (left <= right) {
         int mid = left + floor((right - left) / 4) * 2;
         if (buf[mid] == key) {
@@ -253,24 +253,24 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
         }
       }
       return std::nullopt;
-    } 
+    }
     if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
-      int right = header_size + (num_children-1) * pair_size;
+      int right = header_size + (num_children - 1) * pair_size;
       if (key <= buf[left]) {
         cur_offset = buf[left + 1];
-      } else if (key > buf[right-2]) {
+      } else if (key > buf[right - 2]) {
         cur_offset = buf[1];
       } else {
         int mid = left + floor((right - left) / 4) * 2;
         while (left <= right) {
           mid = left + floor((right - left) / 4) * 2;
-          if (buf[mid-2] < key && key <= buf[mid]) {
+          if (buf[mid - 2] < key && key <= buf[mid]) {
             cur_offset = buf[mid + 1];
             break;
-          } 
-          
+          }
+
           if (buf[mid] < key) {
             left = mid + 2;
           } else {
@@ -360,19 +360,19 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
     } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
-      int right = header_size + (num_children-1) * pair_size;
+      int right = header_size + (num_children - 1) * pair_size;
       if (lower <= buf[left]) {
         cur_offset = buf[left + 1];
-      } else if (lower > buf[right-2]) {
+      } else if (lower > buf[right - 2]) {
         cur_offset = buf[1];
       } else {
         while (left <= right) {
           int mid = left + floor((right - left) / 4) * 2;
-          if (buf[mid-2] < lower && lower <= buf[mid]) {
+          if (buf[mid - 2] < lower && lower <= buf[mid]) {
             cur_offset = buf[mid + 1];
             break;
-          } 
-          
+          }
+
           if (buf[mid] < lower) {
             left = mid + 2;
           } else {
@@ -390,11 +390,10 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
   int walk = mid;
   while ((buf[0] >> 32 == 0x00db0011) && buf[walk] <= upper &&
          walk < kPageSize / sizeof(uint64_t)) {
-    if (buf[1] == 0xffffffffffffffff &&
-        elems % ((kPageSize - 16) / 16) != 0 &&
-        walk >= 2 + (elems % ((kPageSize-16)/16)) * 2) {
+    if (buf[1] == 0xffffffffffffffff && elems % ((kPageSize - 16) / 16) != 0 &&
+        walk >= 2 + (elems % ((kPageSize - 16) / 16)) * 2) {
       break;
-    }; 
+    };
     l.push_back(std::make_pair(buf[walk], buf[walk + 1]));
     walk += 2;
 

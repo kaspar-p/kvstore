@@ -1,6 +1,7 @@
 #include "manifest.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -44,7 +45,7 @@ class Manifest::ManifestHandleImpl {
 
     std::vector<uint64_t> page{};
     page.resize(4);
-    put_magic_numbers(page.data(), FileType::kManifest);
+    put_magic_numbers(page, FileType::kManifest);
     page[2] = this->levels.size();
     page[3] = this->total_number_of_files();
 
@@ -83,9 +84,9 @@ class Manifest::ManifestHandleImpl {
                                                      std::fstream::in |
                                                      std::fstream::out);
 
-    uint64_t first_page[kPageSize / sizeof(uint64_t)];
+    std::array<uint64_t, kPageSize / sizeof(uint64_t)> first_page;
     this->file.seekg(0);
-    this->file.read(reinterpret_cast<char*>(first_page), kPageSize);
+    this->file.read(reinterpret_cast<char*>(first_page.data()), kPageSize);
 
     assert(has_magic_numbers(first_page, FileType::kManifest));
 

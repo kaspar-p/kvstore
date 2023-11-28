@@ -12,9 +12,14 @@ enum FileType {
   kFilter = 2,
 };
 
-bool has_magic_numbers(uint64_t page[kPageSize / sizeof(uint64_t)],
+uint64_t file_magic();
+
+bool has_magic_numbers(std::array<uint64_t, kPageSize / sizeof(uint64_t)>& page,
                        FileType type);
-void put_magic_numbers(uint64_t page[kPageSize / sizeof(uint64_t)],
+bool has_magic_numbers(std::vector<uint64_t>& page, FileType type);
+
+void put_magic_numbers(std::array<uint64_t, kPageSize / sizeof(uint64_t)>& page,
                        FileType type);
+void put_magic_numbers(std::vector<uint64_t>& page, FileType type);
 
 bool is_file_type(const std::filesystem::path& file, FileType type);

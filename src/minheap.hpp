@@ -1,6 +1,9 @@
-#include <cstdint>
-#include <cstdlib>
+#pragma once
+
+#include <memory>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include "constants.hpp"
 
@@ -33,7 +36,8 @@ class MinHeap {
    * @param key The key to insert
    * return
    */
-  std::optional<std::pair<K, int>> InsertAndExtract(std::pair<K, int> next_pair);
+  std::optional<std::pair<K, int>> InsertAndExtract(
+      std::pair<K, int> next_pair);
 
  private:
   class MinHeapImpl;

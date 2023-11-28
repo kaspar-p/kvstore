@@ -201,6 +201,30 @@ TEST(SstableNaive, ScanSparseRangeHuge) {
   ASSERT_EQ(val.at(6).second, 109);
 }
 
+TEST(SstableNaive, Scan10KEntries) {
+  int amt = 10000;
+  MemTable memtable(amt);
+  for (int i = 0; i < amt; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableNaive t{};
+  std::fstream f("/tmp/SstableNaive.Scan10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, amt);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i), keys->at(i));
+  }
+}
+
 TEST(SstableNaive, ScanSparseRangeLeftHanging) {
   MemTable memtable(64);
   memtable.Put(7, 17);
@@ -228,6 +252,30 @@ TEST(SstableNaive, ScanSparseRangeLeftHanging) {
 
   ASSERT_EQ(val.at(1).first, 9);
   ASSERT_EQ(val.at(1).second, 19);
+}
+
+TEST(SstableNaive, ScanDenseAround) {
+  MemTable memtable(100);
+  for (int i = 100; i < 200; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableNaive t{};
+  std::fstream f("/tmp/SstableNaive.ScanSparseRangeLeftHanging",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, UINT64_MAX);
+
+  ASSERT_EQ(val.size(), 100);
+  for (int i = 100; i < 200; i++) {
+    ASSERT_EQ(val.at(i - 100).first, i);
+    ASSERT_EQ(val.at(i - 100).second, 2 * i);
+  }
 }
 
 TEST(SstableNaive, ScanSparseRangeRightHanging) {
