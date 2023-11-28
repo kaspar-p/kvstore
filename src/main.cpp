@@ -10,25 +10,20 @@
 #include "xxhash.h"
 
 int main() {
-  // MemTable memtable(a);
-  // for (int i = 0; i < 65280; i++) {
-  //   memtable.Put(i, i);
-  // }
+  std::filesystem::remove_all("kvstore.db");
 
-  // SstableBTree t{};
-  // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
-  //                std::fstream::binary | std::fstream::in | std::fstream::out
-  //                |
-  //                    std::fstream::trunc);
-  // assert(f.is_open());
-  // assert(f.good());
-  // t.Flush(f, std::make_unique<std::vector<std::pair<K,
-  // V>>>(memtable.ScanAll()));
+  Options opt = {
+      .memory_buffer_elements = 1,
+      .tiers = 4,
+      .serialization = DataFileFormat::kBTree,
+  };
+  KvStore kv;
+  kv.Open("kvstore.db", opt);
 
-  // FAILING
-  // std::optional<V> val = t.GetFromFile(f, 6524); for size = 255*255
-  // assert(val.has_value() == true);
-  // assert(val.value() == 65024);
+  for (int i = 0; i < 5; i++) {
+    std::cout << "putting " << i << std::endl;
+    kv.Put(i, 2 * i);
+  }
 
   // SCAN
 

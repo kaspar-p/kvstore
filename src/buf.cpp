@@ -222,8 +222,8 @@ class BufPool::BufPoolImpl {
               std::unique_ptr<Evictor> evictor, PageHashFn hash)
       : initial_elements(initial_elements),
         max_elements(max_elements),
-        hash_func_(hash),
-        evictor(std::move(evictor)) {
+        evictor(std::move(evictor)),
+        hash_func_(hash) {
     this->elements = 0;
     this->bits = fmax(ceil(log2l(initial_elements)), 1);
     this->capacity = fmax(pow(2, ceil(log2l(initial_elements))), 2);

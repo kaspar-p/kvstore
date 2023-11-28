@@ -156,14 +156,6 @@ class LSMLevel {
    */
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const;
 
-  //  *
-  //  * @param level The other level to merge with. Assumed to have the same
-  //  * level value as this LSMLevel.
-  //  * @return LSMLevel A new level, with level one greater than the two
-  //  merged.
-  //  */
-  // [[nodiscard]] LSMLevel MergeWith(LSMLevel level);
-
   /**
    * @brief Merge-sort all runs in the level into LSMRun new_run in LSMLevel
    * next_level.

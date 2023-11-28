@@ -188,9 +188,9 @@ class LSMLevel::LSMLevelImpl {
     std::vector<K> first_keys(this->runs.size(), 0);
     for (int run = 0; run < this->runs.size(); run++) {
       std::vector<std::pair<K, V>> contents =
-          this->runs[run]->GetVectorFromFile(file_number[run]);
-      file_contents[run] = contents;
-      first_keys[run] = contents[0].first;
+          this->runs.at(run)->GetVectorFromFile(file_number.at(run));
+      file_contents.at(run) = contents;
+      first_keys.at(run) = contents.at(0).first;
     }
 
     // Index of current position in file for each run
@@ -209,30 +209,31 @@ class LSMLevel::LSMLevelImpl {
         // If new key matches previous key, it is out of date, so don't write it
         if (min_pair == std::nullopt ||
             new_min_pair->first != min_pair->first) {
-          std::pair<K, V> min_kv = file_contents[min_run][file_cursor[min_run]];
+          std::pair<K, V> min_kv =
+              file_contents.at(min_run).at(file_cursor.at(min_run));
           buffer.push_back(min_kv);
         }
 
         min_pair = new_min_pair;
-        file_cursor[min_run]++;
+        file_cursor.at(min_run)++;
 
         // If file position has reached the end of the file, try to load the
         // next file from the same run
-        if (file_cursor[min_run] >= file_contents[min_run].size()) {
-          file_number[min_run]++;
-          file_cursor[min_run] = 0;
-          file_contents[min_run] =
-              this->runs[min_run]->GetVectorFromFile(file_number[min_run]);
+        if (file_cursor.at(min_run) >= file_contents.at(min_run).size()) {
+          file_number.at(min_run)++;
+          file_cursor.at(min_run) = 0;
+          file_contents.at(min_run) = this->runs.at(min_run)->GetVectorFromFile(
+              file_number.at(min_run));
         }
 
         // Get new smallest key from same file
-        if (file_contents[min_run].empty()) {
+        if (file_contents.at(min_run).empty()) {
           // no more files in this run, so no new key to insert
           min_pair = minheap->Extract();
         } else {
           // insert next key from this file
           std::pair<K, V> next_key_from_file =
-              file_contents[min_run][file_cursor[min_run]];
+              file_contents.at(min_run).at(file_cursor.at(min_run));
           next_pair_to_insert =
               std::make_pair(next_key_from_file.first, min_run);
           new_min_pair = minheap->InsertAndExtract(next_pair_to_insert.value());
