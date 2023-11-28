@@ -17,19 +17,21 @@ class MinHeap::MinHeapImpl {
   std::vector<std::pair<K, int>> heap;  // each key and its run number
 
   int GetSmallerIndex(int current_index, int new_index) {
-    if (new_index < this->heap.size() &&
-        this->heap.at(new_index).first < this->heap.at(current_index).first) {
-      return new_index;
+    // Assume current_index is always within vector, but new_index may not be
+    if (new_index >= this->heap.size()) {
+      return current_index;
     }
 
-    // Assume current_index is always within vector
     if (this->heap.at(current_index).first < this->heap.at(new_index).first) {
       return current_index;
     }
 
+    if (this->heap.at(new_index).first < this->heap.at(current_index).first) {
+      return new_index;
+    }
+
     // If the keys are the same, return the newer version
-    if (this->heap.at(new_index).first == this->heap.at(current_index).first &&
-        this->heap.at(new_index).second > this->heap.at(current_index).second) {
+    if (this->heap.at(new_index).second > this->heap.at(current_index).second) {
       return new_index;
     }
     return current_index;
