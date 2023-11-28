@@ -41,6 +41,10 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
   return buf.at(3);
 }
 
+std::vector<std::pair<K, V>> SstableNaive::Drain(std::fstream& file) const {
+  return ScanInFile(file, 0, UINT64_MAX);
+}
+
 void SstableNaive::Flush(std::fstream& file,
                          std::vector<std::pair<K, V>>& pairs) const {
   constexpr int kPageKeys = kPageSize / sizeof(uint64_t);

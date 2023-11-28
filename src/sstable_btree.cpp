@@ -35,6 +35,9 @@ SstableBTree::SstableBTree() = default;
 
 K SstableBTree::GetMinimum(std::fstream& file) const { return 0; }
 K SstableBTree::GetMaximum(std::fstream& file) const { return 1; }
+std::vector<std::pair<K,V>> SstableBTree::Drain(std::fstream& file) const {
+  return ScanInFile(file, 0, UINT64_MAX);
+}
 
 void SstableBTree::Flush(std::fstream& file,
                          std::vector<std::pair<K, V>>& pairs) const {

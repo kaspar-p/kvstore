@@ -63,7 +63,7 @@ class Sstable {
   /**
    * @brief Drain the file into a vector of key-value pairs.
    */
-  virtual std::vector<std::pair<K,V>> Drain(std::fstream& file) const = 0;
+  virtual std::vector<std::pair<K, V>> Drain(std::fstream& file) const = 0;
 };
 
 class SstableNaive : public Sstable {
@@ -76,7 +76,7 @@ class SstableNaive : public Sstable {
                                           K upper) const override;
   K GetMinimum(std::fstream& file) const override;
   K GetMaximum(std::fstream& file) const override;
-  std::vector<std::pair<K,V>> Drain(std::fstream& file) const override;
+  std::vector<std::pair<K, V>> Drain(std::fstream& file) const override;
 };
 
 class SstableBTree : public Sstable {
@@ -89,5 +89,5 @@ class SstableBTree : public Sstable {
                                           K upper) const override;
   K GetMinimum(std::fstream& file) const override;
   K GetMaximum(std::fstream& file) const override;
-  std::vector<std::pair<K,V>> Drain(std::fstream& file) const override;
+  std::vector<std::pair<K, V>> Drain(std::fstream& file) const override;
 };
