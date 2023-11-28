@@ -253,8 +253,8 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
         }
       }
       return std::nullopt;
-
-    } else if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
+    } 
+    if ((buf[0] >> 32) == 0x00db00ff) {  // internal node
       uint32_t num_children = buf[0] & 0x00000000ffffffff;
       int left = header_size;
       int right = header_size + (num_children-1) * pair_size;
@@ -269,7 +269,9 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
           if (buf[mid-2] < key && key <= buf[mid]) {
             cur_offset = buf[mid + 1];
             break;
-          } else if (buf[mid] < key) {
+          } 
+          
+          if (buf[mid] < key) {
             left = mid + 2;
           } else {
             right = mid - 2;
@@ -369,7 +371,9 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
           if (buf[mid-2] < lower && lower <= buf[mid]) {
             cur_offset = buf[mid + 1];
             break;
-          } else if (buf[mid] < lower) {
+          } 
+          
+          if (buf[mid] < lower) {
             left = mid + 2;
           } else {
             right = mid - 2;
