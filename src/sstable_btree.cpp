@@ -35,7 +35,7 @@ SstableBTree::SstableBTree() = default;
 
 K SstableBTree::GetMinimum(std::fstream& file) const { return 0; }
 K SstableBTree::GetMaximum(std::fstream& file) const { return 1; }
-std::vector<std::pair<K,V>> SstableBTree::Drain(std::fstream& file) const {
+std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
   return ScanInFile(file, 0, UINT64_MAX);
 }
 
@@ -58,7 +58,7 @@ void SstableBTree::Flush(std::fstream& file,
   wbuf.push_back(pairs.size());  // # key value pairs in the file
   wbuf.push_back(0);             // dummy root block ptr
 
-  for (int i = 4; i < kPageSize / sizeof(uint64_t); i++) {
+  for (std::size_t i = 4; i < kPageSize / sizeof(uint64_t); i++) {
     wbuf.push_back(0x0000000000000000);  // pad the rest of the page with zeroes
   }
   std::queue<SstableBtreeNode> creation_queue;
@@ -77,7 +77,7 @@ void SstableBTree::Flush(std::fstream& file,
     leaf_node.magic_number = 0x00db0011;
     leaf_node.garbage = 0x00000000;
 
-    for (int j = 0; j < order; j++) {
+    for (std::size_t j = 0; j < order; j++) {
       if (i < pairs.size()) {
         // key value pairs (8 + 8 bytes)
         leaf_node.kv_pairs.push_back(pairs.at(i));
@@ -103,7 +103,7 @@ void SstableBTree::Flush(std::fstream& file,
     wbuf.push_back(static_cast<uint64_t>(leaf_node.magic_number) << 32 |
                    static_cast<uint64_t>(leaf_node.garbage));
     wbuf.push_back(leaf_node.right_leaf_block_ptr);
-    for (int j = 0; j < leaf_node.kv_pairs.size(); j++) {
+    for (std::size_t j = 0; j < leaf_node.kv_pairs.size(); j++) {
       wbuf.push_back(leaf_node.kv_pairs[j].first);
       wbuf.push_back(leaf_node.kv_pairs[j].second);
     }
@@ -123,7 +123,7 @@ void SstableBTree::Flush(std::fstream& file,
     uint64_t queue_length = creation_queue.size();
     uint64_t start_offset = creation_queue.back().offset + kPageSize;
 
-    int i = 0;
+    std::size_t i = 0;
 
     while (i < queue_length) {
       // info node used for the queue
@@ -138,7 +138,7 @@ void SstableBTree::Flush(std::fstream& file,
       internal_node.num_children = 0;
       // last child block ptr (8 bytes)
 
-      for (int j = 0; j < order; j++) {
+      for (std::size_t j = 0; j < order; j++) {
         if (i < queue_length) {
           SstableBtreeNode child = creation_queue.front();
           creation_queue.pop();
@@ -165,13 +165,13 @@ void SstableBTree::Flush(std::fstream& file,
       wbuf.push_back(static_cast<uint64_t>(internal_node.magic_number) << 32 |
                      static_cast<uint64_t>(internal_node.num_children));
       wbuf.push_back(internal_node.last_child_block_ptr);
-      for (int j = 0; j < internal_node.child_ptrs.size(); j++) {
+      for (std::size_t j = 0; j < internal_node.child_ptrs.size(); j++) {
         wbuf.push_back(internal_node.child_ptrs[j].first);
         wbuf.push_back(internal_node.child_ptrs[j].second);
       }
 
       // Pad the rest of the page with zeroes
-      for (int k = actual_size; k < kPageSize / sizeof(uint64_t); k++) {
+      for (std::size_t k = actual_size; k < kPageSize / sizeof(uint64_t); k++) {
         wbuf.push_back(0);
       }
       // TODO: child ptr is BLOCK_NULL if there isn't a leaf node, in
@@ -241,8 +241,6 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
       } else if (buf[1] == 0xffffffffffffffff) {
         right = header_size + elems % ((kPageSize - 16) / 16) * pair_size;
       }
-      int mid = left + floor((right - left) / 4) * 2;
-
       while (left <= right) {
         int mid = left + floor((right - left) / 4) * 2;
         if (buf[mid] == key) {
@@ -310,7 +308,7 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
 
   std::vector<std::pair<K, V>> l;
 
-  int elems = buf[2];
+  std::size_t elems = buf[2];
   if (elems == 0) {
     return l;
   }
@@ -390,7 +388,7 @@ std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
       exit(1);
     }
   }
-  int walk = mid;
+  std::size_t walk = mid;
   while ((buf[0] >> 32 == 0x00db0011) && buf[walk] <= upper &&
          walk < kPageSize / sizeof(uint64_t)) {
     if (buf[1] == 0xffffffffffffffff && elems % ((kPageSize - 16) / 16) != 0 &&

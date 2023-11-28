@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -57,7 +58,8 @@ class Manifest {
    * @return std::vector<std::string> A list of filenames where key is in the
    * range of the keys in that file.
    */
-  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level, int run,
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(uint32_t level,
+                                                           uint32_t run,
                                                            K key) const;
   /**
    * @brief Similar to GetPotentialFiles, but the other way around. Asks the
@@ -68,9 +70,10 @@ class Manifest {
    * @param filename The name of the datafile.
    * @param key The key to search for.
    */
-  [[nodiscard]] bool InRange(int level, int run, int intermediate, K key) const;
+  [[nodiscard]] bool InRange(uint32_t level, uint32_t run,
+                             uint32_t intermediate, K key) const;
 
   [[nodiscard]] int NumLevels() const;
-  [[nodiscard]] int NumRuns(int level) const;
-  [[nodiscard]] int NumFiles(int level, int run) const;
+  [[nodiscard]] int NumRuns(uint32_t level) const;
+  [[nodiscard]] int NumFiles(uint32_t level, uint32_t run) const;
 };

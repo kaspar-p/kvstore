@@ -179,7 +179,8 @@ class Manifest::ManifestHandleImpl {
     }
   }
 
-  [[nodiscard]] std::vector<std::string> GetPotentialFiles(int level, int run,
+  [[nodiscard]] std::vector<std::string> GetPotentialFiles(uint32_t level,
+                                                           uint32_t run,
                                                            K key) {
     if (static_cast<std::size_t>(level) >= this->levels.size()) {
       return {};
@@ -196,8 +197,8 @@ class Manifest::ManifestHandleImpl {
     return matches;
   };
 
-  [[nodiscard]] bool InRange(int level, int run, int intermediate,
-                             K key) const {
+  [[nodiscard]] bool InRange(uint32_t level, uint32_t run,
+                             uint32_t intermediate, K key) const {
     if (level >= this->levels.size()) {
       return false;
     }
@@ -240,7 +241,7 @@ class Manifest::ManifestHandleImpl {
 
   [[nodiscard]] int NumLevels() const { return this->levels.size(); }
 
-  [[nodiscard]] int NumRuns(int level) const {
+  [[nodiscard]] int NumRuns(uint32_t level) const {
     std::vector<int> unique_runs;
     unique_runs.resize(this->tiers);
 
@@ -258,7 +259,7 @@ class Manifest::ManifestHandleImpl {
     return count;
   }
 
-  [[nodiscard]] int NumFiles(int level, int run) const {
+  [[nodiscard]] int NumFiles(uint32_t level, uint32_t run) const {
     int count = 0;
     for (const auto& file : this->levels.at(level)) {
       if (file.id.run == run) {
@@ -276,11 +277,11 @@ Manifest::Manifest(const DbNaming& naming, uint8_t tiers,
 Manifest::~Manifest() = default;
 
 [[nodiscard]] std::vector<std::string> Manifest::GetPotentialFiles(
-    int level, int run, K key) const {
+    uint32_t level, uint32_t run, K key) const {
   return this->impl->GetPotentialFiles(level, run, key);
 }
-[[nodiscard]] bool Manifest::InRange(int level, int run, int intermediate,
-                                     K key) const {
+[[nodiscard]] bool Manifest::InRange(uint32_t level, uint32_t run,
+                                     uint32_t intermediate, K key) const {
   return this->impl->InRange(level, run, intermediate, key);
 }
 
@@ -293,7 +294,9 @@ void Manifest::RemoveFiles(std::vector<std::string> filenames) {
 }
 
 int Manifest::NumLevels() const { return this->impl->NumLevels(); };
-int Manifest::NumRuns(int level) const { return this->impl->NumRuns(level); };
-int Manifest::NumFiles(int level, int run) const {
+int Manifest::NumRuns(uint32_t level) const {
+  return this->impl->NumRuns(level);
+};
+int Manifest::NumFiles(uint32_t level, uint32_t run) const {
   return this->impl->NumFiles(level, run);
 };
