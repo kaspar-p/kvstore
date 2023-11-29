@@ -34,12 +34,26 @@ struct SstableBtreeNode {
 SstableBTree::SstableBTree() = default;
 
 K SstableBTree::GetMinimum(std::fstream& file) const {
-  (void)file;
-  return 0;
+  assert(file.is_open());
+  assert(file.good());
+
+  file.seekg(0);
+  assert(file.good());
+  std::array<uint64_t, 6> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 6 * sizeof(uint64_t));
+
+  return buf.at(4);
 }
 K SstableBTree::GetMaximum(std::fstream& file) const {
-  (void)file;
-  return 1;
+  assert(file.is_open());
+  assert(file.good());
+
+  file.seekg(0);
+  assert(file.good());
+  std::array<uint64_t, 6> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 6 * sizeof(uint64_t));
+
+  return buf.at(5);
 }
 
 std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
@@ -60,12 +74,19 @@ void SstableBTree::Flush(std::fstream& file,
 
   uint64_t order = floor(kPageSize / 16) - 1;
   std::vector<uint64_t> wbuf;
-  wbuf.push_back(0x00db00beef00db00);  // magic number
+  wbuf.push_back(0x00db00beef00db00);       // magic number
   wbuf.push_back(0x0000000000000001);
-  wbuf.push_back(pairs.size());  // # key value pairs in the file
-  wbuf.push_back(0);             // dummy root block ptr
+  wbuf.push_back(pairs.size());             // # key value pairs in the file
+  wbuf.push_back(0);                        // dummy root block ptr
+  if (!pairs.empty()) {
+    wbuf.push_back(pairs.front().first);    // min key
+    wbuf.push_back(pairs.back().first);     // max key
+  } else {
+    wbuf.push_back(0x0000000000000000);     // min key
+    wbuf.push_back(0x0000000000000000);     // max key
+  }
 
-  for (std::size_t i = 4; i < kPageSize / sizeof(uint64_t); i++) {
+  for (std::size_t i = 6; i < kPageSize / sizeof(uint64_t); i++) {
     wbuf.push_back(0x0000000000000000);  // pad the rest of the page with zeroes
   }
   std::queue<SstableBtreeNode> creation_queue;

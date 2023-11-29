@@ -27,6 +27,8 @@ First block is always metadata block. Metadata block has structure:
 [ 00 00 00 00 00 00 00 01 ] (type field, data files are type `01`)
 [ uint64_t ]                (# of key value pairs in the file, 8 bytes)
 [ root block ptr ]          (8 bytes)
+[ uint64_t ]                (minimum key value)
+[ uint64_t ]                (maximum key value)
 ```
 
 with the rest being `00` until the end of the block.

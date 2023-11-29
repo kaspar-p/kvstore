@@ -397,3 +397,39 @@ TEST(SstableNaive, Drain10KEntries) {
     ASSERT_EQ(val.at(i).second, 2 * i);
   }
 }
+
+TEST(SstableNaive, GetMinimum) {
+  MemTable memtable(64);
+  for (int i = 0; i < 64; i++) {
+    memtable.Put(i, i);
+  }
+  SstableNaive t{};
+  std::fstream f;
+  f.open("/tmp/SstableNaive_GetMinimum.bin",
+         std::fstream::binary | std::fstream::in | std::fstream::out |
+             std::fstream::trunc);
+  ASSERT_EQ(f.good(), true);
+  auto pairs = memtable.ScanAll();
+  t.Flush(f, *pairs);
+
+  uint64_t minKey = t.GetMinimum(f);
+  ASSERT_EQ(minKey, 0);
+}
+
+TEST(SstableNaive, GetMaximum) {
+  MemTable memtable(64);
+  for (int i = 0; i < 64; i++) {
+    memtable.Put(i, i);
+  }
+  SstableNaive t{};
+  std::fstream f;
+  f.open("/tmp/SstableNaive_GetMaximum.bin",
+         std::fstream::binary | std::fstream::in | std::fstream::out |
+             std::fstream::trunc);
+  ASSERT_EQ(f.good(), true);
+  auto pairs = memtable.ScanAll();
+  t.Flush(f, *pairs);
+
+  uint64_t maxKey = t.GetMaximum(f);
+  ASSERT_EQ(maxKey, 63);
+}
