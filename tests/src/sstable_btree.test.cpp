@@ -495,6 +495,7 @@ TEST(SstableBTree, Drain10KEntries) {
 
   ASSERT_EQ(val.size(), amt);
   for (int i = 0; i < amt; i++) {
-    ASSERT_EQ(val.at(i), keys->at(i));
+    ASSERT_EQ(val.at(i).first, i);
+    ASSERT_EQ(val.at(i).second, 2 * i);
   }
 }

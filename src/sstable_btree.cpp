@@ -43,9 +43,6 @@ K SstableBTree::GetMaximum(std::fstream& file) const {
 }
 
 std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
-  assert(file.is_open());
-  assert(file.good());
-
   return SstableBTree::ScanInFile(file, 0, UINT64_MAX);
 }
 

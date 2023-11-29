@@ -8,22 +8,27 @@
 #include "naming.hpp"
 #include "sstable.hpp"
 #include "xxhash.h"
+#include "memtable.hpp"
 
 int main() {
-  std::filesystem::remove_all("kvstore.db");
-
-  Options opt = {
-      .memory_buffer_elements = 10,
-      .tiers = 4,
-      .serialization = DataFileFormat::kBTree,
-  };
-  KvStore kv;
-  kv.Open("kvstore.db", opt);
-
-  for (int i = 0; i < 50; i++) {
-    std::cout << "putting " << i << std::endl;
-    kv.Put(i, 2 * i);
+  MemTable memtable(65026);
+  for (int i = 0; i < 65026; i++) {
+    memtable.Put(i, i);
   }
+
+  // SstableBTree t{};
+  // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
+  //                std::fstream::binary | std::fstream::in | std::fstream::out |
+  //                    std::fstream::trunc);
+  // assert(f.is_open());
+  // assert(f.good());
+  // auto v = memtable.ScanAll();
+  // t.Flush(f, *v);
+
+  // for (int i = 0; i < 5; i++) {
+  //   std::cout << "putting " << i << std::endl;
+  //   kv.Put(i, 2 * i);
+  // }
 
   // SCAN
 
@@ -66,4 +71,25 @@ int main() {
   //   assert(val.value() == i);
   // }
   // std::cout << total << std::endl;
+
+  // KASPAR TEST
+  // MemTable memtable(2000);
+  // for (int i = 0; i < 2000; i++) {
+  //   memtable.Put(i, 2 * i);
+  // }
+
+  // SstableBTree t{};
+  // std::fstream f("/tmp/SstableBTree.GetManySingleElems",
+  //                std::fstream::binary | std::fstream::in | std::fstream::out |
+  //                    std::fstream::trunc);
+  // assert(f.is_open());
+  // assert(f.good());
+  // auto pairs = memtable.ScanAll();
+  // t.Flush(f, *pairs);
+
+  // for (int i = 0; i < 2000; i++) {
+  //   std::optional<V> val = t.GetFromFile(f, i);
+  //   assert(val.has_value());
+  //   assert(val.value() == 2 * i);
+  // }
 }

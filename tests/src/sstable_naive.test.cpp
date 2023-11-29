@@ -330,3 +330,70 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
   val = t.ScanInFile(f, 0, 5);
   ASSERT_EQ(val.size(), 0);
 }
+
+// TEST(SstableNaive, DrainEmpty) {
+//   MemTable memtable(64);
+
+//   SstableNaive t{};
+//   std::fstream f("/tmp/SstableNaive.DrainEmpty",
+//                  std::fstream::binary | std::fstream::in | std::fstream::out |
+//                      std::fstream::trunc);
+//   ASSERT_EQ(f.is_open(), true);
+//   ASSERT_EQ(f.good(), true);
+//   auto keys = memtable.ScanAll();
+//   t.Flush(f, *keys);
+
+//   std::vector<std::pair<K, V>> val = t.Drain(f);
+
+//   ASSERT_EQ(val.size(), 0);
+// }
+
+TEST(SstableNaive, Drain255Entries) {
+  int amt = 255;
+  MemTable memtable(255);
+  for (int i = 0; i < 255; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableNaive t{};
+  std::fstream f("/tmp/SstableNaive.Drain10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.Drain(f);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i).first, i);
+    ASSERT_EQ(val.at(i).second, 2 * i);
+  }
+}
+
+TEST(SstableNaive, Drain10KEntries) {
+  int amt = 10000;
+  MemTable memtable(amt);
+  for (int i = 0; i < amt; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableNaive t{};
+  std::fstream f("/tmp/SstableNaive.Drain10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.Drain(f);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i).first, i);
+    ASSERT_EQ(val.at(i).second, 2 * i);
+  }
+}
