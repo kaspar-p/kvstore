@@ -41,11 +41,8 @@ K SstableBTree::GetMaximum(std::fstream& file) const {
   (void)file;
   return 1;
 }
-std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
-  return ScanInFile(file, 0, UINT64_MAX);
-}
 
-std::vector<std::pair<K,V>> SstableBTree::Drain(std::fstream& file) const {
+std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
   assert(file.is_open());
   assert(file.good());
 
@@ -195,9 +192,10 @@ void SstableBTree::Flush(std::fstream& file,
   if (!creation_queue.empty()) {
     SstableBtreeNode root = creation_queue.front();
     creation_queue.pop();
-    wbuf[3] = root.offset;  // update dummy root block ptr to actual root block ptr
+    wbuf[3] =
+        root.offset;  // update dummy root block ptr to actual root block ptr
   }
-      
+
   for (uint64_t& elem : wbuf) {
     file.write(reinterpret_cast<char*>(&elem), sizeof(uint64_t));
     assert(file.good());

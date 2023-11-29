@@ -91,9 +91,10 @@ class LSMRun::LSMRunImpl {
     std::string filename =
         data_file(this->naming, this->level, this->run, file_num);
     std::fstream f(filename, std::fstream::binary | std::fstream::in);
-    assert(f.good());
-    std::vector<std::pair<K, V>> vector = this->sstable_serializer.Drain(f);
-    return vector;
+    if (f.good()) {
+      return this->sstable_serializer.Drain(f);
+    }
+    return {};
   }
 };
 
