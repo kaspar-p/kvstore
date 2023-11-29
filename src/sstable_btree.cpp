@@ -8,6 +8,7 @@
 #include <queue>
 #include <utility>
 #include <vector>
+#include <array>
 
 #include "constants.hpp"
 #include "sstable.hpp"
