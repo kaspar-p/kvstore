@@ -231,6 +231,10 @@ This process continues until there isn't any more data to read out of each run.
 
 Compaction is this simple because of the assumption that an entire file can be read into memory to perform compaction. We also use a MinHeap to optimize the comparisons between the T files. That is, each time we place a key from file `0 <= k <= T`, we insert the next key from file `k` into the MinHeap.
 
+The only exception to this process is the final level. Dostoevsky means using the final level in "levelling", that is, only a single run. The merging process is exactly the same, and new data files are associated with the final levels' only run.
+
+Also to note, each time the buffer is flushed into a new data file, a new BloomFilter is created from those keys. As mentioned before, data files and bloom filters are 1:1.
+
 ## References
 
 [1] [Dostoevsky](https://scholar.harvard.edu/files/stratos/files/dostoevskykv.pdf)
