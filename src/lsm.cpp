@@ -1,5 +1,6 @@
 #include "lsm.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -90,12 +91,8 @@ class LSMRun::LSMRunImpl {
     std::string filename =
         data_file(this->naming, this->level, this->run, file_num);
     std::fstream f(filename, std::fstream::binary | std::fstream::in);
-    if (!f.is_open()) {
-      std::vector<std::pair<K, V>> vector;
-      return vector;
-    }
-    std::vector<std::pair<K, V>> vector = this->sstable_serializer.ScanInFile(
-        f, 0, UINT64_MAX);  // TODO do we have a ScanAll for this?
+    assert(f.good());
+    std::vector<std::pair<K, V>> vector = this->sstable_serializer.Drain(f);
     return vector;
   }
 };
@@ -176,7 +173,7 @@ class LSMLevel::LSMLevelImpl {
   std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run,
                                       uint32_t run, uint32_t level) {
     std::vector<std::pair<K, V>> buffer;
-    buffer.reserve(memory_buffer_size);
+    buffer.reserve(this->memory_buffer_size);
 
     // Index of current file to read from for each run
     std::vector<int> file_number(this->runs.size(), 0);
@@ -186,7 +183,7 @@ class LSMLevel::LSMLevelImpl {
 
     // Initialize heap from first key in each run
     std::vector<K> first_keys(this->runs.size(), 0);
-    for (int run = 0; run < this->runs.size(); run++) {
+    for (std::size_t run = 0; run < this->runs.size(); run++) {
       std::vector<std::pair<K, V>> contents =
           this->runs.at(run)->GetVectorFromFile(file_number.at(run));
       file_contents.at(run) = contents;
@@ -194,21 +191,24 @@ class LSMLevel::LSMLevelImpl {
     }
 
     // Index of current position in file for each run
-    std::vector<int> file_cursor(this->runs.size(), 1);
-    auto minheap = std::make_unique<MinHeap>(first_keys);
+    std::vector<int> file_cursor(this->runs.size(), 0);
+    MinHeap minheap(first_keys);
 
     std::optional<std::pair<K, int>> min_pair = std::nullopt;
-    std::optional<std::pair<K, int>> new_min_pair = minheap->Extract();
+    std::optional<std::pair<K, int>> new_min_pair = minheap.Extract();
     std::optional<std::pair<K, int>> next_pair_to_insert = std::nullopt;
     int min_run;
 
-    while (!minheap->IsEmpty()) {
-      while (!minheap->IsEmpty() && buffer.size() < memory_buffer_size) {
+    while (!minheap.IsEmpty()) {
+      while (!minheap.IsEmpty() && buffer.size() < memory_buffer_size) {
         min_run = new_min_pair->second;
 
         // If new key matches previous key, it is out of date, so don't write it
         if (min_pair == std::nullopt ||
             new_min_pair->first != min_pair->first) {
+          std::cout << file_contents.size() << "," << min_run << ","
+                    << file_contents.at(min_run).size() << ","
+                    << file_cursor.at(min_run) << '\n';
           std::pair<K, V> min_kv =
               file_contents.at(min_run).at(file_cursor.at(min_run));
           buffer.push_back(min_kv);
@@ -229,14 +229,14 @@ class LSMLevel::LSMLevelImpl {
         // Get new smallest key from same file
         if (file_contents.at(min_run).empty()) {
           // no more files in this run, so no new key to insert
-          min_pair = minheap->Extract();
+          min_pair = minheap.Extract();
         } else {
           // insert next key from this file
           std::pair<K, V> next_key_from_file =
               file_contents.at(min_run).at(file_cursor.at(min_run));
           next_pair_to_insert =
               std::make_pair(next_key_from_file.first, min_run);
-          new_min_pair = minheap->InsertAndExtract(next_pair_to_insert.value());
+          new_min_pair = minheap.InsertAndExtract(next_pair_to_insert.value());
         }
       }
 

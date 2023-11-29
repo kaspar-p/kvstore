@@ -13,14 +13,14 @@ int main() {
   std::filesystem::remove_all("kvstore.db");
 
   Options opt = {
-      .memory_buffer_elements = 1,
+      .memory_buffer_elements = 10,
       .tiers = 4,
       .serialization = DataFileFormat::kBTree,
   };
   KvStore kv;
   kv.Open("kvstore.db", opt);
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 50; i++) {
     std::cout << "putting " << i << std::endl;
     kv.Put(i, 2 * i);
   }
