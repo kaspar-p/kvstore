@@ -42,6 +42,15 @@ class MinHeap {
   std::optional<std::pair<K, std::size_t>> InsertAndExtract(
       std::pair<K, std::size_t> next_pair);
 
+  /**
+   * @brief Insert a key
+   *
+   * @param key The key to insert
+   * return
+   */
+  void Insert(std::pair<K, std::size_t> next_pair);
+
+
  private:
   class MinHeapImpl;
   const std::unique_ptr<MinHeapImpl> impl;

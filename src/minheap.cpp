@@ -63,6 +63,14 @@ class MinHeap::MinHeapImpl {
   }
   ~MinHeapImpl() = default;
 
+  void Insert(std::pair<K, int> new_pair) {
+    this->heap.push_back(new_pair);
+    if (this->heap.size() > 1) {
+      std::swap(this->heap.at(0), this->heap.at(this->heap.size() - 1));
+      this->HeapifyDown(0);
+    }
+  }
+
   std::optional<std::pair<K, int>> Extract() {
     if (this->heap.empty()) {
       return std::nullopt;
@@ -113,4 +121,7 @@ std::size_t MinHeap::Size() const { return this->impl->Size(); }
 std::optional<std::pair<K, std::size_t>> MinHeap::InsertAndExtract(
     std::pair<K, std::size_t> next_pair) {
   return this->impl->InsertAndExtract(next_pair);
+}
+void MinHeap::Insert(std::pair<K, std::size_t> next_pair) {
+  return this->impl->Insert(next_pair);
 }

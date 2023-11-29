@@ -169,15 +169,15 @@ class LSMLevel::LSMLevelImpl {
     std::vector<int> file_cursor(this->runs.size(), 0);
     MinHeap minheap(first_keys);
 
-    std::optional<std::pair<K, int>> min_pair = std::nullopt;
-    std::optional<std::pair<K, int>> new_min_pair = minheap.Extract();
-    std::optional<std::pair<K, int>> next_pair_to_insert = std::nullopt;
+    std::optional<std::pair<K, int>> min_pair;
     int min_run;
+    std::pair<K, V> min_kv;
+    std::pair<K, V> next_key_from_file;
+    std::optional<std::pair<K, int>> next_pair_to_insert;
+    std::optional<std::pair<K, int>> prev_min_pair = std::nullopt;
 
     while (!minheap.IsEmpty()) {
       while (!minheap.IsEmpty() && buffer.size() < this->memtable_capacity) {
-        min_run = new_min_pair->second;
-
         std::cout << "minheap size: " << minheap.Size()
                   << ", min run: " << min_run
                   << ", file_contents size at min_run: "
@@ -185,44 +185,46 @@ class LSMLevel::LSMLevelImpl {
                   << ", file cursor at min_run: " << file_cursor.at(min_run)
                   << '\n';
 
+        min_pair = minheap.Extract();
+        std::cout << "got new min pair: " << min_pair.value().first
+                  << '\n';
+        min_run = min_pair->second;
+
         // If new key matches previous key, it is out of date, so don't write it
-        if (min_pair == std::nullopt ||
-            new_min_pair->first != min_pair->first) {
-          std::pair<K, V> min_kv =
+        if (prev_min_pair == std::nullopt ||
+            prev_min_pair->first != min_pair->first) {
+          min_kv =
               file_contents.at(min_run).at(file_cursor.at(min_run));
           std::cout << "adding " << min_kv.first << " to buffer!" << '\n';
           buffer.push_back(min_kv);
         }
 
-        min_pair = new_min_pair;
         file_cursor.at(min_run)++;
-
         // If file position has reached the end of the file, try to load the
         // next file from the same run
         if (file_cursor.at(min_run) >= file_contents.at(min_run).size()) {
-          file_number.at(min_run)++;
           file_cursor.at(min_run) = 0;
           file_contents.at(min_run) = this->runs.at(min_run)->GetVectorFromFile(
               file_number.at(min_run));
+          file_number.at(min_run)++;
         }
 
-        // Get new smallest key from same file
-        if (file_contents.at(min_run).empty()) {
-          // no more files in this run, so no new key to insert
-          new_min_pair = minheap.Extract();
-          std::cout << "extracted: " << new_min_pair->first << ","
-                    << new_min_pair->second << '\n';
-        } else {
+        if (!file_contents.at(min_run).empty()) {
           // insert next key from this file
-          std::pair<K, V> next_key_from_file =
+          next_key_from_file =
               file_contents.at(min_run).at(file_cursor.at(min_run));
           next_pair_to_insert =
               std::make_pair(next_key_from_file.first, min_run);
-          new_min_pair = minheap.InsertAndExtract(next_pair_to_insert.value());
-          std::cout << "got new min pair: " << new_min_pair.value().first
-                    << '\n';
+          minheap.Insert(next_pair_to_insert.value());
         }
+
+
+
+
+
+        prev_min_pair = min_pair;
       }
+
 
       // Flush buffer to file
       if (!buffer.empty()) {
@@ -286,16 +288,16 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] int NextRun() { return this->runs.size(); }
   std::optional<std::unique_ptr<LSMRun>> RegisterNewRun(
       std::unique_ptr<LSMRun> run) {
-    if (this->runs.size() == this->tiers) {
-      std::unique_ptr<LSMRun> new_run = this->compact_runs();
+    if (this->runs.size() == this->tiers - 1) {
       this->runs.push_back(std::move(run));
       std::cout << "l" << this->level
                 << " registering new run! runs size: " << runs.size() << '\n';
+      std::unique_ptr<LSMRun> new_run = this->compact_runs();
       return std::make_optional<std::unique_ptr<LSMRun>>(std::move(new_run));
     }
+    this->runs.push_back(std::move(run));
     std::cout << "l" << this->level
               << " registering new run! runs size: " << runs.size() << '\n';
-    this->runs.push_back(std::move(run));
     return std::nullopt;
   }
 };
