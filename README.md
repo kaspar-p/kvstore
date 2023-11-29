@@ -6,6 +6,10 @@ A key-value store implementation for CSC443, Fall 2023 by Kaspar Poland, Janine 
 
 See the [BUILDING](BUILDING.md) document.
 
+## User Guide
+
+> TODO(kfp)
+
 ## High-level code architecture
 
 The database (used interchangeable with key-value store) is structured as an Log-Structured Merge (LSM) tree. Other components of the project are:
