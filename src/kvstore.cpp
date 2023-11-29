@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -52,20 +53,11 @@ class KvStore::KvStoreImpl {
   std::vector<std::unique_ptr<LSMLevel>> levels;
   uint8_t tiers;
 
-  void flush_memtable() {
-    assert(this->buf.has_value());
-    assert(this->manifest.has_value());
-
-    // Initialize the first level on the first flush
-    if (this->levels.size() == 0) {
-      auto level = std::make_unique<LSMLevel>(
-          this->naming, 0, false, this->memtable.GetCapacity(),
-          this->manifest.value(), this->buf.value());
-      this->levels.push_back(std::move(level));
-    }
-
+  std::unique_ptr<LSMRun> create_level0_run() {
+    // Register new run
     uint32_t run_idx = this->levels.front()->NextRun();
 
+    // Create the new filter file
     assert(this->manifest.has_value());
     assert(this->buf.has_value());
     std::unique_ptr<LSMRun> run = std::make_unique<LSMRun>(
@@ -73,15 +65,17 @@ class KvStore::KvStoreImpl {
         this->manifest.value(), this->buf.value(), *this->sstable_serializer,
         *this->filter_serializer);
 
+    // Create the new data file
     uint32_t intermediate = run->NextFile();
     std::fstream sstable(data_file(this->naming, 0, run_idx, intermediate),
                          std::fstream::binary | std::fstream::in |
                              std::fstream::out | std::fstream::trunc);
     assert(sstable.good());
-    auto v = this->memtable.ScanAll();
-    K min = v->front().first;
-    K max = v->back().first;
-    this->sstable_serializer->Flush(sstable, *v);
+    std::unique_ptr<std::vector<std::pair<K, V>>> memtable_contents =
+        this->memtable.ScanAll();
+    K min = memtable_contents->front().first;
+    K max = memtable_contents->back().first;
+    this->sstable_serializer->Flush(sstable, *memtable_contents);
     if (!sstable.good()) {
       perror("Failed to write serialized block!");
       exit(1);
@@ -90,10 +84,9 @@ class KvStore::KvStoreImpl {
 
     std::string filter_name =
         filter_file(this->naming, 0, run_idx, intermediate);
-    this->filter_serializer->Create(filter_name, *v);
+    this->filter_serializer->Create(filter_name, *memtable_contents);
 
-    run->RegisterNewFile(intermediate);
-    this->levels.front()->RegisterNewRun(std::move(run));
+    // Register the new datafile with Manifest
     std::vector<FileMetadata> files = {FileMetadata{
         .id =
             SstableId{
@@ -105,37 +98,52 @@ class KvStore::KvStoreImpl {
         .maximum = max,
     }};
     this->manifest.value().RegisterNewFiles(files);
-    this->memtable.Clear();
 
-    for (size_t i = 0; i < this->levels.size(); ++i) {
-      if (this->levels[i]->NextRun() == this->tiers) {
-        if (i == this->levels.size() - 1) {
-          // TODO set is_final to false for current level
-          auto level = std::make_unique<LSMLevel>(
-              this->naming, this->levels[i]->Level() + 1, true,
-              this->memtable.GetCapacity(), this->manifest.value(),
-              this->buf.value());
-          this->levels.push_back(std::move(level));
-        }
+    run->RegisterNewFile(intermediate);
+    return run;
+  }
 
-        std::unique_ptr<LSMRun> new_run = std::make_unique<LSMRun>(
-            this->naming, this->levels[i + 1]->Level(),
-            this->levels[i]->NextRun(), this->tiers,
+  void recursively_compact() {
+    // While each level overflows, register the overflowed, compacted run into
+    // the next level.
+    // Keep looping until compaction no longer produces a run
+    std::size_t level_idx = 0;
+    std::unique_ptr<LSMRun> curr_level_run = this->create_level0_run();
+    std::optional<std::unique_ptr<LSMRun>> next_level_run;
+    while ((next_level_run = this->levels.at(level_idx)->RegisterNewRun(
+                std::move(curr_level_run)))
+               .has_value()) {
+      std::cout << "level " << level_idx
+                << " was full, compacted into a run for next level!" << '\n';
+      curr_level_run = std::move(next_level_run.value());
+      level_idx++;
+
+      // If the levels are full, create a new, final level
+      // This should stop the looping, the new level won't do compaction
+      // when RegisterNewRun is called.
+      if (level_idx == this->levels.size()) {
+        this->levels.push_back(std::make_unique<LSMLevel>(
+            this->naming, this->tiers, level_idx, true,
             this->memtable.GetCapacity(), this->manifest.value(),
-            this->buf.value(), *this->sstable_serializer,
-            *this->filter_serializer);
-
-        // TODO merge into single run and delete tombstones if next level is
-        // final
-        this->levels[i]->CompactRuns(std::move(new_run),
-                                     this->levels[i + 1]->NextRun(),
-                                     this->levels[i + 1]->Level());
-        this->levels[i + 1]->RegisterNewRun(std::move(new_run));
-      } else {
-        // if this level is not full, later levels cannot be full
-        break;
+            this->buf.value(), *this->sstable_serializer));
       }
     }
+  }
+
+  void flush_memtable() {
+    assert(this->buf.has_value());
+    assert(this->manifest.has_value());
+
+    // Initialize the first level on the first flush
+    if (this->levels.size() == 0) {
+      auto level = std::make_unique<LSMLevel>(
+          this->naming, this->tiers, 0, false, this->memtable.GetCapacity(),
+          this->manifest.value(), this->buf.value(), *this->sstable_serializer);
+      this->levels.push_back(std::move(level));
+    }
+
+    this->recursively_compact();
+    this->memtable.Clear();
   };
 
   /**
@@ -173,8 +181,9 @@ class KvStore::KvStoreImpl {
     for (int level = 0; level < this->manifest.value().NumLevels(); level++) {
       bool is_final = level == this->manifest.value().NumLevels() - 1;
       auto lvl = std::make_unique<LSMLevel>(
-          this->naming, level, is_final, this->memtable.GetCapacity(),
-          this->manifest.value(), this->buf.value());
+          this->naming, this->tiers, level, is_final,
+          this->memtable.GetCapacity(), this->manifest.value(),
+          this->buf.value(), *this->sstable_serializer);
       this->levels.push_back(std::move(lvl));
     };
   }
@@ -324,29 +333,22 @@ class KvStore::KvStoreImpl {
 /* Connect the pImpl (pointer-to-implementation) to the actual class */
 
 KvStore::KvStore() { this->impl = std::make_unique<KvStoreImpl>(); }
-
 KvStore::~KvStore() = default;
 
 void KvStore::Open(const std::string& name, Options options) {
   return this->impl->Open(name, options);
 }
-
 std::filesystem::path KvStore::DataDirectory() const {
   return this->impl->DataDirectory();
 }
-
 void KvStore::Close() { return this->impl->Close(); }
-
 std::vector<std::pair<K, V>> KvStore::Scan(const K lower, const K upper) const {
   return this->impl->Scan(lower, upper);
 }
-
 std::optional<V> KvStore::Get(const K key) const {
   return this->impl->Get(key);
 }
-
 void KvStore::Put(const K key, const V value) {
   return this->impl->Put(key, value);
 }
-
 void KvStore::Delete(const K key) { return this->impl->Delete(key); }

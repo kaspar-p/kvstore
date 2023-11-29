@@ -111,6 +111,7 @@ target_include_directories(
 )
 target_compile_features(kvstore_lsm PUBLIC cxx_std_17)
 target_link_libraries(kvstore_lsm PRIVATE xxHash::xxhash)
+target_link_libraries(kvstore_lsm PRIVATE kvstore_minheap)
 
 # buf.cpp
 add_library(kvstore_buf OBJECT src/buf.cpp)

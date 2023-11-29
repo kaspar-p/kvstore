@@ -23,13 +23,15 @@ class MinHeap {
    * @brief
    * @param
    */
-  bool IsEmpty();
+  bool IsEmpty() const;
 
   /**
    * @brief
    * @param
    */
   std::optional<std::pair<K, std::size_t>> Extract();
+
+  std::size_t Size() const;
 
   /**
    * @brief Insert a key and extract the previous minumum

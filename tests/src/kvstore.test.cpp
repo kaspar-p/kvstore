@@ -324,6 +324,97 @@ TEST(KvStore, InsertOneAndReplaceIt) {
   ASSERT_EQ(val.value(), 200);
 }
 
+TEST(KvStore, LevelStructure) {
+  std::filesystem::remove_all("/tmp/KvStore.LevelStructure");
+
+  int total_count = 0;
+
+  KvStore table;
+  table.Open("KvStore.LevelStructure", Options{
+                                           .dir = "/tmp",
+                                           .memory_buffer_elements = 2,
+                                           .tiers = 4,
+                                       });
+
+  std::string prefix = "/tmp/KvStore.LevelStructure/KvStore.LevelStructure.";
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "LOCK"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "MANIFEST"));
+
+  for (int i = 0; i < 3; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+
+  for (int i = 0; i < 2; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+
+  // trigger compaction with two more
+  for (int i = 0; i < 6; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  // Make sure the previous level got deleted
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+
+  // Make sure the new level has all the same data
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I3"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I3"));
+
+  // fill level 0 again to trigger compaction into level 1
+  for (int i = 0; i < 8; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  // Level 0 should still be empty
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+
+  // Level 1 should have the new run, R1
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I3"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I3"));
+
+  // Make sure all of the data still reachable
+  for (int i = 0; i < total_count; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
+  }
+}
+
 TEST(KvStore, InsertManyAndGetMany) {
   std::filesystem::remove_all("/tmp/KvStore.InsertManyAndGetMany");
 

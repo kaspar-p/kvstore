@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -74,12 +76,9 @@ class LSMRun {
   void RegisterNewFile(int intermediate);
 
   /**
-   * @brief Flush vector to file
-   *
-   * @param fstream the file to flush to
-   * @param pairs the vector of pairs to flush
+   * @brief Delete all files that correspond to the run.
    */
-  void Flush(std::fstream& file, std::vector<std::pair<K, V>>& pairs);
+  void Delete();
 
   /**
    * @brief Get the contents of the file_numth file in this level as a vector
@@ -104,11 +103,12 @@ class LSMLevel {
    * @param level The level, where 0 is the memtable, and 1 is the first file.
    * @param is_final Important for Dostoevsky, where the final level is merged
    * through levelling, but all others are merged through tiering.
-   * @param memory_buffer_size The size of the memtable, or level 0. Each level
+   * @param memtable_capacity The size of the memtable, or level 0. Each level
    * is 2x the size of the previous level.
    */
-  LSMLevel(const DbNaming& dbname, int level, bool is_final,
-           std::size_t memory_buffer_size, Manifest& manifest, BufPool& buf);
+  LSMLevel(const DbNaming& dbname, uint8_t tiers, int level, bool is_final,
+           std::size_t memtable_capacity, Manifest& manifest, BufPool& buf,
+           Sstable& sstable_serializer);
   ~LSMLevel();
 
   /**
@@ -123,8 +123,8 @@ class LSMLevel {
    */
   void DiscoverRuns();
 
-  // TODO(kfp): make this return a run for the next level?
-  void RegisterNewRun(std::unique_ptr<LSMRun> run);
+  std::optional<std::unique_ptr<LSMRun>> RegisterNewRun(
+      std::unique_ptr<LSMRun> run);
 
   /**
    * @brief Returns the index of the next run. That is, if the level has two
@@ -155,17 +155,6 @@ class LSMLevel {
    * @return std::vector<std::pair<K, V>> An ordered list of (key, value) pairs.
    */
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const;
-
-  /**
-   * @brief Merge-sort all runs in the level into LSMRun new_run in LSMLevel
-   * next_level.
-   *
-   * @param new_run The new LSMRun to merge the existing runs into.
-   * @param run
-   * @param level
-   */
-  std::unique_ptr<LSMRun> CompactRuns(std::unique_ptr<LSMRun> new_run,
-                                      uint32_t run, uint32_t level);
 
  private:
   class LSMLevelImpl;

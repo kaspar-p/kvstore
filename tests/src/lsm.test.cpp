@@ -14,7 +14,7 @@ TEST(LSMLevel, Initialize) {
   SstableBTree serializer;
   Manifest manifest(naming, 4, serializer);
 
-  LSMLevel lsm(naming, 0, false, 20, manifest, buf);
+  LSMLevel lsm(naming, 4, 0, false, 20, manifest, buf, serializer);
 
   ASSERT_EQ(1, 1);
 }
@@ -28,7 +28,7 @@ TEST(LSMLevel, LevelCorrect) {
   SstableBTree serializer;
   Manifest manifest(naming, 4, serializer);
 
-  LSMLevel lsm(naming, 1, false, 20, manifest, buf);
+  LSMLevel lsm(naming, 4, 1, false, 20, manifest, buf, serializer);
 
   ASSERT_EQ(lsm.Level(), 1);
 }

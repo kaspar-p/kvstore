@@ -1,24 +1,38 @@
 #include <cassert>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
 #include "kvstore.hpp"
+#include "memtable.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
 #include "xxhash.h"
-#include "memtable.hpp"
 
 int main() {
-  MemTable memtable(65026);
-  for (int i = 0; i < 65026; i++) {
-    memtable.Put(i, i);
+  std::filesystem::remove_all("kvstore.db");
+
+  Options opt = {
+      .memory_buffer_elements = 2,
+      .tiers = 4,
+      .serialization = DataFileFormat::kBTree,
+  };
+  KvStore kv;
+  kv.Open("kvstore.db", opt);
+
+  int runs_in_level0_to_make = 80;
+
+  for (int i = 0; i < 2 * runs_in_level0_to_make; i++) {
+    std::cout << "putting " << i << std::endl;
+    kv.Put(i, 2 * i);
   }
 
   // SstableBTree t{};
   // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
-  //                std::fstream::binary | std::fstream::in | std::fstream::out |
+  //                std::fstream::binary | std::fstream::in | std::fstream::out
+  //                |
   //                    std::fstream::trunc);
   // assert(f.is_open());
   // assert(f.good());
@@ -80,7 +94,8 @@ int main() {
 
   // SstableBTree t{};
   // std::fstream f("/tmp/SstableBTree.GetManySingleElems",
-  //                std::fstream::binary | std::fstream::in | std::fstream::out |
+  //                std::fstream::binary | std::fstream::in | std::fstream::out
+  //                |
   //                    std::fstream::trunc);
   // assert(f.is_open());
   // assert(f.good());

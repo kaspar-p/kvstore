@@ -1,6 +1,7 @@
 #include "minheap.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -91,20 +92,18 @@ class MinHeap::MinHeapImpl {
     return previous_min;
   }
 
-  bool IsEmpty() { return this->heap.empty(); }
+  bool IsEmpty() const { return this->heap.empty(); }
+  std::size_t Size() const { return this->heap.size(); }
 };
 
 MinHeap::MinHeap(const std::vector<K> &initial_keys)
     : impl(std::make_unique<MinHeapImpl>(initial_keys)) {}
-
 MinHeap::~MinHeap() = default;
-
-bool MinHeap::IsEmpty() { return this->impl->IsEmpty(); }
-
+bool MinHeap::IsEmpty() const { return this->impl->IsEmpty(); }
 std::optional<std::pair<K, std::size_t>> MinHeap::Extract() {
   return this->impl->Extract();
 }
-
+std::size_t MinHeap::Size() const { return this->impl->Size(); }
 std::optional<std::pair<K, std::size_t>> MinHeap::InsertAndExtract(
     std::pair<K, std::size_t> next_pair) {
   return this->impl->InsertAndExtract(next_pair);
