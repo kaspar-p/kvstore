@@ -141,7 +141,7 @@ TEST(SstableBTree, GetSingleElems2LayersFull) {
   ASSERT_EQ(f.good(), true);
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs);
-  
+
   for (int i = 0; i < 65025; i++) {
    std::optional<V> val = t.GetFromFile(f, i);
     ASSERT_EQ(val.has_value(), true);
@@ -431,4 +431,70 @@ TEST(SstableBTree, ScanSparseRangeOutOfBounds) {
   // Below range
   val = t.ScanInFile(f, 0, 5);
   ASSERT_EQ(val.size(), 0);
+}
+
+TEST(SstableBTree, DrainEmpty) {
+  MemTable memtable(64);
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.DrainEmpty",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.Drain(f);
+
+  ASSERT_EQ(val.size(), 0);
+}
+
+TEST(SstableBTree, Drain1LeafNodeEntries) {
+  int amt = 255;
+  MemTable memtable(255);
+  for (int i = 0; i < 255; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.Drain10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.Drain(f);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i).first, i);
+    ASSERT_EQ(val.at(i).second, 2 * i);
+  }
+}
+
+TEST(SstableBTree, Drain10KEntries) {
+  int amt = 10000;
+  MemTable memtable(amt);
+  for (int i = 0; i < amt; i++) {
+    memtable.Put(i, 2 * i);
+  }
+
+  SstableBTree t{};
+  std::fstream f("/tmp/SstableBTree.Drain10KEntries",
+                 std::fstream::binary | std::fstream::in | std::fstream::out |
+                     std::fstream::trunc);
+  ASSERT_EQ(f.is_open(), true);
+  ASSERT_EQ(f.good(), true);
+  auto keys = memtable.ScanAll();
+  t.Flush(f, *keys);
+
+  std::vector<std::pair<K, V>> val = t.Drain(f);
+
+  ASSERT_EQ(val.size(), amt);
+  for (int i = 0; i < amt; i++) {
+    ASSERT_EQ(val.at(i), keys->at(i));
+  }
 }
