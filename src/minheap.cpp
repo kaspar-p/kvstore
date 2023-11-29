@@ -87,7 +87,10 @@ class MinHeap::MinHeapImpl {
     }
 
     std::pair<K, int> previous_min = this->heap.at(0);
-    if (next_pair.first <= previous_min.first) {
+    if (next_pair.first < previous_min.first) {
+      return next_pair;
+    }
+    if (next_pair.first == previous_min.first && next_pair.second > previous_min.second) {
       return next_pair;
     }
     this->heap.at(0) = next_pair;
