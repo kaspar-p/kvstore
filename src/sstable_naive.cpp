@@ -21,11 +21,11 @@ K SstableNaive::GetMinimum(std::fstream& file) const {
 
   file.seekg(0);
   assert(file.good());
-  std::array<uint64_t, 4> buf{};
-  file.read(reinterpret_cast<char*>(buf.data()), 4 * sizeof(uint64_t));
+  std::array<uint64_t, 5> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 5 * sizeof(uint64_t));
   assert(file.good());
 
-  return buf.at(2);
+  return buf.at(3);
 }
 
 K SstableNaive::GetMaximum(std::fstream& file) const {
@@ -34,11 +34,11 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
 
   file.seekg(0);
   assert(file.good());
-  std::array<uint64_t, 4> buf{};
-  file.read(reinterpret_cast<char*>(buf.data()), 4 * sizeof(uint64_t));
+  std::array<uint64_t, 5> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 5 * sizeof(uint64_t));
   assert(file.good());
 
-  return buf.at(3);
+  return buf.at(4);
 }
 
 std::vector<std::pair<K, V>> SstableNaive::Drain(std::fstream& file) const {
