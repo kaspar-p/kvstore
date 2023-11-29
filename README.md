@@ -8,20 +8,107 @@ See the [BUILDING](BUILDING.md) document.
 
 ## User Guide
 
-> TODO(kfp)
+This library exposes a single class, `KvStore`, meant to be instantiated per-table. The instantiation of the object does nothing, the `Open()` method creates the table. The table is a key-value table. The keys and values are both `uint64_t`. Variable-sized values are not supported (yet).
+
+The methods on `KvStore` are described here in natural language. This is largely duplicated from the header file, read that here: [./src/kvstore.hpp](./src/kvstore.hpp).
+
+### `Open`
+
+```cpp
+void Open(std::string& dbname, Options opt);
+```
+
+Creates the database. Locks the data directory. Throws the `DatabaseInUseException` if the data directory is opened but already has a lock present in it. Could also throw a `FailedToOpenException`, which often happens when the user opening the database does not have the permissions to create files there.
+
+The `Options` structure can be read about in the header file. Each field is optional, and has a default.
+
+- `dir`: The data directory to create the data files in. If left unspecified, defaults to the current directory the executable is instantiated in, that is, `./`.
+- `memory_buffer_elements`: The number of elements to keep in the in-memory Memtable. If not specified, defaults to roughly 1MB worth of elements, being about 131k elements.
+- `buffer_pages_initial`: The initial amount of elements to allocate for the buffer pool, in units of 4KB pages.
+- `buffer_pages_maximum`: The maximum amount of elements to allocate for the buffer pool, in units of 4KB pages. This maximum is the number of pages that are stored in-memory to prevent going into the filesystem too often.
+- `tiers`: The "tiering" constant for the LSM tree. Must be >= 2, and defaults to 2 if not specified. Common values lie between 2 and 10. This LSM tree supports any tiering number >= 2, and is automatically configured to use the Dostoevsky merge policy [1]. See the paper for more details.
+- `serialization`: An enum to format data in different ways, either a sorted-string table, or as a BTree in the filesystem. One of `DataFileFormat::kBTree` or `DataFileFormat::kFlatSorted`.
+
+### `DataDirectory`
+
+```cpp
+std::filesystem::path DataDirectory() const;
+```
+
+Gets the directory the data is stored in.
+
+### `Close`
+
+```cpp
+void Close();
+```
+
+Closes the directory. Unlocks the data directory for future tables to use. This method is also called on in the destructor of a `KvStore` object.
+
+### `Get`
+
+```cpp
+std::optional<uint64_t> Get(uint64_t key) const;  
+```
+
+Gets a single value for a key. Returns `std::nullopt` if the value is not present in the database.
+
+In terms of architecture, the `Get()` call traverses the LSM tree from newest-to-oldest, first visiting the in-memory Memtable, and then visiting younger levels, until it reaches the final level. Each level has Blocked Bloom filters to prevent extraneous IOs into the filesystem, and expected performance is O(1) IOs.
+
+### `Scan`
+
+```cpp
+std::vector<std::pair<uint64_t, uint64_t>> Scan(uint64_t lower_bound, uint64_t upper_bound) const;
+```
+
+A range query, returns a vector of all of the keys `key` such that `lower_bound <= key <= upper_bound`. Assumes that the vector fits in memory. If the vector does not fit in memory, be sure to batch this with multiple `Scan()` queries.
+
+Scans are expensive, and perform many IOs to retrieve data. Be sure not to Scan too large of a range.
+
+### `Put`
+
+```cpp
+void Put(uint64_t key, uint64_t value)
+```
+
+Puts a (key, value) pair into the table. The pair is batched into the Memtable, and is flushed into the filesystem when the Memtable has grown to its limit size, specified in the `Options` structure.
+
+Each level in the LSM tree has `Options.tiers` number of runs, and if flushing the Memtable (into level 0) fills a run, the runs of one level L are compacted into a single run in level L+1. This continues until no more compaction is needed. This is an expensive operation, but is amortized of many writes.
+
+Note that all `uint64_t` values of `value` are allowed, EXCEPT the hex value:
+
+```txt
+00 db 00 de ead 00 db 00
+```
+
+Which is the integer `61643976284887808`. This is because this value (pronounced "db dead db") is the tombstone marker, and is used to mark keys as deleted. We discuss this further in a dedicated document written during development [./docs/tombstone.md](./docs/tombstone.md), and in the next operation, `Delete`.
+
+### `Delete`
+
+```cpp
+void Delete(uint64_t key);
+```
+
+Deletes a (key, value) pair from the table. To prevent a full scan of the database, a tombstone marker is inserted in place of the value. This tombstone marker will come back from a `Get()` as the key never having been there, but allows the `Delete` operation to avoid a read-before-write.
+
+### Summary
+
+The database is a key-value store with a similar interface as a hashmap, but designed to store much more data. See below for the benchmarks for storing that much data.
+
+The following sections discuss design decisions and implementation details of the table.
 
 ## High-level code architecture
 
-The database (used interchangeable with key-value store) is structured as an Log-Structured Merge (LSM) tree. Other components of the project are:
+The database (used interchangeably with key-value store) is structured as an Log-Structured Merge (LSM) tree. Other components of the project are:
 
 1. In-memory Memtable ([./src/buf.hpp](./src/memtable.hpp)): a red-black tree to buffer incoming write requests.
 1. BufferPool ([./src/buf.hpp](./src/memtable.hpp)): a cache for filesystem pages.
 1. Clock Eviction Algorithm ([./src/evict.hpp](./src/evict.hpp)): An eviction algorithm for the Buffer pool cache.
 1. Blocked Bloom Filter ([./src/filter.hpp](./src/filter.hpp)): an Bloom Filter to optimize read requests.
-1. LSM level manager ([./src/lsm.hpp](./src/lsm.hpp)): Represents a single level in the LSM tree.
+1. LSM level and LSM run managers ([./src/lsm.hpp](./src/lsm.hpp)): Two classes, one representing a single level, one representing a run.
 1. Manifest file manager ([./src/manifest.hpp](./src/manifest.hpp)): Represents the manifest file and its data.
 
-And two Sstable implementations, their interface described in ([./src/sstable.hpp](./src/sstable.hpp)). The instance variables they are used as are called `sstable_serializer`, but really they do both serialization _and_ deserialization, that is, ser/de.
+And two Sstable implementations, their interface described in [./src/sstable.hpp](./src/sstable.hpp). The instance variables they are used as are called `sstable_serializer`, but really they do both serialization _and_ deserialization, that is, ser/de.
 
 1. BTree Sstable ser/de ([./src/sstable_btree.cpp]), store the file in BTree format to have log_B search times.
 1. Sorted Sstable ser/de ([./src/sstable_naive.cpp]), store the file in a flat sorted way, for binary search.
@@ -29,6 +116,7 @@ And two Sstable implementations, their interface described in ([./src/sstable.hp
 There are other various utility files that deal with:
 
 1. naming files within the file system ([./src/naming.hpp](./src/naming.hpp)),
+1. a minheap implementation for Dostoevsky merging ([./src/minheap.hpp](./src/minheap.hpp)),
 1. validating that files have the correct data within them ([./src/fileutil.hpp](./src/fileutil.hpp)),
 1. string functions ([./src/dbg.hpp](./src/dbg.hpp)), and
 1. a collection of common constants like page size, key size, etc. ([./src/constants.hpp](./src/constants.hpp)).
@@ -82,22 +170,67 @@ The eviction algorithm itself is clock-based, and is generic over its container,
 
 ## File sizes
 
+> The original documentation for file sizes is split between [./docs/compaction.md](./docs/compaction.md), the document describing compaction and [./docs/structure.md](./docs/structure.md), the document describing the LSM tree structure. It is distilled for this section here.
+
 One of the most interesting decisions we made in this project was to cap the size of the files. File sizes affect the implementation of compaction, flushing the Memtable, and getting from each file. LevelDB (citation needed) and RocksDB (citation needed) also do this.
 
 The file sizes are capped to be the exact same (data) size of the memtable, meaning the files will contain the exact same number of keys that the Memtable is initialized to have as a maximum.
 
 This makes flushing the Memtable into the filesystem simple. Memtables and SSTs are 1:1 with each other.
 
-It also makes the compaction process easier. Being able to merge the data from two files no longer requires in-memory buffers into each of the files, since both files are assumed to be small enough to fit in memory.
+It also makes the compaction process easier. Being able to merge the data from two files no longer requires in-memory buffers into each of the files, since both files are assumed to be small enough to fit in memory. However, this offers greater complexity for LSM levels and runs. Now, a single run in an LSM level is not a single file, but rather, multiple files.
 
-However, this offers greater complexity for LSM levels and runs. Now, a single run in an LSM level is not a single file, but rather, multiple files.
+The number of tiers-per-level is controlled by the `tiers` option in the `Options` struct, one of the parameters to `KvStore::Open()`. There are some downsides, which we discuss in the next section, LSM structure.
 
-The number of tiers-per-level is controlled by the `tiers` option in the `Options` struct, one of the parameters to `KvStore::Open()`.
+## File formats
 
-There are some downsides, which we discuss in the next section, LSM structure.
+A lot of thought went into our file formats. They are described in many different documents that have all been maintained throughout development:
+
+- [`./docs/file.md`](./docs/file.md): describes the metadata that every database file should have
+- [`./docs/file_sstable.md`](./docs/file_sstable.md): describes the format of BTree Sstables. There isn't a document for the FlatSorted Sstables, but they follow a similar structure (first page metadata, rest pure data).
+- [`./docs/file_filter.md`](./docs/file_filter.md): describes the format of Bloom Filter files.
+- [`./docs/file_manifest.md`](./docs/file_manifest.md): Describes the very condensed format of the Manifest file.
 
 ## Database structure
 
+> The original documentation for database structure is [./docs/structure.md](./docs/structure.md). This is similar content.
+
 The structure of the LSM level was highly influenced by two things: using Dostoevsky, and our previously described file sizes specification.
 
-The entire LSM tree/database is a single `KvStore` object. 
+As previously mentioned entire LSM tree/database is a single `KvStore` object. There are multiple levels, and each has multiple runs. Due to the decision to have small "pick-up-able" files, there are also many files per run. The hierarchy is then:
+
+```txt
+Table (KvStore)
+ - Lock file
+ - Manifest file
+ - LSMLevel
+   - LSMRun
+     - Data file
+     - Filter file
+```
+
+The number of levels is dependent purely on the data size. More data -> more levels. However, the number of runs in a single level is fixed by the `Options.tiers` option. The runs never exceeds that, and if it does, compaction is triggered and the entire level is emptied into a single run in the next level.
+
+That is, there is an unbounded amount of levels in the table, a fixed number of runs in a level (T), and an unbounded number of files in a run.
+
+The number of files in a run is a function of the level the run is a part of.
+
+Also, as mentioned briefly in the Bloom filters section, we keep one bloom filter per data file. It was really to promote development speed, as two different people were working on the BTree serialization and Bloom Filter serialization at the same time, and we didn't want to get in each others way.
+
+This sort of structure together with small file sizes means that the database might have thousands of 1-4MB files for a large multi-gigabyte dataset. Supposedly this many files really does slow a system down, but not by much (leveldb citation needed).
+
+## Compaction
+
+> The original documentation written during development for compaction is `./docs/compaction.md`. This is similar content.
+
+Compaction is also affected by using Dostoevsky and the file size decision. Compaction, in theory, is simple: when there are T runs in a file, compaction is triggered. All runs in that level L are merged into a single run in level L+1, which may not exist.
+
+Compaction is done by reading the data from the first file in each T runs. Since the files are small, we assume they fit into memory. Using a process similar to merge-sort, we fill a buffer with the smallest of the keys from each of the T files. We continue this until we generate enough data to fill a file, in which case we flush into a file.
+
+This process continues until there isn't any more data to read out of each run.
+
+Compaction is this simple because of the assumption that an entire file can be read into memory to perform compaction. We also use a MinHeap to optimize the comparisons between the T files. That is, each time we place a key from file `0 <= k <= T`, we insert the next key from file `k` into the MinHeap.
+
+## References
+
+[1] [Dostoevsky](https://scholar.harvard.edu/files/stratos/files/dostoevskykv.pdf)

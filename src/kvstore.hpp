@@ -135,6 +135,16 @@ class KvStore {
   void Close();
 
   /**
+   * @brief Get a single value from the database by its key. Returns
+   * std::nullopt if the key doesn't exist in the database.
+   *
+   * @param key The key to search for.
+   * @return V* A pointer to the value, and std::nullptr if there was no such
+   * value
+   */
+  [[nodiscard]] std::optional<V> Get(K key) const;
+
+  /**
    * @brief Get a vector of (key, value) pairs, sorted by key, where all keys k
    * are such that lower <= k <= upper. It is not required that `lower` or
    * `upper` be present within the database, nor that they be in range of
@@ -145,16 +155,6 @@ class KvStore {
    * @return std::vector<std::pair<K, V>> An ordered list of (key, value) pairs.
    */
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const;
-
-  /**
-   * @brief Get a single value from the database by its key. Returns
-   * std::nullopt if the key doesn't exist in the database.
-   *
-   * @param key The key to search for.
-   * @return V* A pointer to the value, and std::nullptr if there was no such
-   * value
-   */
-  [[nodiscard]] std::optional<V> Get(K key) const;
 
   /**
    * @brief Put a (key, value) pair into the database. If the key already
