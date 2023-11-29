@@ -166,7 +166,7 @@ class LSMLevel::LSMLevelImpl {
     }
 
     // Index of current position in file for each run
-    std::vector<int> file_cursor(this->runs.size(), 1);
+    std::vector<int> file_cursor(this->runs.size(), 0);
     MinHeap minheap(first_keys);
 
     std::optional<std::pair<K, int>> min_pair = std::nullopt;
@@ -226,8 +226,8 @@ class LSMLevel::LSMLevelImpl {
 
       // Flush buffer to file
       if (!buffer.empty()) {
-        std::cout << "Flushing!" << '\n';
         int intermediate = new_run->NextFile();
+        std::cout << "Flushing to " << data_file(this->dbname, this->level + 1, 0, intermediate) << "!" << '\n';
         std::fstream new_file(
             data_file(this->dbname, this->level + 1, 0, intermediate),
             std::fstream::binary | std::fstream::in | std::fstream::out |
@@ -286,16 +286,16 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] int NextRun() { return this->runs.size(); }
   std::optional<std::unique_ptr<LSMRun>> RegisterNewRun(
       std::unique_ptr<LSMRun> run) {
-    this->runs.push_back(std::move(run));
-    std::cout << "l" << this->level
-              << " registering new run! runs size: " << runs.size() << '\n';
-
-    // If we have overflowed the current level
-    if (this->runs.size() == this->tiers + 1) {
+    if (this->runs.size() == this->tiers) {
       std::unique_ptr<LSMRun> new_run = this->compact_runs();
+      this->runs.push_back(std::move(run));
+      std::cout << "l" << this->level
+                << " registering new run! runs size: " << runs.size() << '\n';
       return std::make_optional<std::unique_ptr<LSMRun>>(std::move(new_run));
     }
-
+    std::cout << "l" << this->level
+              << " registering new run! runs size: " << runs.size() << '\n';
+    this->runs.push_back(std::move(run));
     return std::nullopt;
   }
 };
