@@ -343,7 +343,6 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "MANIFEST"));
 
   for (int i = 0; i < 3; i++) {
-    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -352,7 +351,6 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
 
   for (int i = 0; i < 2; i++) {
-    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -362,7 +360,6 @@ TEST(KvStore, LevelStructure) {
 
   // trigger compaction with two more
   for (int i = 0; i < 4; i++) {
-    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -542,7 +539,10 @@ TEST(KvStore, InsertManyAndGetMany) {
   std::filesystem::remove_all("/tmp/KvStore.InsertManyAndGetMany");
 
   KvStore table;
-  table.Open("KvStore.InsertManyAndGetMany", Options{.dir = "/tmp"});
+  table.Open("KvStore.InsertManyAndGetMany", Options{
+                                                 .dir = "/tmp",
+                                                 .memory_buffer_elements = 100,
+                                             });
   table.Put(1, 10);
   table.Put(2, 20);
   table.Put(3, 30);
@@ -572,8 +572,8 @@ TEST(KvStore, InsertVeryManyAndGet) {
   table.Open("KvStore.InsertVeryManyAndGet",
              Options{
                  .dir = "/tmp",
-                 .memory_buffer_elements = 1000,
-                 .serialization = DataFileFormat::kFlatSorted,
+                 .memory_buffer_elements = 30,
+                 .serialization = DataFileFormat::kBTree,
              });
   for (int i = 0; i < 10 * 1000; i++) {
     table.Put(i, 2 * i);

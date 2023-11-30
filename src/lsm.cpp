@@ -51,21 +51,22 @@ class LSMRun::LSMRunImpl {
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get from run " << this->run << '\n';
+    // std::cout << "Get from run " << this->run << '\n';
 
     for (const auto& file : this->files) {
       bool in_range = this->manifest.InRange(this->level, this->run, file, key);
-      std::cout << "In range for file: "
-                << data_file(this->naming, this->level, this->run, file) << "? "
-                << in_range << '\n';
+      // std::cout << "In range for file: "
+      // << data_file(this->naming, this->level, this->run, file) << "? "
+      // << in_range << '\n';
       if (in_range) {
         auto filter_name =
             filter_file(this->naming, this->level, this->run, file);
+
         bool in_filter = this->filter_serializer.Has(filter_name, key);
         if (in_filter) {
-          std::fstream f(data_file(this->naming, this->level, this->run, file),
-                         std::fstream::binary | std::fstream::in);
-          std::optional<V> ret = this->sstable_serializer.GetFromFile(f, key);
+          auto name = data_file(this->naming, this->level, this->run, file);
+          std::optional<V> ret =
+              this->sstable_serializer.GetFromFile(name, key);
           if (ret.has_value()) {
             return ret;
           }
@@ -84,8 +85,6 @@ class LSMRun::LSMRunImpl {
   }
 
   void Delete() {
-    std::cout << "DELETING LEVEL " << this->level << " RUN " << this->run
-              << '\n';
     for (const auto& intermediate : this->files) {
       auto data = data_file(this->naming, this->level, this->run, intermediate);
       auto filter =
@@ -108,11 +107,7 @@ class LSMRun::LSMRunImpl {
 
     std::string filename =
         data_file(this->naming, this->level, this->run, file_num);
-    std::fstream f(filename, std::fstream::binary | std::fstream::in);
-    if (f.good()) {
-      return this->sstable_serializer.Drain(f);
-    }
-    return {};
+    return this->sstable_serializer.Drain(filename);
   }
 };
 
@@ -185,9 +180,6 @@ class LSMLevel::LSMLevelImpl {
     // Index of current position in file for each run
     std::vector<int> file_cursor(this->runs.size(), 0);
 
-    for (const auto& key : first_keys) {
-      std::cout << "FIRST_KEY: " << key << '\n';
-    }
     MinHeap minheap(first_keys);
 
     int min_run;
@@ -204,7 +196,7 @@ class LSMLevel::LSMLevelImpl {
         //           << '\n';
 
         min_pair = minheap.Extract();
-        std::cout << "got new min pair: " << min_pair.value().first << '\n';
+        // std::cout << "got new min pair: " << min_pair.value().first << '\n';
         min_run = min_pair->second;
 
         // If new key matches previous key, it is out of date, so don't write it
@@ -212,7 +204,7 @@ class LSMLevel::LSMLevelImpl {
             prev_min_pair->first != min_pair->first) {
           std::pair<K, V> min_kv =
               file_contents.at(min_run).at(file_cursor.at(min_run));
-          std::cout << "adding " << min_kv.first << " to buffer!" << '\n';
+          // std::cout << "adding " << min_kv.first << " to buffer!" << '\n';
           buffer.push_back(min_kv);
         }
 
@@ -220,13 +212,13 @@ class LSMLevel::LSMLevelImpl {
         // If file position has reached the end of the file, try to load the
         // next file from the same run
         if (file_cursor.at(min_run) >= file_contents.at(min_run).size()) {
-          std::cout << "File cursor exceeded size of run " << min_run
-                    << ", being " << file_contents.at(min_run).size() << '\n';
+          // std::cout << "File cursor exceeded size of run " << min_run
+          // << ", being " << file_contents.at(min_run).size() << '\n';
           file_cursor.at(min_run) = 0;
           file_contents.at(min_run) = this->runs.at(min_run)->GetVectorFromFile(
               file_number.at(min_run));
-          std::cout << "Next file has num keys: "
-                    << file_contents.at(min_run).size() << '\n';
+          // std::cout << "Next file has num keys: "
+          // << file_contents.at(min_run).size() << '\n';
           file_number.at(min_run)++;
         }
 
@@ -236,9 +228,9 @@ class LSMLevel::LSMLevelImpl {
               file_contents.at(min_run).at(file_cursor.at(min_run));
           std::optional<std::pair<K, int>> next_pair_to_insert =
               std::make_pair(next_key_from_file.first, min_run);
-          std::cout << "[MinHeap] Inserting: "
-                    << next_pair_to_insert.value().first
-                    << ", from run: " << min_run << '\n';
+          // std::cout << "[MinHeap] Inserting: "
+          //           << next_pair_to_insert.value().first
+          //           << ", from run: " << min_run << '\n';
           minheap.Insert(next_pair_to_insert.value());
         }
 
@@ -248,17 +240,15 @@ class LSMLevel::LSMLevelImpl {
       // Flush buffer to file
       if (!buffer.empty()) {
         uint32_t intermediate = new_run->NextFile();
-        std::cout << "Flushing to "
-                  << data_file(this->dbname, this->level + 1, run_in_next_level,
-                               intermediate)
-                  << "!" << '\n';
+        // std::cout << "Flushing to "
+        //           << data_file(this->dbname, this->level + 1,
+        //           run_in_next_level,
+        //                        intermediate)
+        //           << "!" << '\n';
         // Create the data file in the new level
         std::string data_name = data_file(this->dbname, this->level + 1,
                                           run_in_next_level, intermediate);
-        std::fstream data(data_name, std::fstream::binary | std::fstream::in |
-                                         std::fstream::out |
-                                         std::fstream::trunc);
-        this->sstable_serializer.Flush(data, buffer);
+        this->sstable_serializer.Flush(data_name, buffer, true);
         this->manifest.RegisterNewFiles({FileMetadata{
             .id =
                 SstableId{
@@ -301,15 +291,13 @@ class LSMLevel::LSMLevelImpl {
         manifest(manifest),
         buf(buf),
         sstable_serializer(sstable_serializer),
-        filter_serializer(dbname, buf, 0) {
-    std::cout << "NEW lsm level: " << level << '\n';
-  }
+        filter_serializer(dbname, buf, 0) {}
   ~LSMLevelImpl() = default;
 
   [[nodiscard]] uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get from level " << this->level << '\n';
+    // std::cout << "Get from level " << this->level << '\n';
 
     for (auto run = this->runs.rbegin(); run != this->runs.rend(); ++run) {
       std::optional<V> val = (*run)->Get(key);
@@ -333,11 +321,11 @@ class LSMLevel::LSMLevelImpl {
       std::unique_ptr<LSMRun> run,
       std::optional<std::reference_wrapper<LSMLevel>> next_level) {
     this->runs.push_back(std::move(run));
-    std::cout << "l" << this->level
-              << " registering new run! runs size: " << runs.size() << '\n';
+    // std::cout << "l" << this->level
+    // << " registering new run! runs size: " << runs.size() << '\n';
 
     if (this->runs.size() == this->tiers) {
-      std::cout << "time to flush!" << '\n';
+      // std::cout << "time to flush!" << '\n';
       std::unique_ptr<LSMRun> new_run = this->compact_runs(next_level);
       return std::make_optional<std::unique_ptr<LSMRun>>(std::move(new_run));
     }

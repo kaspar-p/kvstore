@@ -71,6 +71,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
 target_compile_features(kvstore_manifest PUBLIC cxx_std_17)
+target_link_libraries(kvstore_manifest PRIVATE xxHash::xxhash)
 
 # sstable_naive.cpp + sstable_btree.cpp
 add_library(kvstore_sstable OBJECT src/sstable_naive.cpp src/sstable_btree.cpp)

@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -8,7 +9,6 @@
 #include <queue>
 #include <utility>
 #include <vector>
-#include <array>
 
 #include "constants.hpp"
 #include "sstable.hpp"
@@ -32,9 +32,11 @@ struct SstableBtreeNode {
   uint64_t global_max;
 };
 
-SstableBTree::SstableBTree() = default;
+SstableBTree::SstableBTree(BufPool& buffer_pool) : buffer_pool(buffer_pool){};
 
-K SstableBTree::GetMinimum(std::fstream& file) const {
+K SstableBTree::GetMinimum(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   assert(file.is_open());
   assert(file.good());
 
@@ -45,7 +47,9 @@ K SstableBTree::GetMinimum(std::fstream& file) const {
 
   return buf.at(4);
 }
-K SstableBTree::GetMaximum(std::fstream& file) const {
+K SstableBTree::GetMaximum(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   assert(file.is_open());
   assert(file.good());
 
@@ -57,12 +61,20 @@ K SstableBTree::GetMaximum(std::fstream& file) const {
   return buf.at(5);
 }
 
-std::vector<std::pair<K, V>> SstableBTree::Drain(std::fstream& file) const {
-  return SstableBTree::ScanInFile(file, 0, UINT64_MAX);
+std::vector<std::pair<K, V>> SstableBTree::Drain(std::string& filename) const {
+  return SstableBTree::ScanInFile(filename, 0, UINT64_MAX);
 }
 
-void SstableBTree::Flush(std::fstream& file,
-                         std::vector<std::pair<K, V>>& pairs) const {
+void SstableBTree::Flush(std::string& filename,
+                         std::vector<std::pair<K, V>>& pairs,
+                         bool truncate = false) const {
+  std::fstream::openmode mode =
+      std::fstream::binary | std::fstream::in | std::fstream::out;
+  if (truncate) {
+    mode |= std::fstream::trunc;
+  }
+  std::fstream file(filename, mode);
+
   // questions
   // pages? what does this mean
   // what if there are more key/val than possible to fit in a sst? what is the
@@ -75,16 +87,16 @@ void SstableBTree::Flush(std::fstream& file,
 
   uint64_t order = floor(kPageSize / 16) - 1;
   std::vector<uint64_t> wbuf;
-  wbuf.push_back(0x00db00beef00db00);       // magic number
+  wbuf.push_back(0x00db00beef00db00);  // magic number
   wbuf.push_back(0x0000000000000001);
-  wbuf.push_back(pairs.size());             // # key value pairs in the file
-  wbuf.push_back(0);                        // dummy root block ptr
+  wbuf.push_back(pairs.size());  // # key value pairs in the file
+  wbuf.push_back(0);             // dummy root block ptr
   if (!pairs.empty()) {
-    wbuf.push_back(pairs.front().first);    // min key
-    wbuf.push_back(pairs.back().first);     // max key
+    wbuf.push_back(pairs.front().first);  // min key
+    wbuf.push_back(pairs.back().first);   // max key
   } else {
-    wbuf.push_back(0x0000000000000000);     // min key
-    wbuf.push_back(0x0000000000000000);     // max key
+    wbuf.push_back(0x0000000000000000);  // min key
+    wbuf.push_back(0x0000000000000000);  // max key
   }
 
   for (std::size_t i = 6; i < kPageSize / sizeof(uint64_t); i++) {
@@ -224,8 +236,10 @@ void SstableBTree::Flush(std::fstream& file,
   assert(file.good());
 };
 
-std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
+std::optional<V> SstableBTree::GetFromFile(std::string& filename,
                                            const K key) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
@@ -320,9 +334,12 @@ std::optional<V> SstableBTree::GetFromFile(std::fstream& file,
   return std::nullopt;
 };
 
-std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::fstream& file,
+std::vector<std::pair<K, V>> SstableBTree::ScanInFile(std::string& filename,
                                                       const K lower,
                                                       const K upper) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+
   uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <string>
 #include <cstdint>
-#include <fstream>
 #include <optional>
 #include <utility>
 #include <vector>
 
+#include "buf.hpp"
 #include "constants.hpp"
 
 struct SstableId {
@@ -27,8 +28,8 @@ class Sstable {
    * @param filename The name of the file to create
    * @param memtable The MemTable to flush.
    */
-  virtual void Flush(std::fstream& filename,
-                     std::vector<std::pair<K, V>>& pairs) const = 0;
+  virtual void Flush(std::string& filename,
+                     std::vector<std::pair<K, V>>& pairs, bool truncate = false) const = 0;
 
   /**
    * @brief Get a value from a file, or std::nullopt if it doesn't exist.
@@ -37,7 +38,7 @@ class Sstable {
    * @param key The key to search for
    * @return std::optional<V> The resulting value.
    */
-  virtual std::optional<V> GetFromFile(std::fstream& file, K key) const = 0;
+  virtual std::optional<V> GetFromFile(std::string& filename, K key) const = 0;
 
   /**
    * @brief Scan keys in range [lower, upper] from @param file.
@@ -47,47 +48,53 @@ class Sstable {
    * @param upper The upper bound of the scan
    * @return std::vector<std::pair<K, V>>
    */
-  virtual std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
+  virtual std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
                                                   K upper) const = 0;
 
   /**
    * @brief Get the minimum key in the file. Assumes file is a datafile.
    */
-  virtual K GetMinimum(std::fstream& file) const = 0;
+  virtual K GetMinimum(std::string& filename) const = 0;
 
   /**
    * @brief Get the maximum key in the file. Assumes file is a datafile.
    */
-  virtual K GetMaximum(std::fstream& file) const = 0;
+  virtual K GetMaximum(std::string& filename) const = 0;
 
   /**
    * @brief Drain the file into a vector of key-value pairs.
    */
-  virtual std::vector<std::pair<K, V>> Drain(std::fstream& file) const = 0;
+  virtual std::vector<std::pair<K, V>> Drain(std::string& filename) const = 0;
 };
 
 class SstableNaive : public Sstable {
+ private:
+  BufPool& buffer_pool;
+
  public:
-  SstableNaive();
-  void Flush(std::fstream& filename,
-             std::vector<std::pair<K, V>>& pairs) const override;
-  std::optional<V> GetFromFile(std::fstream& file, K key) const override;
-  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
+  SstableNaive(BufPool& buffer_pool);
+  void Flush(std::string& filename,
+             std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
+  std::optional<V> GetFromFile(std::string& file, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::string& file, K lower,
                                           K upper) const override;
-  K GetMinimum(std::fstream& file) const override;
-  K GetMaximum(std::fstream& file) const override;
-  std::vector<std::pair<K, V>> Drain(std::fstream& file) const override;
+  K GetMinimum(std::string& file) const override;
+  K GetMaximum(std::string& file) const override;
+  std::vector<std::pair<K, V>> Drain(std::string& file) const override;
 };
 
 class SstableBTree : public Sstable {
+ private:
+  BufPool& buffer_pool;
+
  public:
-  SstableBTree();
-  void Flush(std::fstream& filename,
-             std::vector<std::pair<K, V>>& pairs) const override;
-  std::optional<V> GetFromFile(std::fstream& file, K key) const override;
-  std::vector<std::pair<K, V>> ScanInFile(std::fstream& file, K lower,
+  SstableBTree(BufPool& buffer_pool);
+  void Flush(std::string& filename,
+             std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
+  std::optional<V> GetFromFile(std::string& file, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::string& file, K lower,
                                           K upper) const override;
-  K GetMinimum(std::fstream& file) const override;
-  K GetMaximum(std::fstream& file) const override;
-  std::vector<std::pair<K, V>> Drain(std::fstream& file) const override;
+  K GetMinimum(std::string& file) const override;
+  K GetMaximum(std::string& file) const override;
+  std::vector<std::pair<K, V>> Drain(std::string& file) const override;
 };

@@ -6,16 +6,20 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "buf.hpp"
 #include "constants.hpp"
 #include "fileutil.hpp"
 #include "sstable.hpp"
 
-SstableNaive::SstableNaive() = default;
+SstableNaive::SstableNaive(BufPool& buffer_pool) : buffer_pool(buffer_pool){};
 
-K SstableNaive::GetMinimum(std::fstream& file) const {
+K SstableNaive::GetMinimum(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   assert(file.is_open());
   assert(file.good());
 
@@ -28,7 +32,9 @@ K SstableNaive::GetMinimum(std::fstream& file) const {
   return buf.at(3);
 }
 
-K SstableNaive::GetMaximum(std::fstream& file) const {
+K SstableNaive::GetMaximum(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   assert(file.is_open());
   assert(file.good());
 
@@ -41,12 +47,20 @@ K SstableNaive::GetMaximum(std::fstream& file) const {
   return buf.at(4);
 }
 
-std::vector<std::pair<K, V>> SstableNaive::Drain(std::fstream& file) const {
-  return ScanInFile(file, 0, UINT64_MAX);
+std::vector<std::pair<K, V>> SstableNaive::Drain(std::string& filename) const {
+  return this->ScanInFile(filename, 0, UINT64_MAX);
 }
 
-void SstableNaive::Flush(std::fstream& file,
-                         std::vector<std::pair<K, V>>& pairs) const {
+void SstableNaive::Flush(std::string& filename,
+                         std::vector<std::pair<K, V>>& pairs,
+                         bool truncate = false) const {
+  std::fstream::openmode mode =
+      std::fstream::binary | std::fstream::in | std::fstream::out;
+  if (truncate) {
+    mode |= std::fstream::trunc;
+  }
+  std::fstream file(filename, mode);
+
   constexpr int kPageKeys = kPageSize / sizeof(uint64_t);
   std::array<uint64_t, kPageKeys> metadata_buf{};
   put_magic_numbers(metadata_buf, FileType::kData);
@@ -134,8 +148,10 @@ std::optional<BinarySearchResult> binary_search(std::fstream& file,
   return std::nullopt;
 }
 
-std::optional<V> SstableNaive::GetFromFile(std::fstream& file,
+std::optional<V> SstableNaive::GetFromFile(std::string& filename,
                                            const K key) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
   std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata{};
   assert(file.is_open());
   assert(file.good());
@@ -171,10 +187,12 @@ std::optional<V> SstableNaive::GetFromFile(std::fstream& file,
   return std::nullopt;
 };
 
-std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::fstream& file,
+std::vector<std::pair<K, V>> SstableNaive::ScanInFile(std::string& filename,
                                                       const K lower,
                                                       const K upper) const {
   assert(lower <= upper);
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
 
   std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata_page{};
   assert(file.is_open());

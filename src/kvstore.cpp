@@ -112,8 +112,8 @@ class KvStore::KvStoreImpl {
         std::make_optional(this->create_level0_run());
 
     while (L_run.has_value()) {
-      std::cout << "level " << L
-                << " was full, compacted into a run for next level!" << '\n';
+      // std::cout << "level " << L
+      //           << " was full, compacted into a run for next level!" << '\n';
 
       std::optional<std::reference_wrapper<LSMLevel>> next_level;
       if (L + 1 < this->levels.size()) {
@@ -148,7 +148,7 @@ class KvStore::KvStoreImpl {
       this->levels.push_back(std::move(level));
     }
 
-    std::cout << "FLUSHED, NOW COMPACT!" << '\n';
+    // std::cout << "FLUSHED, NOW COMPACT!" << '\n';
 
     this->recursively_compact();
     this->memtable.Clear();
