@@ -41,20 +41,8 @@ TEST(LSMRun, Scan) {
   keys = {{4, 8}, {5, 10}, {6, 12}};
   serializer.Flush(f1, keys, true);
 
-  manifest.RegisterNewFiles({{
-      FileMetadata{
-          .id = SstableId{.level = 0, .run = 0, .intermediate = 0},
-          .minimum = 1,
-          .maximum = 3,
-      },
-      FileMetadata{
-          .id = SstableId{.level = 0, .run = 0, .intermediate = 1},
-          .minimum = 4,
-          .maximum = 6,
-      },
-  }});
-  run.RegisterNewFile(0);
-  run.RegisterNewFile(1);
+  run.RegisterNewFile(0, 1, 3);
+  run.RegisterNewFile(1, 4, 6);
 
   auto v = run.Scan(2, 5);
   ASSERT_EQ(v.size(), 4);

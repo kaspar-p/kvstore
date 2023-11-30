@@ -79,20 +79,7 @@ class KvStore::KvStoreImpl {
         filter_file(this->naming, 0, run_idx, intermediate);
     this->filter_serializer->Create(filter_name, *memtable_contents);
 
-    // Register the new datafile with Manifest
-    std::vector<FileMetadata> files = {FileMetadata{
-        .id =
-            SstableId{
-                .level = 0,
-                .run = run_idx,
-                .intermediate = intermediate,
-            },
-        .minimum = min,
-        .maximum = max,
-    }};
-    this->manifest.value().RegisterNewFiles(files);
-
-    run->RegisterNewFile(intermediate);
+    run->RegisterNewFile(intermediate, min, max);
     return run;
   }
 

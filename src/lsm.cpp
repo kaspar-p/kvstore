@@ -46,8 +46,18 @@ class LSMRun::LSMRunImpl {
 
   [[nodiscard]] int NextFile() const { return this->files.size(); }
 
-  void RegisterNewFile(int intermediate) {
+  void RegisterNewFile(int intermediate, K minimum, K maximum) {
     this->files.push_back(intermediate);
+    this->manifest.RegisterNewFiles({FileMetadata{
+        .id =
+            SstableId{
+                .level = static_cast<uint32_t>(this->level),
+                .run = static_cast<uint32_t>(this->run),
+                .intermediate = static_cast<uint32_t>(intermediate),
+            },
+        .minimum = minimum,
+        .maximum = maximum,
+    }});
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
@@ -162,8 +172,8 @@ std::vector<std::pair<K, V>> LSMRun::Scan(K lower, K upper) const {
   return this->impl->Scan(lower, upper);
 }
 [[nodiscard]] int LSMRun::NextFile() const { return this->impl->NextFile(); }
-void LSMRun::RegisterNewFile(int intermediate) {
-  return this->impl->RegisterNewFile(intermediate);
+void LSMRun::RegisterNewFile(int intermediate, K minimum, K maximum) {
+  return this->impl->RegisterNewFile(intermediate, minimum, maximum);
 }
 void LSMRun::Delete() { return this->impl->Delete(); }
 std::vector<std::pair<K, V>> LSMRun::GetVectorFromFile(uint32_t file_num) {
@@ -288,23 +298,14 @@ class LSMLevel::LSMLevelImpl {
         std::string data_name = data_file(this->dbname, this->level + 1,
                                           run_in_next_level, intermediate);
         this->sstable_serializer.Flush(data_name, buffer, true);
-        this->manifest.RegisterNewFiles({FileMetadata{
-            .id =
-                SstableId{
-                    .level = this->level + 1,
-                    .run = run_in_next_level,
-                    .intermediate = intermediate,
-                },
-            .minimum = buffer.front().first,
-            .maximum = buffer.back().first,
-        }});
 
         // Create the corresponding Bloom Filter
         std::string filter_name = filter_file(this->dbname, this->level + 1,
                                               run_in_next_level, intermediate);
         this->filter_serializer.Create(filter_name, buffer);
 
-        new_run->RegisterNewFile(intermediate);
+        new_run->RegisterNewFile(intermediate, buffer.front().first,
+                                 buffer.back().first);
         buffer.clear();
       }
     }

@@ -72,8 +72,10 @@ class LSMRun {
    * file to be managed by that run.
    *
    * @param filename The file to register into the run.
+   * @param minimum The minimum key in the file.
+   * @param maximum The maximum key in the file.
    */
-  void RegisterNewFile(int intermediate);
+  void RegisterNewFile(int intermediate, K minimum, K maximum);
 
   /**
    * @brief Delete all files that correspond to the run.
