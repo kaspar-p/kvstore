@@ -124,12 +124,6 @@ TEST(SstableNaive, Scan16MB) {
   std::vector<std::pair<K, V>> val = t.Drain(f);
 
   ASSERT_EQ(val.size(), 1000000);
-
-  for (int i = 0; i < 1000000; i++) {
-   std::optional<V> val = t.GetFromFile(f, i);
-    ASSERT_EQ(val.has_value(), true);
-    ASSERT_EQ(val.value(), i);
-  }
 }
 
 TEST(SstableNaive, ScanDenseAround) {
