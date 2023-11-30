@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "memtable.hpp"
+#include "sstable.hpp"
 
 TEST(KvStore, ScanIncludesEnds) {
   std::filesystem::remove_all("/tmp/KvStore.ScanIncludesEnds");
@@ -342,6 +343,7 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "MANIFEST"));
 
   for (int i = 0; i < 3; i++) {
+    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -350,6 +352,7 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
 
   for (int i = 0; i < 2; i++) {
+    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -358,7 +361,8 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
 
   // trigger compaction with two more
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 4; i++) {
+    std::cout << "[TEST] Putting " << total_count << '\n';
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
@@ -410,6 +414,125 @@ TEST(KvStore, LevelStructure) {
   ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I3"));
 
   // Make sure all of the data still reachable
+  for (int i = 0; i < total_count; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
+  }
+
+  // Fill level 0 again
+  for (int i = 0; i < 8; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  // Level 0 should still be empty
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+
+  // Level 1 should have the new run, R2
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I3"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I3"));
+
+  // Fill level 0 again, this triggers compaction into L2!
+  for (int i = 0; i < 8; i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  // Level 0 AND 1 should be empty
+
+  // Level 0
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+
+  // Level 1 Run 0
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I3"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I3"));
+
+  // Level 1 Run 1
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I3"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I3"));
+
+  // Level 1 Run 2
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I3"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I0"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I1"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I2"));
+  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I3"));
+
+  // Level 2 should have all of the data files in a single run
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I3"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I4"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I5"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I6"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I7"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I8"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I9"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I10"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I11"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I12"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I13"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I14"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I15"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I0"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I1"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I2"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I3"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I4"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I5"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I6"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I7"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I8"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I9"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I10"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I11"));
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I12"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I13"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I14"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I15"));
+
   for (int i = 0; i < total_count; i++) {
     ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
   }

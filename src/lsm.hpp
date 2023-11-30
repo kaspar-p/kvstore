@@ -124,7 +124,8 @@ class LSMLevel {
   void DiscoverRuns();
 
   std::optional<std::unique_ptr<LSMRun>> RegisterNewRun(
-      std::unique_ptr<LSMRun> run);
+      std::unique_ptr<LSMRun> run,
+      std::optional<std::reference_wrapper<LSMLevel>> next_level);
 
   /**
    * @brief Returns the index of the next run. That is, if the level has two

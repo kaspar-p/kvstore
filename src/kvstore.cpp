@@ -107,25 +107,31 @@ class KvStore::KvStoreImpl {
     // While each level overflows, register the overflowed, compacted run into
     // the next level.
     // Keep looping until compaction no longer produces a run
-    std::size_t level_idx = 0;
-    std::unique_ptr<LSMRun> curr_level_run = this->create_level0_run();
-    std::optional<std::unique_ptr<LSMRun>> next_level_run;
-    while ((next_level_run = this->levels.at(level_idx)->RegisterNewRun(
-                std::move(curr_level_run)))
-               .has_value()) {
-      std::cout << "level " << level_idx
+    std::size_t L = 0;
+    std::optional<std::unique_ptr<LSMRun>> L_run =
+        std::make_optional(this->create_level0_run());
+
+    while (L_run.has_value()) {
+      std::cout << "level " << L
                 << " was full, compacted into a run for next level!" << '\n';
-      curr_level_run = std::move(next_level_run.value());
-      level_idx++;
+
+      std::optional<std::reference_wrapper<LSMLevel>> next_level;
+      if (L + 1 < this->levels.size()) {
+        next_level = *this->levels.at(L + 1);
+      }
+
+      L_run = this->levels.at(L)->RegisterNewRun(std::move(L_run.value()),
+                                                 next_level);
+      L++;
 
       // If the levels are full, create a new, final level
       // This should stop the looping, the new level won't do compaction
       // when RegisterNewRun is called.
-      if (level_idx == this->levels.size()) {
+      if (L == this->levels.size() && L_run.has_value()) {
         this->levels.push_back(std::make_unique<LSMLevel>(
-            this->naming, this->tiers, level_idx, true,
-            this->memtable.GetCapacity(), this->manifest.value(),
-            this->buf.value(), *this->sstable_serializer));
+            this->naming, this->tiers, L, true, this->memtable.GetCapacity(),
+            this->manifest.value(), this->buf.value(),
+            *this->sstable_serializer));
       }
     }
   }
@@ -141,6 +147,8 @@ class KvStore::KvStoreImpl {
           this->manifest.value(), this->buf.value(), *this->sstable_serializer);
       this->levels.push_back(std::move(level));
     }
+
+    std::cout << "FLUSHED, NOW COMPACT!" << '\n';
 
     this->recursively_compact();
     this->memtable.Clear();
