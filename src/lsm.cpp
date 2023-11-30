@@ -78,9 +78,45 @@ class LSMRun::LSMRunImpl {
   }
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const {
-    (void)lower;
-    (void)upper;
+    // Find first file that has the lower bound in range
+    auto it = std::find_if(this->files.begin(), this->files.end(),
+                           [&](auto intermediate) {
+                             return this->manifest.InRange(
+                                 this->level, this->run, intermediate, lower);
+                           });
+    uint32_t intermediate;
+    if (it == this->files.end()) {
+      intermediate = 0;
+    } else {
+      intermediate = *it;
+    }
+
     std::vector<std::pair<K, V>> l{};
+
+    // Now that we have a starting file, we loop until we no longer get matches
+    bool matches = true;
+    while (matches) {
+      std::string sstable =
+          data_file(this->naming, this->level, this->run, intermediate);
+      std::vector<std::pair<K, V>> file_l =
+          this->sstable_serializer.ScanInFile(sstable, lower, upper);
+      for (auto pair : file_l) {
+        l.push_back(pair);
+      }
+
+      // If:
+      // 1. the last file searched had some keys (they are sorted, so next files
+      //    will also not match),
+      // 2. there is another file to search, and
+      // 3. there are still more keys to find.
+      if (file_l.size() > 0 && intermediate + 1 < this->files.size() &&
+          file_l.back().first < upper) {
+        intermediate++;
+      } else {
+        matches = false;
+      }
+    }
+
     return l;
   }
 
@@ -121,6 +157,9 @@ LSMRun::~LSMRun() = default;
 
 [[nodiscard]] std::optional<V> LSMRun::Get(K key) const {
   return this->impl->Get(key);
+}
+std::vector<std::pair<K, V>> LSMRun::Scan(K lower, K upper) const {
+  return this->impl->Scan(lower, upper);
 }
 [[nodiscard]] int LSMRun::NextFile() const { return this->impl->NextFile(); }
 void LSMRun::RegisterNewFile(int intermediate) {
