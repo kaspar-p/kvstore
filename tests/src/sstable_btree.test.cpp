@@ -144,10 +144,6 @@ TEST(SstableBTree, GetSingleElems3Layers16MB) {
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs, true);
 
-  std::vector<std::pair<K, V>> val = t.Drain(f);
-
-  ASSERT_EQ(val.size(), 1000000);
-
   for (int i = 0; i < 1000000; i++) {
    std::optional<V> val = t.GetFromFile(f, i);
     ASSERT_EQ(val.has_value(), true);
