@@ -132,32 +132,28 @@ TEST(SstableBTree, GetSingleElems2LayersFull) {
   }
 }
 
-// TEST(SstableBTree, GetSingleElems3LayersFull) {
-//   MemTable memtable(16000000);
-//   for (int i = 0; i < 16000000; i++) {
-//     memtable.Put(i, i);
-//   }
+TEST(SstableBTree, GetSingleElems3Layers16MB) {
+  auto buf = test_buf();
+  MemTable memtable(1000000);
+  for (int i = 0; i < 1000000; i++) {
+    memtable.Put(i, i);
+  }
 
-//   SstableBTree t(buf);
-//   std::string f("/tmp/SstableBTree.GetSingleElems3LayersFull");
-//                  std::fstream::binary | std::fstream::in | std::fstream::out
-//                  |
-//                      std::fstream::trunc);
-//   ASSERT_EQ(f.is_open(), true);
-//   ASSERT_EQ(f.good(), true);
-//   auto pairs = memtable.ScanAll();
-//   t.Flush(f, *pairs, true);
+  SstableBTree t{buf};
+  std::string f("/tmp/SstableBTree.GetSingleElems3Layers16MB.bin");
+  auto pairs = memtable.ScanAll();
+  t.Flush(f, *pairs, true);
 
-//   std::vector<std::pair<K, V>> val = t.Drain(f);
+  std::vector<std::pair<K, V>> val = t.Drain(f);
 
-//   ASSERT_EQ(val.size(), 16000000);
+  ASSERT_EQ(val.size(), 1000000);
 
-//   // for (int i = 0; i < 16000000; i++) {
-//   //  std::optional<V> val = t.GetFromFile(f, i);
-//   //   ASSERT_EQ(val.has_value(), true);
-//   //   ASSERT_EQ(val.value(), i);
-//   // }
-// }
+  for (int i = 0; i < 1000000; i++) {
+   std::optional<V> val = t.GetFromFile(f, i);
+    ASSERT_EQ(val.has_value(), true);
+    ASSERT_EQ(val.value(), i);
+  }
+}
 
 // Further test layers of internal nodes (like 3+ layers)
 // TODO: taking max of maxes for internal layers
