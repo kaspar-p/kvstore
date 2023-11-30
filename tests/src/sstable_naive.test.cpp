@@ -1,49 +1,43 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "memtable.hpp"
 #include "sstable.hpp"
+#include "testutil.hpp"
 
 TEST(SstableNaive, AddElems) {
+  auto buf = test_buf();
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
-  SstableNaive t{};
-  std::fstream f;
-  f.open("/tmp/SstableNaive.AddElems", std::fstream::binary | std::fstream::in |
-                                           std::fstream::out |
-                                           std::fstream::trunc);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.AddElems";
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   ASSERT_EQ(1, 1);
 }
 
 TEST(SstableNaive, GetSingleElems) {
+  auto buf = test_buf();
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.GetSingleElems",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.GetSingleElems";
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::optional<V> val = t.GetFromFile(f, 32);
 
@@ -52,19 +46,17 @@ TEST(SstableNaive, GetSingleElems) {
 }
 
 TEST(SstableNaive, GetManySingleElems) {
+  auto buf = test_buf();
+
   MemTable memtable(2000);
   for (int i = 0; i < 2000; i++) {
     memtable.Put(i, 2 * i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.GetManySingleElems",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.GetManySingleElems";
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   for (int i = 0; i < 2000; i++) {
     std::optional<V> val = t.GetFromFile(f, i);
@@ -74,20 +66,18 @@ TEST(SstableNaive, GetManySingleElems) {
 }
 
 TEST(SstableNaive, GetSingleMissing) {
+  auto buf = test_buf();
+
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     if (i == 54) continue;
     memtable.Put(i, i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.GetSingleMissing",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.GetSingleMissing";
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::optional<V> val = t.GetFromFile(f, 54);
   ASSERT_EQ(val.has_value(), false);
@@ -98,20 +88,18 @@ TEST(SstableNaive, GetSingleMissing) {
 }
 
 TEST(SstableNaive, Scan10KEntries) {
+  auto buf = test_buf();
+
   int amt = 10000;
   MemTable memtable(amt);
   for (int i = 0; i < amt; i++) {
     memtable.Put(i, 2 * i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.Scan10KEntries",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.Scan10KEntries");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, amt);
 
@@ -122,19 +110,16 @@ TEST(SstableNaive, Scan10KEntries) {
 }
 
 TEST(SstableNaive, ScanDenseAround) {
+  auto buf = test_buf();
   MemTable memtable(100);
   for (int i = 100; i < 200; i++) {
     memtable.Put(i, 2 * i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeLeftHanging",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanSparseRangeLeftHanging");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, UINT64_MAX);
 
@@ -146,19 +131,16 @@ TEST(SstableNaive, ScanDenseAround) {
 }
 
 TEST(SstableNaive, ScanDenseRange) {
+  BufPool buf = test_buf();
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanDenseRange",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanDenseRange");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 52);
 
@@ -170,6 +152,7 @@ TEST(SstableNaive, ScanDenseRange) {
 }
 
 TEST(SstableNaive, ScanSparseRangeIncludes) {
+  auto buf = test_buf();
   MemTable memtable(64);
   memtable.Put(7, 17);
   memtable.Put(9, 19);
@@ -179,14 +162,10 @@ TEST(SstableNaive, ScanSparseRangeIncludes) {
   memtable.Put(44, 54);
   memtable.Put(99, 109);
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeIncludes",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanSparseRangeIncludes");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 10, 50);
 
@@ -205,6 +184,7 @@ TEST(SstableNaive, ScanSparseRangeIncludes) {
 }
 
 TEST(SstableNaive, ScanSparseRangeHuge) {
+  auto buf = test_buf();
   MemTable memtable(64);
   memtable.Put(7, 17);
   memtable.Put(9, 19);
@@ -214,14 +194,10 @@ TEST(SstableNaive, ScanSparseRangeHuge) {
   memtable.Put(44, 54);
   memtable.Put(99, 109);
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeHuge",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanSparseRangeHuge");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 100);
 
@@ -250,6 +226,7 @@ TEST(SstableNaive, ScanSparseRangeHuge) {
 }
 
 TEST(SstableNaive, ScanSparseRangeLeftHanging) {
+  auto buf = test_buf();
   MemTable memtable(64);
   memtable.Put(7, 17);
   memtable.Put(9, 19);
@@ -259,14 +236,10 @@ TEST(SstableNaive, ScanSparseRangeLeftHanging) {
   memtable.Put(44, 54);
   memtable.Put(99, 109);
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeLeftHanging",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanSparseRangeLeftHanging");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 0, 10);
 
@@ -279,6 +252,7 @@ TEST(SstableNaive, ScanSparseRangeLeftHanging) {
 }
 
 TEST(SstableNaive, ScanSparseRangeRightHanging) {
+  auto buf = test_buf();
   MemTable memtable(64);
   memtable.Put(7, 17);
   memtable.Put(9, 19);
@@ -288,14 +262,10 @@ TEST(SstableNaive, ScanSparseRangeRightHanging) {
   memtable.Put(44, 54);
   memtable.Put(99, 109);
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeRightHanging",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f("/tmp/SstableNaive.ScanSparseRangeRightHanging");
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 50, 1000);
 
@@ -305,6 +275,7 @@ TEST(SstableNaive, ScanSparseRangeRightHanging) {
 }
 
 TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
+  auto buf = test_buf();
   MemTable memtable(64);
   memtable.Put(7, 17);
   memtable.Put(9, 19);
@@ -314,14 +285,12 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
   memtable.Put(44, 54);
   memtable.Put(99, 109);
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.ScanSparseRangeOutOfBounds",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.ScanSparseRangeOutOfBounds";
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  std::filesystem::remove(f);
+  t.Flush(f, *keys, true);
+
   // Above range
   std::vector<std::pair<K, V>> val = t.ScanInFile(f, 100, 1000);
   ASSERT_EQ(val.size(), 0);
@@ -331,17 +300,16 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
   ASSERT_EQ(val.size(), 0);
 }
 
+// Segfaults, fix later
 // TEST(SstableNaive, DrainEmpty) {
+//   auto buf = test_buf();
 //   MemTable memtable(64);
 
-//   SstableNaive t{};
-//   std::fstream f("/tmp/SstableNaive.DrainEmpty",
-//                  std::fstream::binary | std::fstream::in | std::fstream::out |
-//                      std::fstream::trunc);
-//   ASSERT_EQ(f.is_open(), true);
-//   ASSERT_EQ(f.good(), true);
+//   SstableNaive t(buf);
+//   std::string f = "/tmp/SstableNaive.DrainEmpty";
+//   std::filesystem::remove(f);
 //   auto keys = memtable.ScanAll();
-//   t.Flush(f, *keys);
+//   t.Flush(f, *keys, true);
 
 //   std::vector<std::pair<K, V>> val = t.Drain(f);
 
@@ -349,20 +317,19 @@ TEST(SstableNaive, ScanSparseRangeOutOfBounds) {
 // }
 
 TEST(SstableNaive, Drain255Entries) {
+  auto buf = test_buf();
   int amt = 255;
   MemTable memtable(255);
   for (int i = 0; i < 255; i++) {
     memtable.Put(i, 2 * i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.Drain10KEntries",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.Drain10KEntries";
+  std::filesystem::remove(f);
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  std::filesystem::remove(f);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.Drain(f);
 
@@ -374,20 +341,18 @@ TEST(SstableNaive, Drain255Entries) {
 }
 
 TEST(SstableNaive, Drain10KEntries) {
+  auto buf = test_buf();
   int amt = 10000;
   MemTable memtable(amt);
   for (int i = 0; i < amt; i++) {
     memtable.Put(i, 2 * i);
   }
 
-  SstableNaive t{};
-  std::fstream f("/tmp/SstableNaive.Drain10KEntries",
-                 std::fstream::binary | std::fstream::in | std::fstream::out |
-                     std::fstream::trunc);
-  ASSERT_EQ(f.is_open(), true);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive.Drain10KEntries";
+  std::filesystem::remove(f);
   auto keys = memtable.ScanAll();
-  t.Flush(f, *keys);
+  t.Flush(f, *keys, true);
 
   std::vector<std::pair<K, V>> val = t.Drain(f);
 
@@ -399,36 +364,33 @@ TEST(SstableNaive, Drain10KEntries) {
 }
 
 TEST(SstableNaive, GetMinimum) {
+  auto buf = test_buf();
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
-  SstableNaive t{};
-  std::fstream f;
-  f.open("/tmp/SstableNaive_GetMinimum.bin",
-         std::fstream::binary | std::fstream::in | std::fstream::out |
-             std::fstream::trunc);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = ("/tmp/SstableNaive_GetMinimum");
+  std::filesystem::remove(f);
   auto pairs = memtable.ScanAll();
-  t.Flush(f, *pairs);
+  t.Flush(f, *pairs, true);
 
   uint64_t minKey = t.GetMinimum(f);
   ASSERT_EQ(minKey, 0);
 }
 
 TEST(SstableNaive, GetMaximum) {
+  auto buf = test_buf();
+
   MemTable memtable(64);
   for (int i = 0; i < 64; i++) {
     memtable.Put(i, i);
   }
-  SstableNaive t{};
-  std::fstream f;
-  f.open("/tmp/SstableNaive_GetMaximum.bin",
-         std::fstream::binary | std::fstream::in | std::fstream::out |
-             std::fstream::trunc);
-  ASSERT_EQ(f.good(), true);
+  SstableNaive t(buf);
+  std::string f = "/tmp/SstableNaive_GetMaximum";
+  std::filesystem::remove(f);
   auto pairs = memtable.ScanAll();
-  t.Flush(f, *pairs);
+  t.Flush(f, *pairs, true);
 
   uint64_t maxKey = t.GetMaximum(f);
   ASSERT_EQ(maxKey, 63);

@@ -30,7 +30,7 @@ int main() {
   }
 
   // SstableBTree t{};
-  // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers.bin",
+  // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers",
   //                std::fstream::binary | std::fstream::in | std::fstream::out
   //                |
   //                    std::fstream::trunc);

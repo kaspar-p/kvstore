@@ -67,20 +67,13 @@ class KvStore::KvStoreImpl {
 
     // Create the new data file
     uint32_t intermediate = run->NextFile();
-    std::fstream sstable(data_file(this->naming, 0, run_idx, intermediate),
-                         std::fstream::binary | std::fstream::in |
-                             std::fstream::out | std::fstream::trunc);
-    assert(sstable.good());
+    std::string data_name = data_file(this->naming, 0, run_idx, intermediate);
+
     std::unique_ptr<std::vector<std::pair<K, V>>> memtable_contents =
         this->memtable.ScanAll();
     K min = memtable_contents->front().first;
     K max = memtable_contents->back().first;
-    this->sstable_serializer->Flush(sstable, *memtable_contents);
-    if (!sstable.good()) {
-      perror("Failed to write serialized block!");
-      exit(1);
-    }
-    sstable.close();
+    this->sstable_serializer->Flush(data_name, *memtable_contents, true);
 
     std::string filter_name =
         filter_file(this->naming, 0, run_idx, intermediate);
@@ -203,11 +196,19 @@ class KvStore::KvStoreImpl {
   void Open(const std::string& name, const Options options) {
     this->open = true;
 
+    // Initialize the page buffer
+    this->buf.emplace(BufPoolTuning{
+        .initial_elements = options.buffer_pages_initial.value_or(16),
+        .max_elements = options.buffer_pages_maximum.value_or(128),
+    });
+
     if (!options.serialization.has_value() ||
         options.serialization.value() == DataFileFormat::kBTree) {
-      this->sstable_serializer = std::make_unique<SstableBTree>();
+      this->sstable_serializer =
+          std::make_unique<SstableBTree>(this->buf.value());
     } else {
-      this->sstable_serializer = std::make_unique<SstableNaive>();
+      this->sstable_serializer =
+          std::make_unique<SstableNaive>(this->buf.value());
     }
 
     this->tiers = options.tiers.value_or(2);
@@ -222,12 +223,6 @@ class KvStore::KvStoreImpl {
     std::size_t memtable_capacity = options.memory_buffer_elements.value_or(
         kMegabyteSize / (kKeySize + kValSize));
     this->memtable.IncreaseCapacity(memtable_capacity);
-
-    // Initialize the page buffer
-    this->buf.emplace(BufPoolTuning{
-        .initial_elements = options.buffer_pages_initial.value_or(16),
-        .max_elements = options.buffer_pages_maximum.value_or(128),
-    });
 
     // Initialize filter serializer
     this->filter_serializer =

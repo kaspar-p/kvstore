@@ -150,7 +150,7 @@ class Manifest::ManifestHandleImpl {
           this->levels.resize(level);
         }
 
-        std::fstream f(entry.path(), std::fstream::binary | std::fstream::in);
+        std::string entry_name = entry.path().filename().string();
         this->levels.at(level).push_back(FileMetadata{
             .id =
                 SstableId{
@@ -158,8 +158,8 @@ class Manifest::ManifestHandleImpl {
                     .run = run,
                     .intermediate = intermediate,
                 },
-            .minimum = this->serializer.GetMinimum(f),
-            .maximum = this->serializer.GetMaximum(f),
+            .minimum = this->serializer.GetMinimum(entry_name),
+            .maximum = this->serializer.GetMaximum(entry_name),
         });
       }
       // TODO(kfp@) recognize filters!

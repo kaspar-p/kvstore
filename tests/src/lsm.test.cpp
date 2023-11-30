@@ -11,7 +11,7 @@ TEST(LSMLevel, Initialize) {
       .initial_elements = 4,
       .max_elements = 16,
   });
-  SstableBTree serializer;
+  SstableBTree serializer(buf);
   Manifest manifest(naming, 4, serializer);
 
   LSMLevel lsm(naming, 4, 0, false, 20, manifest, buf, serializer);
@@ -25,7 +25,7 @@ TEST(LSMLevel, LevelCorrect) {
       .initial_elements = 4,
       .max_elements = 16,
   });
-  SstableBTree serializer;
+  SstableBTree serializer(buf);
   Manifest manifest(naming, 4, serializer);
 
   LSMLevel lsm(naming, 4, 1, false, 20, manifest, buf, serializer);

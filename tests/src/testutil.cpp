@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 
+#include "buf.hpp"
 #include "naming.hpp"
 
 DbNaming create_dir(std::string dir_name) {
@@ -12,4 +13,8 @@ DbNaming create_dir(std::string dir_name) {
   assert(created);
 
   return DbNaming{.dirpath = "/tmp/" + dir_name, .name = dir_name};
+}
+
+BufPool test_buf() {
+  return {BufPoolTuning{.initial_elements = 2, .max_elements = 16}};
 }

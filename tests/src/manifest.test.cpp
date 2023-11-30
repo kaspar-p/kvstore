@@ -9,8 +9,9 @@
 #include "testutil.hpp"
 
 TEST(Manifest, Initialization) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.Initialization");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
   std::filesystem::remove(manifest_file(naming));
 
   Manifest m(naming, 2, serializer);
@@ -19,16 +20,18 @@ TEST(Manifest, Initialization) {
 }
 
 TEST(Manifest, InRange) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.InRange");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
   std::filesystem::remove(manifest_file(naming));
 
   // TODO(kfp@): do this!
 }
 
 TEST(Manifest, GetFileMemory) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.GetFileMemory");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
   std::filesystem::remove(manifest_file(naming));
 
   Manifest m(naming, 2, serializer);
@@ -89,8 +92,9 @@ TEST(Manifest, GetFileMemory) {
 }
 
 TEST(Manifest, GetFileRecovery) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.GetFileRecovery");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
 
   {
     std::filesystem::remove(manifest_file(naming));
@@ -153,8 +157,9 @@ TEST(Manifest, GetFileRecovery) {
 }
 
 TEST(Manifest, GetFileRecoveryMany) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.GetFileRecoveryMany");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
 
   {
     std::filesystem::remove(manifest_file(naming));
@@ -184,9 +189,10 @@ TEST(Manifest, GetFileRecoveryMany) {
 }
 
 TEST(Manifest, RemoveFileSimple) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.GetFileRecoveryMany");
   std::filesystem::remove(manifest_file(naming));
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
 
   Manifest m(naming, 2, serializer);
   std::vector<FileMetadata> files = {FileMetadata{
@@ -207,8 +213,9 @@ TEST(Manifest, RemoveFileSimple) {
 }
 
 TEST(Manifest, RemoveFileRecovery) {
+  auto buf = test_buf();
   auto naming = create_dir("Manifest.RemoveFileRecovery");
-  SstableNaive serializer;
+  SstableNaive serializer(buf);
 
   {
     std::filesystem::remove(manifest_file(naming));

@@ -67,7 +67,7 @@ std::vector<std::pair<K, V>> SstableBTree::Drain(std::string& filename) const {
 
 void SstableBTree::Flush(std::string& filename,
                          std::vector<std::pair<K, V>>& pairs,
-                         bool truncate = false) const {
+                         bool truncate) const {
   std::fstream::openmode mode =
       std::fstream::binary | std::fstream::in | std::fstream::out;
   if (truncate) {

@@ -75,12 +75,12 @@ class SstableNaive : public Sstable {
   SstableNaive(BufPool& buffer_pool);
   void Flush(std::string& filename,
              std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
-  std::optional<V> GetFromFile(std::string& file, K key) const override;
-  std::vector<std::pair<K, V>> ScanInFile(std::string& file, K lower,
+  std::optional<V> GetFromFile(std::string& filename, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
                                           K upper) const override;
-  K GetMinimum(std::string& file) const override;
-  K GetMaximum(std::string& file) const override;
-  std::vector<std::pair<K, V>> Drain(std::string& file) const override;
+  K GetMinimum(std::string& filename) const override;
+  K GetMaximum(std::string& filename) const override;
+  std::vector<std::pair<K, V>> Drain(std::string& filename) const override;
 };
 
 class SstableBTree : public Sstable {
@@ -91,10 +91,10 @@ class SstableBTree : public Sstable {
   SstableBTree(BufPool& buffer_pool);
   void Flush(std::string& filename,
              std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
-  std::optional<V> GetFromFile(std::string& file, K key) const override;
-  std::vector<std::pair<K, V>> ScanInFile(std::string& file, K lower,
+  std::optional<V> GetFromFile(std::string& filename, K key) const override;
+  std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
                                           K upper) const override;
-  K GetMinimum(std::string& file) const override;
-  K GetMaximum(std::string& file) const override;
-  std::vector<std::pair<K, V>> Drain(std::string& file) const override;
+  K GetMinimum(std::string& filename) const override;
+  K GetMaximum(std::string& filename) const override;
+  std::vector<std::pair<K, V>> Drain(std::string& filename) const override;
 };

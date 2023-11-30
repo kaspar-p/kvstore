@@ -26,6 +26,7 @@ target_include_directories(
   PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
 )
+target_link_libraries(kvstore_testutil PRIVATE xxHash::xxhash)
 target_link_libraries(kvstore_testutil PRIVATE kvstore_naming)
 target_compile_features(kvstore_testutil PUBLIC cxx_std_17)
 
