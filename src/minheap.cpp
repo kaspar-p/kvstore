@@ -10,6 +10,9 @@
 #include "constants.hpp"
 
 bool sortByKey(const std::pair<K, int> &a, const std::pair<K, int> &b) {
+  if (a.first == b.first) {
+    return a.second > b.second;
+  }
   return a.first < b.first;
 }
 
