@@ -2,11 +2,21 @@
 
 A key-value store implementation for CSC443, Fall 2023 by Kaspar Poland, Janine Newton, and Tianji Zhang.
 
-## Building and installing
+## Table of Contents
+
+1. Building and installing
+2. User Guide
+3. Code Architecture / Design Elements
+4. Project Status
+5. Experiments
+6. Testing Strategy
+7. References
+
+## 1. Building and installing
 
 See the [BUILDING](BUILDING.md) document.
 
-## User Guide
+## 2. User Guide
 
 This library exposes a single class, `KvStore`, meant to be instantiated per-table. The instantiation of the object does nothing, the `Open()` method creates the table. The table is a key-value table. The keys and values are both `uint64_t`. Variable-sized values are not supported (yet).
 
@@ -27,7 +37,7 @@ The `Options` structure can be read about in the header file. Each field is opti
 - `buffer_pages_initial`: The initial amount of elements to allocate for the buffer pool, in units of 4KB pages.
 - `buffer_pages_maximum`: The maximum amount of elements to allocate for the buffer pool, in units of 4KB pages. This maximum is the number of pages that are stored in-memory to prevent going into the filesystem too often.
 - `tiers`: The "tiering" constant for the LSM tree. Must be >= 2, and defaults to 2 if not specified. Common values lie between 2 and 10. This LSM tree supports any tiering number >= 2, and is automatically configured to use the Dostoevsky merge policy [1]. See the paper for more details.
-- `serialization`: An enum to format data in different ways, either a sorted-string table, or as a BTree in the filesystem. One of `DataFileFormat::kBTree` or `DataFileFormat::kFlatSorted`.
+- `serialization`: An enum to format data in different ways, either a sorted-string table, or as a BTree in the filesystem. One of `DataFileFormat::kBTree` or `DataFileFormat::kFlatSorted`. Defaults to `DataFileFormat::kBTree`, which generally uses fewer IOs. See the benchmarks for more details.
 
 ### `DataDirectory`
 
@@ -97,7 +107,7 @@ The database is a key-value store with a similar interface as a hashmap, but des
 
 The following sections discuss design decisions and implementation details of the table.
 
-## High-level code architecture
+## 3. High-level code architecture / Design Elements
 
 The database (used interchangeably with key-value store) is structured as an Log-Structured Merge (LSM) tree. Other components of the project are:
 
@@ -127,7 +137,7 @@ The `KvStore` uses `LSMLevel` instances for the LSM levels of the tree, a `Manif
 
 To describe the features of our database, we enumerate some of the design decisions that went into it.
 
-## Blocked Bloom Filters
+### Blocked Bloom Filters
 
 To improve performance, we used blocked bloom filters over a standard bloom filter. Blocked bloom filters have better cache-locality than standard bloom filters, as they have at most 1 CPU cache miss while fetching. Since bloom filters are frequently accessed, they are often in memory, meaning the saving actually works.
 
@@ -160,7 +170,7 @@ Another interesting bit about the bloom filter is that there is a serializer cre
 
 They aren't really different, all being xxhash (citation needed) functions with a different starting seed, but it's enough.
 
-## Extendible hashing
+### Extendible hashing
 
 The Buffer Pool implementation uses extendible hashing based on a Trie (citation needed) data structure, also sometimes called a prefix tree. That is, the extendible hashing internally tracks the number of relevant bits, and traverses the data structure to get the right page.
 
@@ -168,7 +178,7 @@ The buffer pool implementation works hand-in-hand with the eviction algorithm. T
 
 The eviction algorithm itself is clock-based, and is generic over its container, just like the buffer pool. That is, it's technically possible to store any structure in the buffer pool, not just pages.
 
-## File sizes
+### File sizes
 
 > The original documentation for file sizes is split between [./docs/compaction.md](./docs/compaction.md), the document describing compaction and [./docs/structure.md](./docs/structure.md), the document describing the LSM tree structure. It is distilled for this section here.
 
@@ -182,7 +192,7 @@ It also makes the compaction process easier. Being able to merge the data from t
 
 The number of tiers-per-level is controlled by the `tiers` option in the `Options` struct, one of the parameters to `KvStore::Open()`. There are some downsides, which we discuss in the next section, LSM structure.
 
-## File formats
+### File formats
 
 A lot of thought went into our file formats. They are described in many different documents that have all been maintained throughout development:
 
@@ -191,7 +201,7 @@ A lot of thought went into our file formats. They are described in many differen
 - [`./docs/file_filter.md`](./docs/file_filter.md): describes the format of Bloom Filter files.
 - [`./docs/file_manifest.md`](./docs/file_manifest.md): Describes the very condensed format of the Manifest file.
 
-## Database structure
+### Database structure
 
 > The original documentation for database structure is [./docs/structure.md](./docs/structure.md). This is similar content.
 
@@ -219,7 +229,7 @@ Also, as mentioned briefly in the Bloom filters section, we keep one bloom filte
 
 This sort of structure together with small file sizes means that the database might have thousands of 1-4MB files for a large multi-gigabyte dataset. Supposedly this many files really does slow a system down, but not by much (leveldb citation needed).
 
-## Compaction
+### Compaction
 
 > The original documentation written during development for compaction is `./docs/compaction.md`. This is similar content.
 
@@ -235,6 +245,38 @@ The only exception to this process is the final level. Dostoevsky means using th
 
 Also to note, each time the buffer is flushed into a new data file, a new BloomFilter is created from those keys. As mentioned before, data files and bloom filters are 1:1.
 
-## References
+## 4. Project Status
+
+The project is finished, though there are some caveats.
+
+All features described above work as intended, but there are some things that were planned from the beginning, and never gotten to, or are in an odd state:
+
+1. **Monkey**: it was planned from the beginning. Each `LSMLevel` instance constructs its own `Filter` instance, and the filter instance is parameterized by the tiering amount and the level it's in. The only thing remaining is `R`, the user parameter that would be a part of the implementation. That, and it would need to be tested, validated, etc.
+2. **Dostoevsky**: It was also planned from the start since we use tiering, but the time to write the final merge algorithm was never found. We use MinHeap merges for cross-level merging, but the final level uses tiering still.
+3. **Deletion of keys**: We planned on implementing Dostoevsky, where the keys would finally be deleted if they are marked with a tombstone. Since this never happened, keys stay as tombstones forever in the final level, and accumulate forever. This doesn't affect the usability of the database, only means the overheads/write amplification is higher.
+
+I'm sure there are others.
+
+## 5. Experiments
+
+## 6. Testing Strategy
+
+All parts of the project are tested through unit tests. The tests can be ran independently as their own binary, and take somewhere from 10 - 100 seconds to run, depending on the quality of the machine.
+
+The unit tests are all black-box tests of their respective interface. Each source code file was created as its own linkable library, and a test file is for that library especially.
+
+This is a good thing, and allows us to test things like the `BufPool` and `ClockEvictor` independently from any database, giving us higher confidence in their working.
+
+To run the tests, compile and build the project:
+
+```sh
+cmake -S . -B build # Initialize build dir
+cmake --build build # Compile into binary
+./build/tests/kvstore_test
+```
+
+This runs all of the tests. We use the GoogleTest library, so the `--gtest_filter` option can be set to select specific tests (citation needd).
+
+## 7. References
 
 [1] [Dostoevsky](https://scholar.harvard.edu/files/stratos/files/dostoevskykv.pdf)
