@@ -258,9 +258,6 @@ class LSMLevel::LSMLevelImpl {
               file_contents.at(min_run).at(file_cursor.at(min_run));
           std::optional<std::pair<K, int>> next_pair_to_insert =
               std::make_pair(next_key_from_file.first, min_run);
-          // std::cout << "[MinHeap] Inserting: "
-          //           << next_pair_to_insert.value().first
-          //           << ", from run: " << min_run << '\n';
           minheap.Insert(next_pair_to_insert.value());
         }
 
@@ -325,9 +322,12 @@ class LSMLevel::LSMLevelImpl {
   }
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const {
-    (void)lower;
-    (void)upper;
-    return {};
+    std::vector<std::vector<std::pair<K, V>>> sorted_buffers;
+    for (const auto& run : this->runs) {
+      sorted_buffers.push_back(run->Scan(lower, upper));
+    }
+
+    return minheap_merge(sorted_buffers);
   }
 
   [[nodiscard]] int NextRun() { return this->runs.size(); }

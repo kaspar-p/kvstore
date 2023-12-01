@@ -9,6 +9,54 @@
 
 #include "constants.hpp"
 
+std::vector<std::pair<K, V>> minheap_merge(
+    std::vector<std::vector<std::pair<K, V>>> &sorted_buffers) {
+  std::vector<std::pair<K, V>> result{};
+
+  std::vector<K> initial_keys{};
+  initial_keys.reserve(sorted_buffers.size());
+  for (auto const &buf : sorted_buffers) {
+    if (buf.size() > 0) {
+      initial_keys.push_back(buf.at(0).first);
+    }
+  }
+
+  MinHeap heap(initial_keys);
+
+  std::vector<size_t> cursors{};
+  cursors.reserve(sorted_buffers.size());
+  for (const auto &buf : sorted_buffers) {
+    if (buf.size() > 0) {
+      cursors.push_back(0);
+    }
+  }
+
+  std::optional<K> prev_key = std::nullopt;
+  std::optional<std::pair<K, size_t>> min = std::nullopt;
+
+  while (!heap.IsEmpty()) {
+    min = heap.Extract();
+    size_t buffer_idx = min->second;
+
+    if (!prev_key.has_value() || prev_key != min->first) {
+      auto pair = sorted_buffers.at(buffer_idx).at(cursors.at(buffer_idx));
+      result.push_back(pair);
+    }
+
+    cursors.at(buffer_idx)++;
+
+    if (cursors.at(buffer_idx) < sorted_buffers.at(buffer_idx).size()) {
+      std::pair<K, V> next =
+          sorted_buffers.at(buffer_idx).at(cursors.at(buffer_idx));
+      heap.Insert(std::make_pair(next.first, buffer_idx));
+    }
+
+    prev_key = min->first;
+  }
+
+  return result;
+}
+
 bool sortByKey(const std::pair<K, int> &a, const std::pair<K, int> &b) {
   if (a.first == b.first) {
     return a.second > b.second;
@@ -67,7 +115,7 @@ class MinHeap::MinHeapImpl {
   ~MinHeapImpl() = default;
 
   void Insert(std::pair<K, int> new_pair) {
-    this->heap.push_back(new_pair);
+    this->heap.emplace_back(new_pair);
     if (this->heap.size() > 1) {
       std::swap(this->heap.at(0), this->heap.at(this->heap.size() - 1));
       this->HeapifyDown(0);
@@ -93,7 +141,7 @@ class MinHeap::MinHeapImpl {
   std::optional<std::pair<K, int>> InsertAndExtract(
       std::pair<K, int> next_pair) {
     if (this->heap.empty()) {
-      heap.push_back(next_pair);
+      heap.emplace_back(next_pair);
       return std::nullopt;
     }
 

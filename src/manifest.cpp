@@ -162,7 +162,6 @@ class Manifest::ManifestHandleImpl {
             .maximum = this->serializer.GetMaximum(entry_name),
         });
       }
-      // TODO(kfp@) recognize filters!
     }
   }
 

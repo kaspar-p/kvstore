@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -370,6 +371,111 @@ TEST(KvStore, InsertLevelsAndReplaceSimple) {
   ASSERT_EQ(table.Get(3), std::make_optional(300));
   ASSERT_EQ(table.Get(4), std::nullopt);
   ASSERT_EQ(table.Get(5), std::make_optional(500));
+}
+
+TEST(KvStore, ScanAcrossLevelsSimpleInOrder) {
+  std::filesystem::remove_all("/tmp/KvStore.ScanAcrossRunsSimple");
+
+  KvStore table;
+  Options opts = Options{
+      .dir = "/tmp",
+      .memory_buffer_elements = 2,
+  };
+  table.Open("KvStore.ScanAcrossRunsSimple", opts);
+
+  for (std::size_t i = 10; i < 90; i++) {
+    table.Put(i, 2 * i);
+  }
+
+  // Centered
+  auto v = table.Scan(20, 60);
+  ASSERT_EQ(v.size(), 41);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 20);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 20));
+  }
+
+  // Left hanging
+  v = table.Scan(0, 20);
+  ASSERT_EQ(v.size(), 11);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 10);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 10));
+  }
+
+  // Right hanging
+  v = table.Scan(50, 150);
+  ASSERT_EQ(v.size(), 40);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 50);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 50));
+  }
+
+  // Both hanging
+  v = table.Scan(0, 150);
+  ASSERT_EQ(v.size(), 80);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 10);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 10));
+  }
+}
+
+TEST(KvStore, ScanAcrossLevelsSimpleOutOfOrder) {
+  std::filesystem::remove_all("/tmp/KvStore.ScanAcrossRunsSimple");
+
+  KvStore table;
+  Options opts = Options{
+      .dir = "/tmp",
+      .memory_buffer_elements = 2,
+  };
+  table.Open("KvStore.ScanAcrossRunsSimple", opts);
+
+  std::vector<uint64_t> vals{};
+  for (uint64_t i = 10; i < 90; i++) {
+    vals.push_back(i);
+  }
+
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(vals.begin(), vals.end(), g);
+
+  // Add to the table
+  for (const auto& i : vals) {
+    table.Put(i, 2 * i);
+  }
+
+  // Centered
+  auto v = table.Scan(20, 60);
+  ASSERT_EQ(v.size(), 41);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 20);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 20));
+  }
+
+  // Left hanging
+  v = table.Scan(0, 20);
+  ASSERT_EQ(v.size(), 11);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 10);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 10));
+  }
+
+  // Right hanging
+  v = table.Scan(50, 150);
+  ASSERT_EQ(v.size(), 40);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 50);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 50));
+  }
+
+  // Both hanging
+  v = table.Scan(0, 150);
+  ASSERT_EQ(v.size(), 80);
+  for (std::size_t i = 0; i < v.size(); i++) {
+    ASSERT_EQ(v.at(i).first, i + 10);
+    ASSERT_EQ(v.at(i).second, 2 * (i + 10));
+  }
 }
 
 TEST(KvStore, DeleteFromLevelsSimple) {

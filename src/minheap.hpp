@@ -8,6 +8,18 @@
 
 #include "constants.hpp"
 
+/**
+ * @brief Merge a vector of sorted buffers. The semantics are: The buffers that
+ * come LATER (have a higher index) have precedence. For example, if buffers at
+ * index 0 and index 1 contain all the same keys, it is as if the buffer at
+ * index 1 is copied into the result vector.
+ *
+ * @param sorted_buffers
+ * @return std::vector<std::pair<K, V>>
+ */
+std::vector<std::pair<K, V>> minheap_merge(
+    std::vector<std::vector<std::pair<K, V>>>& sorted_buffers);
+
 class MinHeap {
  public:
   /**
@@ -29,9 +41,9 @@ class MinHeap {
    * @brief
    * @param
    */
-  std::optional<std::pair<K, std::size_t>> Extract();
+  [[nodiscard]] std::optional<std::pair<K, std::size_t>> Extract();
 
-  std::size_t Size() const;
+  [[nodiscard]] std::size_t Size() const;
 
   /**
    * @brief Insert a key and extract the previous minumum
@@ -39,7 +51,7 @@ class MinHeap {
    * @param key The key to insert
    * return
    */
-  std::optional<std::pair<K, std::size_t>> InsertAndExtract(
+  [[nodiscard]] std::optional<std::pair<K, std::size_t>> InsertAndExtract(
       std::pair<K, std::size_t> next_pair);
 
   /**
@@ -49,7 +61,6 @@ class MinHeap {
    * return
    */
   void Insert(std::pair<K, std::size_t> next_pair);
-
 
  private:
   class MinHeapImpl;

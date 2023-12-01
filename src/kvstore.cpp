@@ -1,12 +1,13 @@
 #include "kvstore.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,6 +19,7 @@
 #include "lsm.hpp"
 #include "manifest.hpp"
 #include "memtable.hpp"
+#include "minheap.hpp"
 #include "naming.hpp"
 #include "sstable.hpp"
 
@@ -85,31 +87,27 @@ class KvStore::KvStoreImpl {
 
   void recursively_compact() {
     // While each level overflows, register the overflowed, compacted run into
-    // the next level.
-    // Keep looping until compaction no longer produces a run
-    std::size_t L = 0;
-    std::optional<std::unique_ptr<LSMRun>> L_run =
+    // the next level. Keep looping until compaction no longer produces a run.
+    std::size_t l = 0;
+    std::optional<std::unique_ptr<LSMRun>> l_run =
         std::make_optional(this->create_level0_run());
 
-    while (L_run.has_value()) {
-      // std::cout << "level " << L
-      //           << " was full, compacted into a run for next level!" << '\n';
-
+    while (l_run.has_value()) {
       std::optional<std::reference_wrapper<LSMLevel>> next_level;
-      if (L + 1 < this->levels.size()) {
-        next_level = *this->levels.at(L + 1);
+      if (l + 1 < this->levels.size()) {
+        next_level = *this->levels.at(l + 1);
       }
 
-      L_run = this->levels.at(L)->RegisterNewRun(std::move(L_run.value()),
+      l_run = this->levels.at(l)->RegisterNewRun(std::move(l_run.value()),
                                                  next_level);
-      L++;
+      l++;
 
       // If the levels are full, create a new, final level
       // This should stop the looping, the new level won't do compaction
       // when RegisterNewRun is called.
-      if (L == this->levels.size() && L_run.has_value()) {
+      if (l == this->levels.size() && l_run.has_value()) {
         this->levels.push_back(std::make_unique<LSMLevel>(
-            this->naming, this->tiers, L, true, this->memtable.GetCapacity(),
+            this->naming, this->tiers, l, true, this->memtable.GetCapacity(),
             this->manifest.value(), this->buf.value(),
             *this->sstable_serializer));
       }
@@ -127,8 +125,6 @@ class KvStore::KvStoreImpl {
           this->manifest.value(), this->buf.value(),
           *this->sstable_serializer));
     }
-
-    // std::cout << "FLUSHED, NOW COMPACT!" << '\n';
 
     this->recursively_compact();
     this->memtable.Clear();
@@ -177,7 +173,12 @@ class KvStore::KvStoreImpl {
   }
 
  public:
-  KvStoreImpl() : memtable(0), open(false){};
+  KvStoreImpl()
+      : filter_serializer(nullptr),
+        sstable_serializer(nullptr),
+        memtable(0),
+        levels(0),
+        tiers(0){};
   ~KvStoreImpl() { this->Close(); };
 
   void Open(const std::string& name, const Options options) {
@@ -241,19 +242,25 @@ class KvStore::KvStoreImpl {
     if (!this->open) {
       throw DatabaseClosedException();
     }
+    std::vector<std::vector<std::pair<K, V>>> sorted_buffers;
 
     // Scan through the memtable
-    std::vector<std::pair<K, V>> memtable_range =
-        this->memtable.Scan(lower, upper);
+    auto scan_result = this->memtable.Scan(lower, upper);
+    if (scan_result.size() > 0) {
+      sorted_buffers.push_back(scan_result);
+    }
 
     // And each level
     for (const auto& level : this->levels) {
-      std::vector<std::pair<K, V>> level_range = level->Scan(lower, upper);
-      memtable_range.insert(memtable_range.end(), level_range.begin(),
-                            level_range.end());
+      auto scan_result = level->Scan(lower, upper);
+      if (scan_result.size() > 0) {
+        sorted_buffers.push_back(scan_result);
+      }
     }
 
-    return memtable_range;
+    std::reverse(sorted_buffers.begin(), sorted_buffers.end());
+
+    return minheap_merge(sorted_buffers);
   }
 
   [[nodiscard]] std::optional<V> Get(const K key) const {
