@@ -18,11 +18,11 @@ std::chrono::microseconds benchmark_inserts(KvStore& db,
 
 int main() {
   uint64_t max_size = 8;  // TODO use 1024
-  if (!std::filesystem::exists("experiment_csvs")) {
-    std::filesystem::create_directory("experiment_csvs");
-  }
+  Options options = Options{
+      .dir = "/tmp",
+  };
   std::vector<std::string> results = run_multiple(
-      1, max_size, benchmark_inserts, "Benchmarks.DataVolumeVsPut");
-  write_to_csv("experiment_csvs/data_volume_vs_put.csv",
+      1, max_size, benchmark_inserts, "Benchmarks.DataVolumeVsPut", options);
+  write_to_csv("data_volume_vs_put.csv",
                "inputDataSize (MB),insert time,insert throughput", results);
 }

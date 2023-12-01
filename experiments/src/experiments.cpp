@@ -15,8 +15,11 @@ double calculate_throughput(uint64_t megabytes,
 
 void write_to_csv(std::string file_name, std::string header,
                   std::vector<std::string> results) {
-  std::cout << "Writing benchmarks to " << file_name << '\n';
-  std::ofstream file(file_name);
+  if (!std::filesystem::exists("experiment_csvs")) {
+    std::filesystem::create_directory("experiment_csvs");
+  }
+  std::cout << "Writing benchmarks to experiment_csvs/" << file_name << '\n';
+  std::ofstream file("experiment_csvs/" + file_name);
   file << header << "\n";
   for (auto& result : results) {
     file << result << "\n";
@@ -45,15 +48,12 @@ std::vector<std::string> run_multiple(
     uint64_t min_data_size_mb, uint64_t max_data_size_mb,
     const std::function<std::chrono::microseconds(KvStore&, uint64_t)>&
         benchmark_function,
-    const std::string& root_directory) {
+    const std::string& root_directory, Options options) {
   std::vector<std::string> results;
   uint64_t data_size = min_data_size_mb;
   while (data_size <= max_data_size_mb) {
     std::cout << "Running experiment for " << data_size << "MB\n";
     KvStore db;
-    Options options = Options{
-        .dir = "/tmp",
-    };
     std::string db_dir(root_directory + "_" + std::to_string(data_size) +
                        ".db");
     std::filesystem::remove_all("/tmp/" + db_dir);

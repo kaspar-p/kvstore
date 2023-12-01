@@ -20,4 +20,4 @@ std::vector<std::string> run_multiple(
     uint64_t min_data_size_mb, uint64_t max_data_size_mb,
     const std::function<std::chrono::microseconds(KvStore&, uint64_t)>&
         benchmark_function,
-    const std::string& root_directory);
+    const std::string& root_directory, Options options);
