@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.14)
+
+project(kvstoreExperiments LANGUAGES CXX)
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+
+add_library(kvstore_experiments OBJECT src/experiments.cpp)
+target_include_directories(
+        kvstore_experiments ${warning_guard}
+        PUBLIC
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_naming)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_manifest)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_file)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_filter)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_dbg)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_memtable)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_buf)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_evict)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_minheap)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_lsm)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_sstable)
+target_link_libraries(kvstore_experiments PRIVATE kvstore_kvstore)
+target_compile_features(kvstore_experiments PUBLIC cxx_std_17)
+
+add_executable(data_volume_vs_put src/data_volume_vs_put.cpp)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_experiments)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_naming)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_manifest)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_file)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_filter)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_dbg)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_memtable)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_buf)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_evict)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_minheap)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_lsm)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_sstable)
+target_link_libraries(data_volume_vs_put PRIVATE kvstore_kvstore)
+target_compile_features(data_volume_vs_put PUBLIC cxx_std_17)
