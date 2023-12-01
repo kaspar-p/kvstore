@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 
+#include "filter.hpp"
 #include "kvstore.hpp"
 #include "memtable.hpp"
 #include "naming.hpp"
@@ -12,22 +13,57 @@
 #include "xxhash.h"
 
 int main() {
-  std::filesystem::remove_all("kvstore.db");
+  // std::filesystem::remove_all("kvstore.db");
 
-  Options opt = {
-      .memory_buffer_elements = 2,
-      .tiers = 4,
-      .serialization = DataFileFormat::kBTree,
-  };
-  KvStore kv;
-  kv.Open("kvstore.db", opt);
+  // Options opt = {
+  // .memory_buffer_elements = 2,
+  // .tiers = 4,
+  // .serialization = DataFileFormat::kBTree,
+  // };
+  // KvStore kv;
+  // kv.Open("kvstore.db", opt);
 
-  int runs_in_level0_to_make = 80;
+  // int runs_in_level0_to_make = 80;
 
-  for (int i = 0; i < 2 * runs_in_level0_to_make; i++) {
-    std::cout << "putting " << i << std::endl;
-    kv.Put(i, 2 * i);
-  }
+  // for (int i = 0; i < 2 * runs_in_level0_to_make; i++) {
+  // std::cout << "putting " << i << std::endl;
+  // kv.Put(i, 2 * i);
+  // }
+  DbNaming naming = {.dirpath = "/tmp",
+                     .name = "KvStore.InsertAndDeleteThousands"};
+  BufPool buf(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
+  SstableBTree serializer(buf);
+  Filter filter(naming, buf, 0);
+
+  std::string f =
+      "/tmp/KvStore.InsertAndDeleteThousands/"
+      "KvStore.InsertAndDeleteThousands.FILTER.L0.R0.I0";
+  std::cout << "HAS" << filter.Has(f, 600) << '\n';
+
+  std::string prefix =
+      "/tmp/KvStore.InsertAndDeleteThousands/"
+      "KvStore.InsertAndDeleteThousands.DATA.";
+
+  // std::string d = prefix + "L0.R0.I0";
+  // std::cout << d << "\n";
+  // auto v = serializer.Drain(d);
+  // for (auto &elem : v) {
+  //   std::cout << elem.first << "," << elem.second << '\n';
+  // }
+
+  // d = prefix + "L1.R0.I0";
+  // std::cout << d << "\n";
+  // v = serializer.Drain(d);
+  // for (auto &elem : v) {
+  //   std::cout << elem.first << "," << elem.second << '\n';
+  // }
+
+  // d = prefix + "L1.R0.I1";
+  // std::cout << d << "\n";
+  // v = serializer.Drain(d);
+  // for (auto &elem : v) {
+  //   std::cout << elem.first << "," << elem.second << '\n';
+  // }
 
   // SstableBTree t{};
   // std::fstream f("/tmp/SstableBTree.GetSingleElems3layers",

@@ -364,6 +364,10 @@ TEST(MemTable, InsertOneAndReplaceIt) {
   const V* val = table->Get(1);
   ASSERT_NE(val, nullptr);
   ASSERT_EQ(*val, 20);
+
+  ASSERT_EQ(table->Print(), std::string("(b)[1] 20\n"
+                                        "===={NULL}\n"
+                                        "===={NULL}\n"));
 }
 
 TEST(MemTable, InsertManyAndGetMany) {

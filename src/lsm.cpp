@@ -40,7 +40,10 @@ class LSMRun::LSMRunImpl {
         manifest(manifest),
         buf(buf),
         sstable_serializer(sstable_serializer),
-        filter_serializer(filter_serializer) {}
+        filter_serializer(filter_serializer) {
+    std::cout << "Creating run in level " << level << " with run " << run
+              << '\n';
+  }
 
   ~LSMRunImpl() = default;
 
@@ -61,13 +64,13 @@ class LSMRun::LSMRunImpl {
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    // std::cout << "Get from run " << this->run << '\n';
+    std::cout << "Get " << key << " from run " << this->run << '\n';
 
     for (const auto& file : this->files) {
       bool in_range = this->manifest.InRange(this->level, this->run, file, key);
-      // std::cout << "In range for file: "
-      // << data_file(this->naming, this->level, this->run, file) << "? "
-      // << in_range << '\n';
+      std::cout << "Key " << key << " in range for file: "
+                << data_file(this->naming, this->level, this->run, file) << "? "
+                << in_range << '\n';
       if (in_range) {
         auto filter_name =
             filter_file(this->naming, this->level, this->run, file);
@@ -337,7 +340,8 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    // std::cout << "Get from level " << this->level << '\n';
+    std::cout << "Get from level " << this->level << " (" << this->runs.size()
+              << " runs)" << '\n';
 
     for (auto run = this->runs.rbegin(); run != this->runs.rend(); ++run) {
       std::optional<V> val = (*run)->Get(key);
@@ -361,8 +365,8 @@ class LSMLevel::LSMLevelImpl {
       std::unique_ptr<LSMRun> run,
       std::optional<std::reference_wrapper<LSMLevel>> next_level) {
     this->runs.push_back(std::move(run));
-    // std::cout << "l" << this->level
-    // << " registering new run! runs size: " << runs.size() << '\n';
+    std::cout << "l" << this->level
+              << " registering new run! runs size: " << runs.size() << '\n';
 
     if (this->runs.size() == this->tiers) {
       // std::cout << "time to flush!" << '\n';

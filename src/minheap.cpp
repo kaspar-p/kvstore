@@ -101,7 +101,8 @@ class MinHeap::MinHeapImpl {
     if (next_pair.first < previous_min.first) {
       return next_pair;
     }
-    if (next_pair.first == previous_min.first && next_pair.second > previous_min.second) {
+    if (next_pair.first == previous_min.first &&
+        next_pair.second > previous_min.second) {
       return next_pair;
     }
     this->heap.at(0) = next_pair;

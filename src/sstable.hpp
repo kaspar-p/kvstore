@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -28,8 +28,8 @@ class Sstable {
    * @param filename The name of the file to create
    * @param memtable The MemTable to flush.
    */
-  virtual void Flush(std::string& filename,
-                     std::vector<std::pair<K, V>>& pairs, bool truncate = false) const = 0;
+  virtual void Flush(std::string& filename, std::vector<std::pair<K, V>>& pairs,
+                     bool truncate = false) const = 0;
 
   /**
    * @brief Get a value from a file, or std::nullopt if it doesn't exist.
@@ -48,8 +48,8 @@ class Sstable {
    * @param upper The upper bound of the scan
    * @return std::vector<std::pair<K, V>>
    */
-  virtual std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
-                                                  K upper) const = 0;
+  virtual std::vector<std::pair<K, V>> ScanInFile(std::string& filename,
+                                                  K lower, K upper) const = 0;
 
   /**
    * @brief Get the minimum key in the file. Assumes file is a datafile.
@@ -65,6 +65,14 @@ class Sstable {
    * @brief Drain the file into a vector of key-value pairs.
    */
   virtual std::vector<std::pair<K, V>> Drain(std::string& filename) const = 0;
+
+  /**
+   * @brief Delete a data file. Invalidate the cache entries for that file in
+   * the buffer pool.
+   *
+   * @param filename The file to delete
+   */
+  virtual void Delete(std::string& filename) const = 0;
 };
 
 class SstableNaive : public Sstable {
@@ -73,14 +81,15 @@ class SstableNaive : public Sstable {
 
  public:
   SstableNaive(BufPool& buffer_pool);
-  void Flush(std::string& filename,
-             std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
+  void Flush(std::string& filename, std::vector<std::pair<K, V>>& pairs,
+             bool truncate = false) const override;
   std::optional<V> GetFromFile(std::string& filename, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
                                           K upper) const override;
   K GetMinimum(std::string& filename) const override;
   K GetMaximum(std::string& filename) const override;
   std::vector<std::pair<K, V>> Drain(std::string& filename) const override;
+  void Delete(std::string& filename) const override;
 };
 
 class SstableBTree : public Sstable {
@@ -89,12 +98,13 @@ class SstableBTree : public Sstable {
 
  public:
   SstableBTree(BufPool& buffer_pool);
-  void Flush(std::string& filename,
-             std::vector<std::pair<K, V>>& pairs, bool truncate = false) const override;
+  void Flush(std::string& filename, std::vector<std::pair<K, V>>& pairs,
+             bool truncate = false) const override;
   std::optional<V> GetFromFile(std::string& filename, K key) const override;
   std::vector<std::pair<K, V>> ScanInFile(std::string& filename, K lower,
                                           K upper) const override;
   K GetMinimum(std::string& filename) const override;
   K GetMaximum(std::string& filename) const override;
   std::vector<std::pair<K, V>> Drain(std::string& filename) const override;
+  void Delete(std::string& filename) const override;
 };

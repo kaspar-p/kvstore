@@ -304,6 +304,28 @@ TEST(KvStore, InsertAndDeleteThousands) {
   }
 }
 
+TEST(KvStore, AssertCacheInvalidation) {
+  std::filesystem::remove_all("/tmp/KvStore.AssertCacheInvalidation");
+
+  KvStore table;
+  table.Open("KvStore.AssertCacheInvalidation",
+             Options{
+                 .dir = "/tmp",
+                 .memory_buffer_elements = 600,
+                 .serialization = DataFileFormat::kBTree,
+             });
+  for (int i = 0; i < 1000; i++) {
+    table.Put(i, 10 * i);
+  }
+  for (int i = 0; i < 1000; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(10 * i));
+    table.Delete(i);
+  }
+  for (int i = 0; i < 1000; i++) {
+    ASSERT_EQ(table.Get(i), std::nullopt);
+  }
+}
+
 TEST(KvStore, InsertAndGetOne) {
   std::filesystem::remove_all("/tmp/KvStore.InsertAndGetOne");
 
@@ -325,6 +347,51 @@ TEST(KvStore, InsertOneAndReplaceIt) {
   const std::optional<V> val = table.Get(1);
   ASSERT_NE(val, std::nullopt);
   ASSERT_EQ(val.value(), 200);
+}
+
+TEST(KvStore, InsertLevelsAndReplaceSimple) {
+  std::filesystem::remove_all("/tmp/KvStore.InsertLevelsAndReplaceSimple");
+
+  KvStore table;
+  Options opts = Options{
+      .dir = "/tmp",
+      .memory_buffer_elements = 2,
+  };
+  table.Open("KvStore.InsertLevelsAndReplaceSimple", opts);
+
+  table.Put(1, 100);  // flushed in R0
+  table.Put(2, 200);  // flushed in R0
+  table.Put(3, 300);  // flushed in R1
+  table.Put(1, 400);  // flushed in R1
+  table.Put(5, 500);  // in memtable
+
+  ASSERT_EQ(table.Get(1), std::make_optional(400));
+  ASSERT_EQ(table.Get(2), std::make_optional(200));
+  ASSERT_EQ(table.Get(3), std::make_optional(300));
+  ASSERT_EQ(table.Get(4), std::nullopt);
+  ASSERT_EQ(table.Get(5), std::make_optional(500));
+}
+
+TEST(KvStore, DeleteFromLevelsSimple) {
+  std::filesystem::remove_all("/tmp/KvStore.DeleteFromLevelsSimple");
+
+  KvStore table;
+  Options opts = Options{
+      .dir = "/tmp",
+      .memory_buffer_elements = 2,
+  };
+  table.Open("KvStore.DeleteFromLevelsSimple", opts);
+
+  table.Put(1, 100);  // flushed in R0
+  table.Put(2, 200);  // flushed in R0
+  table.Put(5, 500);  // flushed in R1
+  table.Delete(1);    // flushed in R1
+  table.Put(2, 400);  // in memtable
+
+  ASSERT_EQ(table.Get(1), std::nullopt);
+  ASSERT_EQ(table.Get(2), std::make_optional(400));
+  ASSERT_EQ(table.Get(3), std::nullopt);
+  ASSERT_EQ(table.Get(5), std::make_optional(500));
 }
 
 int keys_to_add_run_to_level(uint32_t memtable_capacity, uint8_t tiers,

@@ -66,6 +66,7 @@ Checks: >
   portability-*,
   readability-*,
   cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
   -google-readability-braces-around-statements,
   -misc-no-recursion,
   -google-readability-namespace-comments,
