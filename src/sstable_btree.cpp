@@ -32,33 +32,53 @@ struct SstableBtreeNode {
   uint64_t global_max;
 };
 
+using KeyPage = std::array<uint64_t, kPageSize / sizeof(uint64_t)>;
+
 SstableBTree::SstableBTree(BufPool& buffer_pool) : buffer_pool(buffer_pool){};
 
 K SstableBTree::GetMinimum(std::string& filename) const {
-  std::fstream file(
+  KeyPage p;
+
+  PageId id = {.filename = filename, .page = 0};
+  std::optional<BufferedPage> page = buffer_pool.GetPage(id);
+  if (page == std::nullopt) {
+    std::fstream file(
       filename, std::fstream::binary | std::fstream::in | std::fstream::out);
-  assert(file.is_open());
-  assert(file.good());
+    assert(file.is_open());
+    assert(file.good());
 
-  file.seekg(0);
-  assert(file.good());
-  std::array<uint64_t, 6> buf{};
-  file.read(reinterpret_cast<char*>(buf.data()), 6 * sizeof(uint64_t));
+    file.seekg(0);
+    assert(file.good());
+    
+    file.read(reinterpret_cast<char*>(p.data()), kPageSize);
+    buffer_pool.PutPage(id, p);
+  } else {
+    p = std::any_cast<KeyPage>(page.value().contents);
+  }
 
-  return buf.at(4);
+  return p.at(4);
 }
 K SstableBTree::GetMaximum(std::string& filename) const {
-  std::fstream file(
+  KeyPage p;
+
+  PageId id = {.filename = filename, .page = 0};
+  std::optional<BufferedPage> page = buffer_pool.GetPage(id);
+  if (page == std::nullopt) {
+    std::fstream file(
       filename, std::fstream::binary | std::fstream::in | std::fstream::out);
-  assert(file.is_open());
-  assert(file.good());
+    assert(file.is_open());
+    assert(file.good());
 
-  file.seekg(0);
-  assert(file.good());
-  std::array<uint64_t, 6> buf{};
-  file.read(reinterpret_cast<char*>(buf.data()), 6 * sizeof(uint64_t));
+    file.seekg(0);
+    assert(file.good());
+    
+    file.read(reinterpret_cast<char*>(p.data()), kPageSize);
+    buffer_pool.PutPage(id, p);
+  } else {
+    p = std::any_cast<KeyPage>(page.value().contents);
+  }
 
-  return buf.at(5);
+  return p.at(5);
 }
 
 std::vector<std::pair<K, V>> SstableBTree::Drain(std::string& filename) const {
@@ -238,15 +258,22 @@ void SstableBTree::Flush(std::string& filename,
 
 std::optional<V> SstableBTree::GetFromFile(std::string& filename,
                                            const K key) const {
+  KeyPage buf;
   std::fstream file(
       filename, std::fstream::binary | std::fstream::in | std::fstream::out);
-  uint64_t buf[kPageSize];
   assert(file.is_open());
   assert(file.good());
-
-  file.seekg(0);
-  file.read(reinterpret_cast<char*>(buf), kPageSize);
-  assert(file.good());
+  PageId id = {.filename = filename, .page = 0};
+  std::optional<BufferedPage> page = buffer_pool.GetPage(id);
+  if (page == std::nullopt) {
+    file.seekg(0);
+    assert(file.good());
+    
+    file.read(reinterpret_cast<char*>(buf.data()), kPageSize);
+    buffer_pool.PutPage(id, buf);
+  } else {
+    buf = std::any_cast<KeyPage>(page.value().contents);
+  }
 
   if (buf[0] != 0x00db00beef00db00) {
     std::cout << "Magic number wrong! Expected " << 0x00db00beef00db00
@@ -263,9 +290,16 @@ std::optional<V> SstableBTree::GetFromFile(std::string& filename,
   uint64_t cur_offset = buf[3];  // meta block size + root block ptr
   bool leaf_node = false;
   while (!leaf_node) {
-    file.seekg(cur_offset);
-    file.read(reinterpret_cast<char*>(buf), kPageSize);
-    assert(file.good());
+    PageId id = {.filename = filename, .page = static_cast<uint32_t>(cur_offset / kPageSize)};
+    std::optional<BufferedPage> page = buffer_pool.GetPage(id);
+    if (page == std::nullopt) {
+      file.seekg(cur_offset);
+      file.read(reinterpret_cast<char*>(buf.data()), kPageSize);
+      assert(file.good());
+      buffer_pool.PutPage(id, buf);
+    } else {
+      buf = std::any_cast<KeyPage>(page.value().contents);
+    }
 
     int header_size = 2;
     int pair_size = 2;
