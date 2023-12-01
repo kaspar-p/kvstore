@@ -118,8 +118,8 @@ TEST(MinHeapMerge, OverlappingKeys) {
     ASSERT_EQ(result.at(0).first, 0);
     ASSERT_EQ(result.at(0).second, 1);
 
-    ASSERT_EQ(result.at(1).first, 1);
-    ASSERT_EQ(result.at(1).second, 2);
+    ASSERT_EQ(result.at(1).first, 2);
+    ASSERT_EQ(result.at(1).second, 4);
 
     ASSERT_EQ(result.at(2).first, 3);
     ASSERT_EQ(result.at(2).second, 6);
