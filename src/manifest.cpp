@@ -212,6 +212,16 @@ class Manifest::ManifestHandleImpl {
     return in_range;
   }
 
+  std::optional<uint32_t> FirstFileInRange(uint32_t level, uint32_t run,
+                            K lower, K upper) const {
+    for (const auto& file : this->levels.at(level)) {
+      if (file.id.run == run && file.minimum <= upper && file.maximum >= lower ) {
+        return file.id.intermediate;
+      }
+    }
+    return std::nullopt;
+  }
+
   void RegisterNewFiles(std::vector<FileMetadata> files) {
     for (const auto& file : files) {
       if (file.id.level >= this->levels.size()) {
@@ -283,6 +293,12 @@ Manifest::~Manifest() = default;
                                      uint32_t intermediate, K key) const {
   return this->impl->InRange(level, run, intermediate, key);
 }
+
+std::optional<uint32_t> Manifest::FirstFileInRange(uint32_t level, uint32_t run,
+                                     K lower, K upper) const {
+  return this->impl->FirstFileInRange(level, run, lower, upper);
+}
+
 
 void Manifest::RegisterNewFiles(std::vector<FileMetadata> files) {
   return this->impl->RegisterNewFiles(files);

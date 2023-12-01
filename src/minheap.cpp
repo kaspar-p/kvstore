@@ -90,6 +90,21 @@ class MinHeap::MinHeapImpl {
     return current_index;
   }
 
+  void HeapifyUp(int index) {
+    if (index == 0) {
+      return;
+    }
+    int parent = (index - 1) / 2;
+    int smallest = index;
+
+    smallest = GetSmallerIndex(smallest, parent);
+
+    if (smallest == index) {
+      std::swap(this->heap.at(index), this->heap.at(parent));
+      this->HeapifyUp(parent);
+    }
+  }
+
   void HeapifyDown(int index) {
     int left = 2 * index + 1;
     int right = 2 * index + 2;
@@ -117,8 +132,7 @@ class MinHeap::MinHeapImpl {
   void Insert(std::pair<K, int> new_pair) {
     this->heap.emplace_back(new_pair);
     if (this->heap.size() > 1) {
-      std::swap(this->heap.at(0), this->heap.at(this->heap.size() - 1));
-      this->HeapifyDown(0);
+      this->HeapifyUp(this->heap.size() - 1);
     }
   }
 

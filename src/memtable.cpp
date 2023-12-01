@@ -165,7 +165,7 @@ class MemTable::MemTableImpl {
    * @brief Return a vector of pairs, sorted. All pairs (k, v) in
    * the vector are such that lower_bound < k < upper_bound, exclusive.
    *
-   * @param subtree The beginning of the search, often the root.
+   * @param node The beginning of the search, often the root.
    * @param lower_bound The lower bound on keys to return.
    * @param upper_bound The upper bound on keys to return.
    * @return std::vector<std::pair<K,V>> A list of ordered pairs.
@@ -177,17 +177,15 @@ class MemTable::MemTableImpl {
       return l;
     }
 
-    if (node->key() < lower_bound || node->key() > upper_bound) {
-      return l;
-    }
-
     if (node->left()->is_some()) {
       std::vector<RbNode*> left_vec =
           this->rb_in_order(node->left(), lower_bound, upper_bound);
       l.insert(l.end(), left_vec.begin(), left_vec.end());
     }
 
-    l.push_back(node);
+    if (node->key() >= lower_bound && node->key() <= upper_bound) {
+      l.push_back(node);
+    }
 
     if (node->right()->is_some()) {
       std::vector<RbNode*> right_vec =

@@ -73,6 +73,19 @@ class Manifest {
   [[nodiscard]] bool InRange(uint32_t level, uint32_t run,
                              uint32_t intermediate, K key) const;
 
+  /**
+   * @brief Returns the intermediate (file number) of the first file in a run
+   * whose range overlaps with a range of possibly keys.
+   *
+   * @param level The level to check.
+   * @param run The run to check.
+   * @param lower The lower bound of the range.
+   * @param upper The upper bound of the range.
+   */
+  [[nodiscard]] std::optional<uint32_t> FirstFileInRange(uint32_t level, uint32_t run,
+                                          K lower, K upper) const;
+
+
   [[nodiscard]] int NumLevels() const;
   [[nodiscard]] int NumRuns(uint32_t level) const;
   [[nodiscard]] int NumFiles(uint32_t level, uint32_t run) const;
