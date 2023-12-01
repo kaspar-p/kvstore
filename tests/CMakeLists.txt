@@ -28,6 +28,7 @@ target_include_directories(
 )
 target_link_libraries(kvstore_testutil PRIVATE xxHash::xxhash)
 target_link_libraries(kvstore_testutil PRIVATE kvstore_naming)
+target_link_libraries(kvstore_testutil PRIVATE gtest_main)
 target_compile_features(kvstore_testutil PUBLIC cxx_std_17)
 
 # ---- Kvstore Tests ----

@@ -117,9 +117,9 @@ TEST(SstableNaive, Scan16MB) {
   }
 
   SstableNaive t{buf};
-  std::string f("/tmp/SstableNaive.Scan16MB.bin");
+  std::string f("/tmp/SstableNaive.Scan16MB");
   auto pairs = memtable.ScanAll();
-  t.Flush(f, *pairs);
+  t.Flush(f, *pairs, true);
 
   std::vector<std::pair<K, V>> val = t.Drain(f);
 

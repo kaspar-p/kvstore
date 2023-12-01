@@ -140,12 +140,12 @@ TEST(SstableBTree, GetSingleElems3Layers16MB) {
   }
 
   SstableBTree t{buf};
-  std::string f("/tmp/SstableBTree.GetSingleElems3Layers16MB.bin");
+  std::string f("/tmp/SstableBTree.GetSingleElems3Layers16MB");
   auto pairs = memtable.ScanAll();
   t.Flush(f, *pairs, true);
 
   for (int i = 0; i < 1000000; i++) {
-   std::optional<V> val = t.GetFromFile(f, i);
+    std::optional<V> val = t.GetFromFile(f, i);
     ASSERT_EQ(val.has_value(), true);
     ASSERT_EQ(val.value(), i);
   }

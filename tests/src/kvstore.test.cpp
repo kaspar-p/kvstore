@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -13,6 +14,7 @@
 
 #include "memtable.hpp"
 #include "sstable.hpp"
+#include "testutil.hpp"
 
 TEST(KvStore, ScanIncludesEnds) {
   std::filesystem::remove_all("/tmp/KvStore.ScanIncludesEnds");
@@ -325,17 +327,29 @@ TEST(KvStore, InsertOneAndReplaceIt) {
   ASSERT_EQ(val.value(), 200);
 }
 
+int keys_to_add_run_to_level(uint32_t memtable_capacity, uint8_t tiers,
+                             int level) {
+  return (memtable_capacity * pow(tiers, level));
+}
+
+int keys_to_fill_level(uint32_t memtable_capacity, uint8_t tiers, int level) {
+  return (memtable_capacity * pow(tiers, level)) + memtable_capacity;
+}
+
 TEST(KvStore, LevelStructure) {
   std::filesystem::remove_all("/tmp/KvStore.LevelStructure");
 
   int total_count = 0;
 
   KvStore table;
-  table.Open("KvStore.LevelStructure", Options{
-                                           .dir = "/tmp",
-                                           .memory_buffer_elements = 2,
-                                           .tiers = 4,
-                                       });
+  uint8_t tiers = 4;
+  uint32_t memtable_capacity = 2;
+  table.Open("KvStore.LevelStructure",
+             Options{
+                 .dir = "/tmp",
+                 .memory_buffer_elements = memtable_capacity,
+                 .tiers = tiers,
+             });
 
   std::string prefix = "/tmp/KvStore.LevelStructure/KvStore.LevelStructure.";
 
@@ -347,16 +361,14 @@ TEST(KvStore, LevelStructure) {
     total_count++;
   }
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
+  structure_exists(prefix, tiers, 0, 0);
 
   for (int i = 0; i < 2; i++) {
     table.Put(total_count, 2 * total_count);
     total_count++;
   }
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
+  structure_exists(prefix, tiers, 0, 1);
 
   // trigger compaction with two more
   for (int i = 0; i < 4; i++) {
@@ -365,24 +377,10 @@ TEST(KvStore, LevelStructure) {
   }
 
   // Make sure the previous level got deleted
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+  structure_not_exists(prefix, tiers, 0);
 
   // Make sure the new level has all the same data
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R0.I3"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R0.I3"));
+  structure_exists(prefix, tiers, 1, 0);
 
   // fill level 0 again to trigger compaction into level 1
   for (int i = 0; i < 8; i++) {
@@ -391,24 +389,10 @@ TEST(KvStore, LevelStructure) {
   }
 
   // Level 0 should still be empty
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+  structure_not_exists(prefix, tiers, 0);
 
   // Level 1 should have the new run, R1
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R1.I3"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R1.I3"));
+  structure_exists(prefix, tiers, 1, 1);
 
   // Make sure all of the data still reachable
   for (int i = 0; i < total_count; i++) {
@@ -422,24 +406,10 @@ TEST(KvStore, LevelStructure) {
   }
 
   // Level 0 should still be empty
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
+  structure_not_exists(prefix, tiers, 0);
 
   // Level 1 should have the new run, R2
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L1.R2.I3"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L1.R2.I3"));
+  structure_exists(prefix, tiers, 1, 2);
 
   // Fill level 0 again, this triggers compaction into L2!
   for (int i = 0; i < 8; i++) {
@@ -448,87 +418,111 @@ TEST(KvStore, LevelStructure) {
   }
 
   // Level 0 AND 1 should be empty
-
-  // Level 0
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L0.R3.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L0.R3.I0"));
-
-  // Level 1 Run 0
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R0.I3"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R0.I3"));
-
-  // Level 1 Run 1
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R1.I3"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R1.I3"));
-
-  // Level 1 Run 2
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "DATA.L1.R2.I3"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I0"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I1"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I2"));
-  ASSERT_FALSE(std::filesystem::exists(prefix + "FILTER.L1.R2.I3"));
+  structure_not_exists(prefix, tiers, 0);
+  structure_not_exists(prefix, tiers, 1);
 
   // Level 2 should have all of the data files in a single run
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I3"));
+  structure_exists(prefix, tiers, 2, 0);
+  structure_not_exists(prefix, tiers, 2, 1);
+  structure_not_exists(prefix, tiers, 2, 2);
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I4"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I5"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I6"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I7"));
+  for (int i = 0; i < total_count; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
+  }
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I8"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I9"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I10"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I11"));
+  // Insert enough to get to an entirely full level 5, level 4, ...
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I12"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I13"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I14"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "DATA.L2.R0.I15"));
+  // Fill Level 2 Run 1
+  for (int i = 0; i < keys_to_add_run_to_level(memtable_capacity, tiers, 2);
+       i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I0"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I1"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I2"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I3"));
+  // Fill Level 2 Run 2
+  for (int i = 0; i < keys_to_add_run_to_level(memtable_capacity, tiers, 2);
+       i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I4"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I5"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I6"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I7"));
+  structure_not_exists(prefix, tiers, 0);
+  structure_not_exists(prefix, tiers, 1);
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I8"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I9"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I10"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I11"));
+  // Level 2 should have all of the data files in a single run
+  structure_exists(prefix, tiers, 2, 0);
+  structure_exists(prefix, tiers, 2, 1);
+  structure_exists(prefix, tiers, 2, 2);
 
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I12"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I13"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I14"));
-  ASSERT_TRUE(std::filesystem::exists(prefix + "FILTER.L2.R0.I15"));
+  for (int i = 0; i < keys_to_add_run_to_level(memtable_capacity, tiers, 2);
+       i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  structure_not_exists(prefix, tiers, 0);
+  structure_not_exists(prefix, tiers, 1);
+  structure_not_exists(prefix, tiers, 2);
+
+  // Level 3 should have all of the data files in a single run
+  structure_exists(prefix, tiers, 3, 0);
+  structure_not_exists(prefix, tiers, 3, 1);
+  structure_not_exists(prefix, tiers, 3, 2);
+
+  // Fill level 3
+  for (int i = 0; i < 2 * keys_to_add_run_to_level(memtable_capacity, tiers, 3);
+       i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  structure_exists(prefix, tiers, 3, 0);
+  structure_exists(prefix, tiers, 3, 1);
+  structure_exists(prefix, tiers, 3, 2);
+
+  // Ensure data integrity
+  for (int i = 0; i < total_count; i++) {
+    ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
+  }
+}
+
+TEST(KvStore, BatchLevelStructure) {
+  std::filesystem::remove_all("/tmp/KvStore.BatchLevelStructure");
+
+  KvStore table;
+  uint8_t tiers = 2;
+  uint32_t memtable_capacity = 10;
+  table.Open("KvStore.BatchLevelStructure",
+             Options{
+                 .dir = "/tmp",
+                 .memory_buffer_elements = memtable_capacity,
+                 .tiers = tiers,
+             });
+
+  std::string prefix =
+      "/tmp/KvStore.BatchLevelStructure/KvStore.BatchLevelStructure.";
+
+  ASSERT_TRUE(std::filesystem::exists(prefix + "LOCK"));
+  ASSERT_TRUE(std::filesystem::exists(prefix + "MANIFEST"));
+  int total_count = 0;
+
+  table.Put(0, 0);
+  total_count++;
+
+  for (int i = 0; i < keys_to_add_run_to_level(memtable_capacity, tiers, 7);
+       i++) {
+    table.Put(total_count, 2 * total_count);
+    total_count++;
+  }
+
+  structure_not_exists(prefix, tiers, 0);
+  structure_not_exists(prefix, tiers, 1);
+  structure_not_exists(prefix, tiers, 2);
+  structure_not_exists(prefix, tiers, 3);
+  structure_not_exists(prefix, tiers, 4);
+  structure_not_exists(prefix, tiers, 5);
+  structure_not_exists(prefix, tiers, 6);
+  structure_exists(prefix, tiers, 7, 0);
 
   for (int i = 0; i < total_count; i++) {
     ASSERT_EQ(table.Get(i), std::make_optional(2 * i));
