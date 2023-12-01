@@ -312,7 +312,7 @@ TEST(KvStore, AssertCacheInvalidation) {
              Options{
                  .dir = "/tmp",
                  .memory_buffer_elements = 600,
-                 .serialization = DataFileFormat::kBTree,
+                 .serialization = DataFileFormat::kFlatSorted,
              });
   for (int i = 0; i < 1000; i++) {
     table.Put(i, 10 * i);

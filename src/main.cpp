@@ -30,26 +30,27 @@ int main() {
   // kv.Put(i, 2 * i);
   // }
   DbNaming naming = {.dirpath = "/tmp",
-                     .name = "KvStore.InsertAndDeleteThousands"};
+                     .name = "KvStore.AssertCacheInvalidation"};
   BufPool buf(BufPoolTuning{.initial_elements = 2, .max_elements = 16});
   SstableBTree serializer(buf);
   Filter filter(naming, buf, 0);
 
-  std::string f =
-      "/tmp/KvStore.InsertAndDeleteThousands/"
-      "KvStore.InsertAndDeleteThousands.FILTER.L0.R0.I0";
-  std::cout << "HAS" << filter.Has(f, 600) << '\n';
+  // std::string f =
+  //     "/tmp/KvStore.AssertCacheInvalidation/"
+  //     "KvStore.AssertCacheInvalidation.FILTER.L0.R0.I0";
+  // std::cout << "HAS" << filter.Has(f, 600) << '\n';
 
-  std::string prefix =
-      "/tmp/KvStore.InsertAndDeleteThousands/"
-      "KvStore.InsertAndDeleteThousands.DATA.";
+  std::string d =
+      "/tmp/KvStore.AssertCacheInvalidation/"
+      "KvStore.AssertCacheInvalidation.DATA.L0.R0.I0";
+  std::cout << d << "\n";
+  auto v = serializer.Drain(d);
+  for (auto &elem : v) {
+    std::cout << elem.first << "," << elem.second << '\n';
+  }
 
-  // std::string d = prefix + "L0.R0.I0";
-  // std::cout << d << "\n";
-  // auto v = serializer.Drain(d);
-  // for (auto &elem : v) {
-  //   std::cout << elem.first << "," << elem.second << '\n';
-  // }
+  auto v2 = serializer.GetFromFile(d, 255);
+  std::cout << "has value: " << v2.has_value() << '\n';
 
   // d = prefix + "L1.R0.I0";
   // std::cout << d << "\n";

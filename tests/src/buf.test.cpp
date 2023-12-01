@@ -218,6 +218,35 @@ TEST(BufPool, InitialSizes) {
   }
 }
 
+TEST(BufPool, Invalidation) {
+  BufPool buf(BufPoolTuning{.initial_elements = 4, .max_elements = 16},
+              &test_hash);
+
+  ASSERT_EQ(buf.DebugPrint(), std::string("max: 16\n"
+                                          "elements: 0\n"
+                                          "bits: 2\n"
+                                          "capacity: 4\n"
+                                          "[]: ()\n"));
+  for (uint32_t i = 0; i < 10; i++) {
+    PageId page_id{.filename = "file" + std::to_string(i), .page = i};
+    buf.PutPage(page_id, std::make_any<uint32_t>(i));
+  }
+
+  for (uint32_t i = 0; i < 10; i++) {
+    PageId page_id{.filename = "file" + std::to_string(i), .page = i};
+    auto buffered = buf.GetPage(page_id);
+    ASSERT_EQ(buffered.value().id, page_id);
+    ASSERT_EQ(std::any_cast<uint32_t>(buffered.value().contents), i);
+    buf.RemovePage(page_id);
+  }
+
+  for (uint32_t i = 0; i < 10; i++) {
+    PageId page_id{.filename = "file" + std::to_string(i), .page = i};
+    auto buffered = buf.GetPage(page_id);
+    ASSERT_EQ(buffered, std::nullopt);
+  }
+}
+
 TEST(BufPool, PagesAreEvictedOnFullRotation) {
   BufPool buf(
       BufPoolTuning{

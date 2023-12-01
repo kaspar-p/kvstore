@@ -57,9 +57,6 @@ class Filter::FilterImpl {
   [[nodiscard]] bool bloom_has(const BloomFilter& filter, const K key) const {
     bool val = true;
     for (const auto& fn : this->bit_hashes) {
-      if (key == 600) {
-        std::cout << "TESTING BIT: " << fn(key) % kFilterBits << '\n';
-      }
       val = bloom_test(filter, fn(key) % kFilterBits);
 
       // If the bloom filter returns a 0 for any of the values, this is the
@@ -179,10 +176,6 @@ class Filter::FilterImpl {
 
       BloomFilter& filter = filters.at(filter_idx);
       for (const auto& fn : this->bit_hashes) {
-        if (key == 600) {
-          std::cout << "SETTING BIT: " << fn(key) % kFilterBits << " in filter "
-                    << filter_idx << '\n';
-        }
         bloom_set(filter, fn(key) % kFilterBits);
       }
     }
@@ -226,15 +219,6 @@ class Filter::FilterImpl {
     assert(file.is_open());
     assert(file.good());
 
-    if (pairs.front().first == 200 && pairs.front().second == kTombstoneValue) {
-      std::cout << "Creating filter " << filename << ", pairs:" << '\n';
-      std::cout << "Entries: " << pairs.size()
-                << ", and num_filters: " << num_filters(pairs.size()) << '\n';
-      for (auto& pair : pairs) {
-        std::cout << pair.first << "," << pair.second << '\n';
-      }
-    }
-
     this->write_metadata_block(file, pairs.size());
     this->batch_write_keys(file, pairs);
   }
@@ -261,18 +245,10 @@ class Filter::FilterImpl {
     uint32_t page_idx = calc_page_idx(global_filter_idx);
     uint64_t filter_offset = calc_page_offset(global_filter_idx);
 
-    if (key == 600) {
-      std::cout << "chose filter " << global_filter_idx << " in page "
-                << page_idx << '\n';
-    }
-
     // Attempt to read the page out of the buffer
     PageId page_id = PageId{.filename = filename, .page = page_idx};
     std::optional<BufferedPage> buf_page = buf.GetPage(page_id);
     if (buf_page.has_value()) {
-      if (key == 600) {
-        std::cout << "was in buf!" << '\n';
-      }
       auto buf = std::any_cast<BytePage>(buf_page.value().contents);
       auto filters = this->from_buf(buf);
       return bloom_has(filters.at(filter_offset), key);
@@ -284,9 +260,6 @@ class Filter::FilterImpl {
       file.read(reinterpret_cast<char*>(buf.data()), kPageSize);
       assert(file.good());
 
-      std::cout << "PUTTING PAGE IN BUFFER: " << page_id.filename << ","
-                << page_id.page << '\n';
-
       // Put the page back in the buffer
       this->buf.PutPage(page_id, std::make_any<BytePage>(buf));
 
@@ -297,15 +270,43 @@ class Filter::FilterImpl {
 
     file.close();
   }
+
+  void Delete(std::string& filename) {
+    // Invalidate possible pages put into the buffer pool.
+    std::fstream file(
+        filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+    assert(file.is_open());
+    assert(file.good());
+    std::array<uint64_t, kPageSize / sizeof(uint64_t)> metadata_page{};
+    file.seekg(0);
+    file.read(reinterpret_cast<char*>(metadata_page.data()), kPageSize);
+
+    assert(has_magic_numbers(metadata_page, FileType::kFilter));
+
+    // Calculate filter and bit offsets
+    uint64_t num_elements = metadata_page.at(2);
+    uint32_t pages = 1 + ceil(static_cast<float>(num_filters(num_elements)) /
+                              kFiltersPerPage);
+    for (uint32_t page = 0; page < pages; page++) {
+      PageId page_id{.filename = filename, .page = page};
+      this->buf.RemovePage(page_id);
+    }
+
+    // Delete the file
+    bool removed = std::filesystem::remove(filename);
+    assert(removed);
+  }
 };
 
 Filter::Filter(const DbNaming& dbname, BufPool& buf, const uint64_t seed)
     : impl(std::make_unique<FilterImpl>(dbname, buf, seed)) {}
 Filter::~Filter() = default;
-
 void Filter::Create(std::string& file,
                     const std::vector<std::pair<K, V>>& keys) {
   return this->impl->Create(file, keys);
+}
+void Filter::Delete(std::string& filename) {
+  return this->impl->Delete(filename);
 }
 [[nodiscard]] bool Filter::Has(std::string& filename, K key) const {
   return this->impl->Has(filename, key);

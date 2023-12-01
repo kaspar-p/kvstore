@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -49,6 +50,32 @@ K SstableNaive::GetMaximum(std::string& filename) const {
 
 std::vector<std::pair<K, V>> SstableNaive::Drain(std::string& filename) const {
   return this->ScanInFile(filename, 0, UINT64_MAX);
+}
+
+void SstableNaive::Delete(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+  assert(file.is_open());
+  assert(file.good());
+
+  std::array<uint64_t, 5> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 5 * sizeof(uint64_t));
+  assert(file.good());
+
+  uint64_t pairs = buf.at(2);
+
+  constexpr std::size_t kPairsInPage = kPageSize / (kKeySize + kValSize);
+  uint32_t pages = ceil(static_cast<float>(pairs) / kPairsInPage) + 1;
+
+  // Invalidate cache entries from the buffer pool
+  for (uint32_t page = 0; page < pages; page++) {
+    PageId page_id{.filename = filename, .page = page};
+    this->buffer_pool.RemovePage(page_id);
+  }
+
+  // Remove the file
+  bool removed = std::filesystem::remove(filename);
+  assert(removed);
 }
 
 void SstableNaive::Flush(std::string& filename,

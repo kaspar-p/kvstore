@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -43,13 +44,13 @@ K SstableBTree::GetMinimum(std::string& filename) const {
   std::optional<BufferedPage> page = buffer_pool.GetPage(id);
   if (page == std::nullopt) {
     std::fstream file(
-      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+        filename, std::fstream::binary | std::fstream::in | std::fstream::out);
     assert(file.is_open());
     assert(file.good());
 
     file.seekg(0);
     assert(file.good());
-    
+
     file.read(reinterpret_cast<char*>(p.data()), kPageSize);
     buffer_pool.PutPage(id, p);
   } else {
@@ -65,13 +66,13 @@ K SstableBTree::GetMaximum(std::string& filename) const {
   std::optional<BufferedPage> page = buffer_pool.GetPage(id);
   if (page == std::nullopt) {
     std::fstream file(
-      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+        filename, std::fstream::binary | std::fstream::in | std::fstream::out);
     assert(file.is_open());
     assert(file.good());
 
     file.seekg(0);
     assert(file.good());
-    
+
     file.read(reinterpret_cast<char*>(p.data()), kPageSize);
     buffer_pool.PutPage(id, p);
   } else {
@@ -83,6 +84,32 @@ K SstableBTree::GetMaximum(std::string& filename) const {
 
 std::vector<std::pair<K, V>> SstableBTree::Drain(std::string& filename) const {
   return SstableBTree::ScanInFile(filename, 0, UINT64_MAX);
+}
+
+void SstableBTree::Delete(std::string& filename) const {
+  std::fstream file(
+      filename, std::fstream::binary | std::fstream::in | std::fstream::out);
+  assert(file.is_open());
+  assert(file.good());
+
+  std::array<uint64_t, 5> buf{};
+  file.read(reinterpret_cast<char*>(buf.data()), 5 * sizeof(uint64_t));
+  assert(file.good());
+
+  uint64_t pairs = buf.at(2);
+
+  constexpr std::size_t kPairsInPage = kPageSize / (kKeySize + kValSize);
+  uint32_t pages = ceil(static_cast<float>(pairs) / kPairsInPage) + 1;
+
+  // Invalidate cache entries from the buffer pool
+  for (uint32_t page = 0; page < pages; page++) {
+    PageId page_id{.filename = filename, .page = page};
+    this->buffer_pool.RemovePage(page_id);
+  }
+
+  // Remove the file
+  bool removed = std::filesystem::remove(filename);
+  assert(removed);
 }
 
 void SstableBTree::Flush(std::string& filename,
@@ -268,7 +295,7 @@ std::optional<V> SstableBTree::GetFromFile(std::string& filename,
   if (page == std::nullopt) {
     file.seekg(0);
     assert(file.good());
-    
+
     file.read(reinterpret_cast<char*>(buf.data()), kPageSize);
     buffer_pool.PutPage(id, buf);
   } else {
@@ -290,7 +317,8 @@ std::optional<V> SstableBTree::GetFromFile(std::string& filename,
   uint64_t cur_offset = buf[3];  // meta block size + root block ptr
   bool leaf_node = false;
   while (!leaf_node) {
-    PageId id = {.filename = filename, .page = static_cast<uint32_t>(cur_offset / kPageSize)};
+    PageId id = {.filename = filename,
+                 .page = static_cast<uint32_t>(cur_offset / kPageSize)};
     std::optional<BufferedPage> page = buffer_pool.GetPage(id);
     if (page == std::nullopt) {
       file.seekg(cur_offset);

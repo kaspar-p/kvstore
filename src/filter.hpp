@@ -40,6 +40,16 @@ class Filter {
   void Create(std::string& filename, const std::vector<std::pair<K, V>>& keys);
 
   /**
+   * @brief Delete a filter file. Invalidates the cache entries that filter file
+   * may have put into the buffer pool.
+   * 
+   * Intended for use during compaction
+   *
+   * @param filename The filter file to delete.
+   */
+  void Delete(std::string& filename);
+
+  /**
    * @brief Returns `true` if the filter MIGHT have the key, `false` if the
    * filter DEFINITELY DOES NOT have the key.
    *

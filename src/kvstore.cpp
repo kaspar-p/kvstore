@@ -73,8 +73,6 @@ class KvStore::KvStoreImpl {
         this->memtable.ScanAll();
     K min = memtable_contents->front().first;
     K max = memtable_contents->back().first;
-    std::cout << "Flushing memtable with min " << min << " and max " << max
-              << '\n';
     this->sstable_serializer->Flush(data_name, *memtable_contents, true);
 
     std::string filter_name =

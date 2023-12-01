@@ -40,10 +40,7 @@ class LSMRun::LSMRunImpl {
         manifest(manifest),
         buf(buf),
         sstable_serializer(sstable_serializer),
-        filter_serializer(filter_serializer) {
-    std::cout << "Creating run in level " << level << " with run " << run
-              << '\n';
-  }
+        filter_serializer(filter_serializer) {}
 
   ~LSMRunImpl() = default;
 
@@ -64,13 +61,8 @@ class LSMRun::LSMRunImpl {
   }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get " << key << " from run " << this->run << '\n';
-
     for (const auto& file : this->files) {
       bool in_range = this->manifest.InRange(this->level, this->run, file, key);
-      std::cout << "Key " << key << " in range for file: "
-                << data_file(this->naming, this->level, this->run, file) << "? "
-                << in_range << '\n';
       if (in_range) {
         auto filter_name =
             filter_file(this->naming, this->level, this->run, file);
@@ -135,13 +127,12 @@ class LSMRun::LSMRunImpl {
 
   void Delete() {
     for (const auto& intermediate : this->files) {
-      auto data = data_file(this->naming, this->level, this->run, intermediate);
       auto filter =
           filter_file(this->naming, this->level, this->run, intermediate);
-      bool removed = std::filesystem::remove(data);
-      assert(removed);
-      removed = std::filesystem::remove(filter);
-      assert(removed);
+      this->filter_serializer.Delete(filter);
+
+      auto data = data_file(this->naming, this->level, this->run, intermediate);
+      this->sstable_serializer.Delete(data);
 
       this->manifest.RemoveFiles(
           {data_file(this->naming, this->level, this->run, intermediate),
@@ -240,15 +231,7 @@ class LSMLevel::LSMLevelImpl {
 
     while (!minheap.IsEmpty()) {
       while (!minheap.IsEmpty() && buffer.size() < this->memtable_capacity) {
-        // std::cout << "minheap size: " << minheap.Size()
-        //           << ", min run: " << min_run
-        //           << ", file_contents size at min_run: "
-        //           << file_contents.at(min_run).size()
-        //           << ", file cursor at min_run: " << file_cursor.at(min_run)
-        //           << '\n';
-
         min_pair = minheap.Extract();
-        // std::cout << "got new min pair: " << min_pair.value().first << '\n';
         min_run = min_pair->second;
 
         // If new key matches previous key, it is out of date, so don't write it
@@ -256,7 +239,6 @@ class LSMLevel::LSMLevelImpl {
             prev_min_pair->first != min_pair->first) {
           std::pair<K, V> min_kv =
               file_contents.at(min_run).at(file_cursor.at(min_run));
-          // std::cout << "adding " << min_kv.first << " to buffer!" << '\n';
           buffer.push_back(min_kv);
         }
 
@@ -264,13 +246,9 @@ class LSMLevel::LSMLevelImpl {
         // If file position has reached the end of the file, try to load the
         // next file from the same run
         if (file_cursor.at(min_run) >= file_contents.at(min_run).size()) {
-          // std::cout << "File cursor exceeded size of run " << min_run
-          // << ", being " << file_contents.at(min_run).size() << '\n';
           file_cursor.at(min_run) = 0;
           file_contents.at(min_run) = this->runs.at(min_run)->GetVectorFromFile(
               file_number.at(min_run));
-          // std::cout << "Next file has num keys: "
-          // << file_contents.at(min_run).size() << '\n';
           file_number.at(min_run)++;
         }
 
@@ -292,11 +270,7 @@ class LSMLevel::LSMLevelImpl {
       // Flush buffer to file
       if (!buffer.empty()) {
         uint32_t intermediate = new_run->NextFile();
-        // std::cout << "Flushing to "
-        //           << data_file(this->dbname, this->level + 1,
-        //           run_in_next_level,
-        //                        intermediate)
-        //           << "!" << '\n';
+
         // Create the data file in the new level
         std::string data_name = data_file(this->dbname, this->level + 1,
                                           run_in_next_level, intermediate);
@@ -340,9 +314,6 @@ class LSMLevel::LSMLevelImpl {
   [[nodiscard]] uint32_t Level() const { return this->level; }
 
   [[nodiscard]] std::optional<V> Get(K key) const {
-    std::cout << "Get from level " << this->level << " (" << this->runs.size()
-              << " runs)" << '\n';
-
     for (auto run = this->runs.rbegin(); run != this->runs.rend(); ++run) {
       std::optional<V> val = (*run)->Get(key);
       if (val.has_value()) {
@@ -365,8 +336,8 @@ class LSMLevel::LSMLevelImpl {
       std::unique_ptr<LSMRun> run,
       std::optional<std::reference_wrapper<LSMLevel>> next_level) {
     this->runs.push_back(std::move(run));
-    std::cout << "l" << this->level
-              << " registering new run! runs size: " << runs.size() << '\n';
+    // std::cout << "l" << this->level
+    // << " registering new run! runs size: " << runs.size() << '\n';
 
     if (this->runs.size() == this->tiers) {
       // std::cout << "time to flush!" << '\n';
