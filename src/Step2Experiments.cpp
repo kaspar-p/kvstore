@@ -73,15 +73,10 @@ void write_to_csv(const std::string& file_name,
                   std::vector<BenchmarkResult>& results) {
   std::cout << "Writing benchmarks to " << file_name << '\n';
   std::ofstream file(file_name);
-  file << "inputDataSize (MB),insert time,insert throughput,scan time,scan "
-          "throughput,sequential get time,sequential get throughput,random get "
-          "time,random get throughput\n";
+  file << "serialization type, inputDataSize (MB), random get time, random get throughput\n";
   for (const BenchmarkResult& result : results) {
-    file << std::get<0>(result) << "," << std::get<1>(result).count() << ","
-         << std::get<2>(result) << "," << std::get<3>(result).count() << ","
-         << std::get<4>(result) << "," << std::get<5>(result).count() << ","
-         << std::get<6>(result) << "," << std::get<7>(result).count() << ","
-         << std::get<8>(result) << '\n';
+    file << std::get<0>(result).value() << "," << std::get<1>(result) << ","
+         << std::get<2>(result).count() << "," << std::get<3>(result)  << '\n';
   }
   file.close();
 }
@@ -95,8 +90,8 @@ double calculate_throughput(uint64_t megabytes,
 void run_benchmarks(uint64_t megabytes_to_insert,
                     std::vector<BenchmarkResult>& results,
                     std::optional<DataFileFormat> serialization) {
-  if (serialization != DataFileFormat::kBTree or serialization != DataFileFormat::kFlatSorted) {
-    std::cerr << "Please enter a valid serialization method. Input was: " <<  serialization << '\n';
+  if (serialization.value() != DataFileFormat::kBTree or serialization.value() != DataFileFormat::kFlatSorted) {
+    std::cerr << "Please enter a valid serialization method. Input was: " <<  serialization.value() << '\n';
   }
   std::cout << "Running benchmarks for " << megabytes_to_insert << "MB" << '\n';
   uint64_t nodes_to_insert = megabytes_to_insert * kMegabyteSize / kKeySize * 2;
