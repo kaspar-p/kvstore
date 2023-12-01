@@ -28,39 +28,49 @@ void write_to_csv(std::string file_name, std::string header,
 }
 
 std::string run_experiment(
-    KvStore& db, uint64_t data_size_in_mb,
-    std::function<std::chrono::microseconds(KvStore&, uint64_t)>
+    KvStore& db, uint64_t lower, uint64_t upper,
+    std::function<std::chrono::microseconds(KvStore&, uint64_t, uint64_t)>
         benchmark_function) {
-  uint64_t data_size_in_nodes = data_size_in_mb * kMegabyteSize / kKeySize;
+  uint64_t lower_nodes = lower * kMegabyteSize / sizeof(std::pair<K, V>);
+  uint64_t upper_nodes = upper * kMegabyteSize / sizeof(std::pair<K, V>);
 
   std::chrono::microseconds benchmark_time =
-      benchmark_function(db, data_size_in_nodes);
+      benchmark_function(db, lower_nodes, upper_nodes);
   auto benchmark_time_throughput =
-      calculate_throughput(data_size_in_mb, benchmark_time);
+      calculate_throughput(upper - lower, benchmark_time);
 
-  std::string result = std::to_string(data_size_in_mb) + "," +
-                       std::to_string(benchmark_time.count()) + "," +
+  std::string result = std::to_string(upper - lower) + "," +
                        std::to_string(benchmark_time_throughput);
   return result;
 }
 
-std::vector<std::string> run_multiple(
-    uint64_t min_data_size_mb, uint64_t max_data_size_mb,
-    const std::function<std::chrono::microseconds(KvStore&, uint64_t)>&
-        benchmark_function,
+std::vector<std::vector<std::string>> run_with_increasing_data_size(
+    uint64_t max_data_size_mb,
+    std::vector<
+        std::function<std::chrono::microseconds(KvStore&, uint64_t, uint64_t)>>&
+        benchmark_functions,
     const std::string& root_directory, Options options) {
-  std::vector<std::string> results;
-  uint64_t data_size = min_data_size_mb;
+  uint64_t data_size = 1;
+
+  KvStore db;
+  std::string db_dir(root_directory + "_" + std::to_string(data_size) + ".db");
+  std::filesystem::remove_all("/tmp/" + db_dir);
+  db.Open(db_dir, options);
+
+  std::vector<std::vector<std::string>> results;
+  for (auto benchmark_function : benchmark_functions) {
+    std::vector<std::string> single_result;
+    results.push_back(single_result);
+  }
+
   while (data_size <= max_data_size_mb) {
-    std::cout << "Running experiment for " << data_size << "MB\n";
-    KvStore db;
-    std::string db_dir(root_directory + "_" + std::to_string(data_size) +
-                       ".db");
-    std::filesystem::remove_all("/tmp/" + db_dir);
-    db.Open(db_dir, options);
-    results.push_back(run_experiment(db, data_size, benchmark_function));
+    std::cout << "Running experiment for " << data_size / 2 << " to "
+              << data_size << "MB\n";
+    for (int i = 0; i < benchmark_functions.size(); i++) {
+      results[i].push_back(
+          run_experiment(db, data_size / 2, data_size, benchmark_functions[i]));
+    }
     data_size *= 2;
-    db.Close();
   }
   return results;
 }
