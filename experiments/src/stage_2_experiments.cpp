@@ -15,7 +15,7 @@ auto benchmark_get_random(KvStore& db, uint64_t lower, uint64_t upper,
 
   std::random_device r;
   std::mt19937 eng(r());
-  std::uniform_int_distribution<K> dist(lower, upper);
+  std::uniform_int_distribution<K> dist(0, upper);
   std::vector<K> random_keys(operations);
 
   for (std::size_t i = 0; i < operations; i++) {
