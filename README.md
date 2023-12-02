@@ -254,7 +254,11 @@ All features described above work as intended, but there are some things that we
 1. **Monkey**: it was planned from the beginning. Each `LSMLevel` instance constructs its own `Filter` instance, and the filter instance is parameterized by the tiering amount and the level it's in. The only thing remaining is `R`, the user parameter that would be a part of the implementation. That, and it would need to be tested, validated, etc.
 2. **Dostoevsky**: It was also planned from the start since we use tiering, but the time to write the final merge algorithm was never found. We use MinHeap merges for cross-level merging, but the final level uses tiering still.
 3. **Deletion of keys**: We planned on implementing Dostoevsky, where the keys would finally be deleted if they are marked with a tombstone. Since this never happened, keys stay as tombstones forever in the final level, and accumulate forever. This doesn't affect the usability of the database, only means the overheads/write amplification is higher.
-
+4. **Full control over parameters**: We planned to add functionality to provide additional control over parameters for
+   experimental testing. We have parameters to control memtable size, SST search strategy (binary search vs Btree),
+   whether LSM compaction is used, the initial and maximum number of pages in the buffer pool, and the maximum number of
+   runs at each level using tiering. We are missing parameters to control the number of bits per entry in the Bloom
+   filters, as well as the ability to disable the buffer pool.
 I'm sure there are others.
 
 ## 5. Experiments
