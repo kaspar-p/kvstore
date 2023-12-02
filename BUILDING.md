@@ -7,7 +7,7 @@ First, clone the project with `git clone https://github.com/kaspar-p/kvstore`
 The project uses git submodules to import the hashing function library [xxHash](https://github.com/Cyan4973/xxHash). It exists within the `third_party` directory. When cloning the package, it won't automatically come with, initialize it with:
 
 ```sh
-git submodules update --all
+git submodule update --init
 ```
 
 ## Build
