@@ -13,41 +13,39 @@ std::vector<std::pair<K, V>> minheap_merge(
     std::vector<std::vector<std::pair<K, V>>> &sorted_buffers) {
   std::vector<std::pair<K, V>> result{};
 
+  std::vector<std::vector<std::pair<K, V>>> nonempty_buffers;
   std::vector<K> initial_keys{};
-  initial_keys.reserve(sorted_buffers.size());
+  std::vector<size_t> cursors{};
+
   for (auto const &buf : sorted_buffers) {
     if (buf.size() > 0) {
+      nonempty_buffers.push_back(buf);
       initial_keys.push_back(buf.at(0).first);
+      cursors.push_back(0);
     }
   }
 
   MinHeap heap(initial_keys);
 
-  std::vector<size_t> cursors{};
-  cursors.reserve(sorted_buffers.size());
-  for (const auto &buf : sorted_buffers) {
-    if (buf.size() > 0) {
-      cursors.push_back(0);
-    }
-  }
-
   std::optional<K> prev_key = std::nullopt;
-  std::optional<std::pair<K, size_t>> min = std::nullopt;
+  std::optional<std::pair<K, size_t>> min;
 
   while (!heap.IsEmpty()) {
     min = heap.Extract();
     size_t buffer_idx = min->second;
 
     if (!prev_key.has_value() || prev_key != min->first) {
-      auto pair = sorted_buffers.at(buffer_idx).at(cursors.at(buffer_idx));
+      int cursor_idx = cursors.at(buffer_idx);
+      std::vector<std::pair<K, V>> buffer = nonempty_buffers.at(buffer_idx);
+      auto pair = buffer.at(cursor_idx);
       result.push_back(pair);
     }
 
     cursors.at(buffer_idx)++;
 
-    if (cursors.at(buffer_idx) < sorted_buffers.at(buffer_idx).size()) {
+    if (cursors.at(buffer_idx) < nonempty_buffers.at(buffer_idx).size()) {
       std::pair<K, V> next =
-          sorted_buffers.at(buffer_idx).at(cursors.at(buffer_idx));
+          nonempty_buffers.at(buffer_idx).at(cursors.at(buffer_idx));
       heap.Insert(std::make_pair(next.first, buffer_idx));
     }
 
