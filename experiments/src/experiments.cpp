@@ -39,8 +39,8 @@ std::string run_experiment(
   auto benchmark_time_throughput =
       calculate_throughput(upper - lower, benchmark_time);
 
-  std::string result = std::to_string(upper - lower) + "," +
-                       std::to_string(benchmark_time_throughput);
+  std::string result =
+      std::to_string(upper) + "," + std::to_string(benchmark_time_throughput);
   return result;
 }
 
