@@ -22,6 +22,7 @@ class Manifest::ManifestHandleImpl {
   const DbNaming& naming;
   const uint8_t tiers;
   const Sstable& serializer;
+  const std::optional<bool> compaction;
 
   std::fstream file;
   std::vector<std::vector<FileMetadata>> levels;
@@ -167,8 +168,12 @@ class Manifest::ManifestHandleImpl {
 
  public:
   ManifestHandleImpl(const DbNaming& naming, uint8_t tiers,
-                     const Sstable& serializer)
-      : naming(naming), tiers(tiers), serializer(serializer) {
+                     const Sstable& serializer,
+                     const std::optional<bool> compaction)
+      : naming(naming),
+        tiers(tiers),
+        serializer(serializer),
+        compaction(compaction) {
     bool exists = std::filesystem::exists(manifest_file(naming));
     if (exists) {
       this->from_file();
@@ -278,11 +283,19 @@ class Manifest::ManifestHandleImpl {
 
     return count;
   }
+
+  bool CompactionEnabled() {
+    if (this->compaction.has_value()) {
+      return this->compaction.value();
+    }
+    return true;
+  }
 };
 
 Manifest::Manifest(const DbNaming& naming, uint8_t tiers,
-                   const Sstable& serializer)
-    : impl(std::make_unique<ManifestHandleImpl>(naming, tiers, serializer)) {}
+                   const Sstable& serializer, std::optional<bool> compaction)
+    : impl(std::make_unique<ManifestHandleImpl>(naming, tiers, serializer,
+                                                compaction)) {}
 Manifest::~Manifest() = default;
 
 [[nodiscard]] std::vector<std::string> Manifest::GetPotentialFiles(
@@ -299,7 +312,6 @@ std::optional<uint32_t> Manifest::FirstFileInRange(uint32_t level, uint32_t run,
   return this->impl->FirstFileInRange(level, run, lower, upper);
 }
 
-
 void Manifest::RegisterNewFiles(std::vector<FileMetadata> files) {
   return this->impl->RegisterNewFiles(files);
 }
@@ -314,4 +326,7 @@ int Manifest::NumRuns(uint32_t level) const {
 };
 int Manifest::NumFiles(uint32_t level, uint32_t run) const {
   return this->impl->NumFiles(level, run);
+};
+bool Manifest::CompactionEnabled() const {
+  return this->impl->CompactionEnabled();
 };

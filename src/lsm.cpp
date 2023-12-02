@@ -84,8 +84,8 @@ class LSMRun::LSMRunImpl {
 
   [[nodiscard]] std::vector<std::pair<K, V>> Scan(K lower, K upper) const {
     // Find first file that may contain keys within the range
-    std::optional<uint32_t> intermediate = this->manifest.FirstFileInRange(
-                                 this->level, this->run, lower, upper);
+    std::optional<uint32_t> intermediate =
+        this->manifest.FirstFileInRange(this->level, this->run, lower, upper);
     if (!intermediate.has_value()) {
       intermediate = 0;
     }
@@ -330,11 +330,9 @@ class LSMLevel::LSMLevelImpl {
       std::unique_ptr<LSMRun> run,
       std::optional<std::reference_wrapper<LSMLevel>> next_level) {
     this->runs.push_back(std::move(run));
-    // std::cout << "l" << this->level
-    // << " registering new run! runs size: " << runs.size() << '\n';
 
-    if (this->runs.size() == this->tiers) {
-      // std::cout << "time to flush!" << '\n';
+    if (this->runs.size() == this->tiers &&
+        this->manifest.CompactionEnabled()) {
       std::unique_ptr<LSMRun> new_run = this->compact_runs(next_level);
       return std::make_optional<std::unique_ptr<LSMRun>>(std::move(new_run));
     }

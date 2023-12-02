@@ -217,8 +217,8 @@ class KvStore::KvStoreImpl {
         std::make_unique<Filter>(this->naming, this->buf.value(), 0xbeef);
 
     // Initialize the manifest file
-    this->manifest.emplace(this->naming, this->tiers,
-                           *this->sstable_serializer);
+    this->manifest.emplace(this->naming, this->tiers, *this->sstable_serializer,
+                           options.compaction);
 
     // Initialize the levels
     this->init_levels();

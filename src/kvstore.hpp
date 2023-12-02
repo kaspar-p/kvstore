@@ -95,6 +95,13 @@ struct Options {
    * Defaults to DataFileFormat::BTree
    */
   std::optional<DataFileFormat> serialization;
+
+  /**
+   * @brief Whether to use LSM style compaction or not.
+   *
+   * Defaults to true.
+   */
+  std::optional<bool> compaction;
 };
 
 class KvStore {

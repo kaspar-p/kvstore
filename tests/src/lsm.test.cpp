@@ -14,7 +14,7 @@ TEST(LSMRun, Initialize) {
   });
   SstableBTree serializer(buf);
   Filter filter(naming, buf, 0);
-  Manifest manifest(naming, 4, serializer);
+  Manifest manifest(naming, 4, serializer, true);
 
   LSMRun run(naming, 0, 0, 4, 20, manifest, buf, serializer, filter);
 
@@ -29,7 +29,7 @@ TEST(LSMRun, Scan) {
   });
   SstableBTree serializer(buf);
   Filter filter(naming, buf, 0);
-  Manifest manifest(naming, 4, serializer);
+  Manifest manifest(naming, 4, serializer, true);
 
   LSMRun run(naming, 0, 0, 4, 20, manifest, buf, serializer, filter);
 
@@ -100,7 +100,7 @@ TEST(LSMLevel, Initialize) {
       .max_elements = 16,
   });
   SstableBTree serializer(buf);
-  Manifest manifest(naming, 4, serializer);
+  Manifest manifest(naming, 4, serializer, true);
 
   LSMLevel lsm(naming, 4, 0, false, 20, manifest, buf, serializer);
 
@@ -114,7 +114,7 @@ TEST(LSMLevel, LevelCorrect) {
       .max_elements = 16,
   });
   SstableBTree serializer(buf);
-  Manifest manifest(naming, 4, serializer);
+  Manifest manifest(naming, 4, serializer, true);
 
   LSMLevel lsm(naming, 4, 1, false, 20, manifest, buf, serializer);
 

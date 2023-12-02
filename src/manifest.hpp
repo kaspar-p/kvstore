@@ -29,7 +29,8 @@ class Manifest {
    *
    * @param naming The DB naming scheme.
    */
-  Manifest(const DbNaming& naming, uint8_t tiers, const Sstable& serializer);
+  Manifest(const DbNaming& naming, uint8_t tiers, const Sstable& serializer,
+           std::optional<bool> compaction);
   ~Manifest();
 
   /**
@@ -82,11 +83,12 @@ class Manifest {
    * @param lower The lower bound of the range.
    * @param upper The upper bound of the range.
    */
-  [[nodiscard]] std::optional<uint32_t> FirstFileInRange(uint32_t level, uint32_t run,
-                                          K lower, K upper) const;
-
+  [[nodiscard]] std::optional<uint32_t> FirstFileInRange(uint32_t level,
+                                                         uint32_t run, K lower,
+                                                         K upper) const;
 
   [[nodiscard]] int NumLevels() const;
   [[nodiscard]] int NumRuns(uint32_t level) const;
   [[nodiscard]] int NumFiles(uint32_t level, uint32_t run) const;
+  [[nodiscard]] bool CompactionEnabled() const;
 };

@@ -14,7 +14,7 @@ TEST(Manifest, Initialization) {
   SstableNaive serializer(buf);
   std::filesystem::remove(manifest_file(naming));
 
-  Manifest m(naming, 2, serializer);
+  Manifest m(naming, 2, serializer, true);
   ASSERT_EQ(m.GetPotentialFiles(1, 0, 0), std::vector<std::string>{});
   ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
 }
@@ -34,7 +34,7 @@ TEST(Manifest, GetFileMemory) {
   SstableNaive serializer(buf);
   std::filesystem::remove(manifest_file(naming));
 
-  Manifest m(naming, 2, serializer);
+  Manifest m(naming, 2, serializer, true);
   std::vector<FileMetadata> to_add = {
       FileMetadata{
           .id =
@@ -98,7 +98,7 @@ TEST(Manifest, GetFileRecovery) {
 
   {
     std::filesystem::remove(manifest_file(naming));
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
     std::vector<FileMetadata> to_add = {
         FileMetadata{
             .id =
@@ -135,7 +135,7 @@ TEST(Manifest, GetFileRecovery) {
   }
 
   {
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0, 1000),
               std::vector<std::string>({data_file(naming, 0, 0, 0)}));
@@ -163,7 +163,7 @@ TEST(Manifest, GetFileRecoveryMany) {
 
   {
     std::filesystem::remove(manifest_file(naming));
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
 
     std::vector<FileMetadata> files{};
     for (int i = 0; i < 1000; i++) {
@@ -179,7 +179,7 @@ TEST(Manifest, GetFileRecoveryMany) {
   }
 
   {
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0, 0).size(), 1000);
     ASSERT_EQ(m.GetPotentialFiles(0, 0, 500).size(), 500);
@@ -194,7 +194,7 @@ TEST(Manifest, RemoveFileSimple) {
   std::filesystem::remove(manifest_file(naming));
   SstableNaive serializer(buf);
 
-  Manifest m(naming, 2, serializer);
+  Manifest m(naming, 2, serializer, true);
   std::vector<FileMetadata> files = {FileMetadata{
       .id =
           SstableId{
@@ -219,7 +219,7 @@ TEST(Manifest, RemoveFileRecovery) {
 
   {
     std::filesystem::remove(manifest_file(naming));
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
 
     std::vector<FileMetadata> files{};
     std::vector<std::string> filenames{};
@@ -241,7 +241,7 @@ TEST(Manifest, RemoveFileRecovery) {
   }
 
   {
-    Manifest m(naming, 2, serializer);
+    Manifest m(naming, 2, serializer, true);
     ASSERT_EQ(std::filesystem::file_size(manifest_file(naming)) % kPageSize, 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0, 500).size(), 0);
     ASSERT_EQ(m.GetPotentialFiles(0, 0, 0).size(), 0);
