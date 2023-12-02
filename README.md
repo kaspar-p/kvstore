@@ -241,8 +241,6 @@ This process continues until there isn't any more data to read out of each run.
 
 Compaction is this simple because of the assumption that an entire file can be read into memory to perform compaction. We also use a MinHeap to optimize the comparisons between the T files. That is, each time we place a key from file `0 <= k <= T`, we insert the next key from file `k` into the MinHeap.
 
-The only exception to this process is the final level. Dostoevsky means using the final level in "levelling", that is, only a single run. The merging process is exactly the same, and new data files are associated with the final levels' only run.
-
 Also to note, each time the buffer is flushed into a new data file, a new BloomFilter is created from those keys. As mentioned before, data files and bloom filters are 1:1.
 
 ## 4. Project Status
@@ -273,8 +271,10 @@ I'm sure there are others.
 In stage 1, we performed experiments to measure Put, Get, and Scan performance. At this stage, SSTs are accessed by
 binary
 search, and we do not use LSM compaction.
-In our current implementation, we are unable to remove the buffer pool, so we did not test for this difference. These
-experiments can be run using the command:
+In our current implementation, we are unable to remove the buffer pool, so these experiments include the use of a buffer
+pool with a capacity for 128 pages.
+We did test the effect of a 1MB memtable vs. a 4MB memtable, as shown.
+These experiments can be run using the command:
 
 ```sh
 ./build/experiments/stage_1_experiments
@@ -284,8 +284,10 @@ experiments can be run using the command:
 
 ![Alt text](benchmark_graph/stage2.png)
 
-In stage 2, we compared query performance for the original binary search for SSTs, versus the new Btree search. We did
-not see a large difference between binary search and Btree search. These experiments can be run using the command:
+In stage 2, we compared random get performance for the original binary search for SSTs vs. the new Btree search. We did
+not see a large difference in performance. We expect this is due to an error in our Btree implementation, since Btree
+search should be algorithmically faster than binary search. These experiments can be run using
+the command:
 
 ```sh
 ./build/experiments/stage_2_experiments
@@ -300,12 +302,11 @@ not see a large difference between binary search and Btree search. These experim
 
 In stage 3, we performed experiments to measure how Put, Get, and Scan performance has changed due to the additional
 features we added.
+We were not able to test for the effect of the buffer pool, but we expect that it likely improved performance.
 There is not much improvement when ```tiers=2```, despite the addition of LSM compaction and Btree search for SSTs.
-We were not able to test for the effect of the buffer pool, but we expect that it improved performance.
 We do see an improvement in Put performance for ```tiers=4```,
 though Get and Scan performance are worse, as might be expected for a higher number of tiers.
 These experiments can be run using the command:
-
 
 ```sh
 ./build/experiments/stage_3_experiments
