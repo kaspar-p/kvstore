@@ -259,6 +259,13 @@ I'm sure there are others.
 
 ## 5. Experiments
 
+### Stage 1
+
+![Alt text](benchmark_graph/stage_1_get_random_operation.png)
+![Alt text](benchmark_graph/stage_1_get_sequential_operation.png)
+![Alt text](benchmark_graph/stage_1_put_operation.png)
+![Alt text](benchmark_graph/stage_1_scan_operation.png)
+
 In stage 1, we performed experiments to measure Put, Get, and Scan performance. At this stage, SSTs are accessed by
 binary
 search, and we do not use LSM compaction.
@@ -269,18 +276,18 @@ experiments can be run using the command:
 ./build/experiments/stage_1_experiments
 ```
 
+### Stage 2
+
+![Alt text](benchmark_graph/stage2.png)
+
 In stage 2, we compared query performance for the original binary search for SSTs, versus the new Btree search. We did
 not see a large difference between binary search and Btree search. These experiments can be run using the command:
-
-![Alt text](benchmark_graph/stage_1_get_random_operation.png)
-![Alt text](benchmark_graph/stage_1_get_sequential_operation.png)
-![Alt text](benchmark_graph/stage_1_put_operation.png)
-![Alt text](benchmark_graph/stage_1_scan_operation.png)
 
 ```sh
 ./build/experiments/stage_2_experiments
 ```
 
+### Stage 3
 In stage 3, we performed experiments to measure how Put, Get, and Scan performance has changed due to the additional
 features we added.
 There is not much improvement when ```tiers=2```, despite the addition of LSM compaction and Btree search for SSTs.
@@ -289,7 +296,6 @@ We do see an improvement in Put performance for ```tiers=4```,
 though Get and Scan performance are worse, as might be expected for a higher number of tiers.
 These experiments can be run using the command:
 
-![Alt text](benchmark_graph/stage2.png)
 
 ```sh
 ./build/experiments/stage_3_experiments
