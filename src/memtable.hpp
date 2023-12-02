@@ -27,7 +27,7 @@ class MemTable {
    * parameter. All inserts beyond that size will throw an error, see the
    * `Put()` method for details.
    *
-   * @param memtable_size The size, in elements, of the memtable.
+   * @param capacity The size, in elements, of the memtable.
    */
   explicit MemTable(uint64_t capacity);
   ~MemTable();

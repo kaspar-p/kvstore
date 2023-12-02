@@ -269,8 +269,8 @@ experiments can be run using the command:
 ./build/experiments/stage_1_experiments
 ```
 
-In stage 2, we compared query performance for the original binary search for SSTs, versus the new Btree search. These
-experiments can be run using the command:
+In stage 2, we compared query performance for the original binary search for SSTs, versus the new Btree search. We did
+not see a large difference between binary search and Btree search. These experiments can be run using the command:
 
 ![Alt text](benchmark_graph/stage_1_get_random_operation.png)
 ![Alt text](benchmark_graph/stage_1_get_sequential_operation.png)
@@ -283,7 +283,9 @@ experiments can be run using the command:
 
 In stage 3, we performed experiments to measure how Put, Get, and Scan performance has changed due to the additional
 features we added.
-There is not much improvement when ```tiers=2```. we do see an improvement in Put performance for ```tiers=4```,
+There is not much improvement when ```tiers=2```, despite the addition of LSM compaction and Btree search for SSTs.
+We were not able to test for the effect of the buffer pool, but we expect that it improved performance.
+We do see an improvement in Put performance for ```tiers=4```,
 though Get and Scan performance are worse, as might be expected for a higher number of tiers.
 These experiments can be run using the command:
 
