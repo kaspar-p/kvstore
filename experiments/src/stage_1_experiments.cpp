@@ -58,7 +58,7 @@ auto benchmark_scan(KvStore& db, uint64_t lower, uint64_t upper,
 }
 
 int main() {
-  uint64_t max_size_mb = 32;
+  uint64_t max_size_mb = 1024;
   uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>) / 4;
 
   std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
