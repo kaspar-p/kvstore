@@ -259,6 +259,30 @@ I'm sure there are others.
 
 ## 5. Experiments
 
+In stage 1, we perform experiments to measure Put, Get, and Scan performance. At this stage, SSTs are accessed by binary
+search, and we do not use LSM compaction.
+In our current implementation, we are unable to remove the buffer pool, so we did not test for this difference. This
+experiment can be run using the command:
+
+```sh
+./build/experiments/stage_1_experiments
+```
+
+In stage 2, we compare query performance for the original binary search for SSTs, versus the new Btree search. This
+experiment can be run using the command:
+
+```sh
+./build/experiments/stage_2_experiments
+```
+
+In stage 3, we perform experiments to measure Put, Get, and Scan performance. Now that all features have been added, we
+see improvement in the throughput. We also measure performance for different numbers of tiers at each level. This
+experiment can be run using the command:
+
+```sh
+./build/experiments/stage_3_experiments
+```
+
 ## 6. Testing Strategy
 
 All parts of the project are tested through unit tests. The tests can be ran independently as their own binary, and take somewhere from 10 - 100 seconds to run, depending on the quality of the machine.
