@@ -58,14 +58,8 @@ auto benchmark_scan(KvStore& db, uint64_t lower, uint64_t upper,
 }
 
 int main() {
-  uint64_t max_size_mb = 1024;
-  Options options = Options{
-      .dir = "/tmp",
-      .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
-      .buffer_pages_initial = 0,
-              .buffer_pages_maximum = 2,
-              .serialization = kFlatSorted,
-              .compaction = false};
+  uint64_t max_size_mb = 32;
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>) / 4;
 
   std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
                                                       uint64_t, uint64_t)>>
@@ -76,7 +70,12 @@ int main() {
   benchmark_functions.emplace_back(benchmark_get_sequential);
   benchmark_functions.emplace_back(benchmark_scan);
 
-  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
+  Options options =
+      Options{.dir = "/tmp",
+              .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
+              .serialization = kFlatSorted,
+              .compaction = false};
+
   std::vector<std::vector<std::string>> results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
                                     "Benchmarks.Stage1", options, operations);
@@ -90,4 +89,27 @@ int main() {
                results[2]);
 
   write_to_csv("stage_1_scan.csv", "inputDataSize (MB),throughput", results[3]);
+
+  Options larger_memtable_options = Options{
+      .dir = "/tmp",
+      .memory_buffer_elements = 4 * kMegabyteSize / sizeof(std::pair<K, V>),
+      .serialization = kFlatSorted,
+      .compaction = false};
+
+  std::vector<std::vector<std::string>> larger_memtable_results =
+      run_with_increasing_data_size(max_size_mb, benchmark_functions,
+                                    "Benchmarks.Stage1",
+                                    larger_memtable_options, operations);
+
+  write_to_csv("stage_1_put_4mb_memtable.csv", "inputDataSize (MB),throughput",
+               larger_memtable_results[0]);
+
+  write_to_csv("stage_1_get_random_4mb_memtable.csv",
+               "inputDataSize (MB),throughput", larger_memtable_results[1]);
+
+  write_to_csv("stage_1_get_sequential_4mb_memtable.csv",
+               "inputDataSize (MB),throughput", larger_memtable_results[2]);
+
+  write_to_csv("stage_1_scan_4mb_memtable.csv", "inputDataSize (MB),throughput",
+               larger_memtable_results[3]);
 }
