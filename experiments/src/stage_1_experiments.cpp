@@ -58,7 +58,7 @@ auto benchmark_scan(KvStore& db, uint64_t lower, uint64_t upper,
 }
 
 int main() {
-  uint64_t max_size_mb = 32;  // TODO use 1024
+  uint64_t max_size_mb = 1024;
   Options options = Options{
       .dir = "/tmp",
       .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
@@ -76,7 +76,7 @@ int main() {
   benchmark_functions.emplace_back(benchmark_get_sequential);
   benchmark_functions.emplace_back(benchmark_scan);
 
-  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>) / 4;
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
   std::vector<std::vector<std::string>> results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
                                     "Benchmarks.Stage1", options, operations);

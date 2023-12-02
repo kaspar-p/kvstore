@@ -33,7 +33,7 @@ auto benchmark_get_random(KvStore& db, uint64_t lower, uint64_t upper,
 }
 
 int main() {
-  uint64_t max_size_mb = 4;  // TODO use 1024
+  uint64_t max_size_mb = 1024;
 
   Options btree_options = {.dir = "/tmp",
                            .serialization = DataFileFormat::kBTree};
