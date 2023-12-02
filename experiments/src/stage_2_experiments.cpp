@@ -9,6 +9,10 @@
 
 auto benchmark_get_random(KvStore& db, uint64_t lower, uint64_t upper,
                           uint64_t operations) {
+  for (K i = lower; i < upper; i++) {
+    db.Put(i, i);
+  }
+
   std::random_device r;
   std::mt19937 eng(r());
   std::uniform_int_distribution<K> dist(lower, upper);
@@ -34,8 +38,8 @@ int main() {
   Options btree_options = {.dir = "/tmp",
                            .serialization = DataFileFormat::kBTree};
 
-  Options sorted_options = {.dir = "/tmp",
-                            .serialization = DataFileFormat::kFlatSorted};
+  Options binary_search_options = {
+      .dir = "/tmp", .serialization = DataFileFormat::kFlatSorted};
 
   std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
                                                       uint64_t, uint64_t)>>
@@ -51,12 +55,12 @@ int main() {
 
   std::vector<std::vector<std::string>> sorted_results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
-                                    "Benchmarks.Sorted", btree_options,
-                                    operations);
+                                    "Benchmarks.BinarySearch",
+                                    binary_search_options, operations);
 
-  write_to_csv("btree_queries.csv", "inputDataSize (MB),throughput",
+  write_to_csv("stage_2_btree_search.csv", "inputDataSize (MB),throughput",
                btree_results[0]);
 
-  write_to_csv("sorted_queries.csv", "inputDataSize (MB),throughput",
+  write_to_csv("stage_2_binary_search.csv", "inputDataSize (MB),throughput",
                sorted_results[0]);
 }

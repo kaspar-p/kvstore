@@ -63,9 +63,9 @@ int main() {
       .dir = "/tmp",
       .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
       .buffer_pages_initial = 0,
-      .buffer_pages_maximum = 0,
-      .serialization = kFlatSorted,
-  };
+              .buffer_pages_maximum = 2,
+              .serialization = kFlatSorted,
+              .compaction = false};
 
   std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
                                                       uint64_t, uint64_t)>>
@@ -76,7 +76,7 @@ int main() {
   benchmark_functions.emplace_back(benchmark_get_sequential);
   benchmark_functions.emplace_back(benchmark_scan);
 
-  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>) / 4;
   std::vector<std::vector<std::string>> results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
                                     "Benchmarks.Stage1", options, operations);

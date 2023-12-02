@@ -73,7 +73,7 @@ int main() {
   benchmark_functions.emplace_back(benchmark_get_sequential);
   benchmark_functions.emplace_back(benchmark_scan);
 
-  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>) / 4;
   std::vector<std::vector<std::string>> results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
                                     "Benchmarks.Stage3", options, operations);

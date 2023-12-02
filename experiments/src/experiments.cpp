@@ -7,10 +7,9 @@
 #include "constants.hpp"
 #include "kvstore.hpp"
 
-double calculate_throughput(uint64_t megabytes,
-                            std::chrono::microseconds time) {
+double calculate_throughput(double megabytes, std::chrono::microseconds time) {
   double time_in_seconds = static_cast<double>(time.count()) / 1000000.0;
-  return static_cast<double>(megabytes) / time_in_seconds;
+  return megabytes / time_in_seconds;
 }
 
 void write_to_csv(std::string file_name, std::string header,
@@ -37,8 +36,10 @@ std::string run_experiment(KvStore& db, uint64_t lower, uint64_t upper,
 
   std::chrono::microseconds benchmark_time =
       benchmark_function(db, lower_nodes, upper_nodes, operations);
+  double data_size = operations * sizeof(std::pair<K, V>);
+  double data_size_mb = data_size / static_cast<double>(kMegabyteSize);
   auto benchmark_time_throughput =
-      calculate_throughput(upper - lower, benchmark_time);
+      calculate_throughput(data_size_mb, benchmark_time);
 
   std::string result =
       std::to_string(upper) + "," + std::to_string(benchmark_time_throughput);
