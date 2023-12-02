@@ -292,6 +292,12 @@ not see a large difference between binary search and Btree search. These experim
 ```
 
 ### Stage 3
+
+![Alt text](benchmark_graph/stage_3_get_random.png)
+![Alt text](benchmark_graph/stage_3_get_sequential.png)
+![Alt text](benchmark_graph/stage_3_put.png)
+![Alt text](benchmark_graph/stage_3_scan.png)
+
 In stage 3, we performed experiments to measure how Put, Get, and Scan performance has changed due to the additional
 features we added.
 There is not much improvement when ```tiers=2```, despite the addition of LSM compaction and Btree search for SSTs.
