@@ -27,15 +27,16 @@ void write_to_csv(std::string file_name, std::string header,
   file.close();
 }
 
-std::string run_experiment(
-    KvStore& db, uint64_t lower, uint64_t upper,
-    std::function<std::chrono::microseconds(KvStore&, uint64_t, uint64_t)>
-        benchmark_function) {
+std::string run_experiment(KvStore& db, uint64_t lower, uint64_t upper,
+                           std::function<std::chrono::microseconds(
+                               KvStore&, uint64_t, uint64_t, uint64_t)>
+                               benchmark_function,
+                           uint64_t operations) {
   uint64_t lower_nodes = lower * kMegabyteSize / sizeof(std::pair<K, V>);
   uint64_t upper_nodes = upper * kMegabyteSize / sizeof(std::pair<K, V>);
 
   std::chrono::microseconds benchmark_time =
-      benchmark_function(db, lower_nodes, upper_nodes);
+      benchmark_function(db, lower_nodes, upper_nodes, operations);
   auto benchmark_time_throughput =
       calculate_throughput(upper - lower, benchmark_time);
 
@@ -46,10 +47,9 @@ std::string run_experiment(
 
 std::vector<std::vector<std::string>> run_with_increasing_data_size(
     uint64_t max_data_size_mb,
-    std::vector<
-        std::function<std::chrono::microseconds(KvStore&, uint64_t, uint64_t)>>&
-        benchmark_functions,
-    const std::string& root_directory, Options options) {
+    const std::vector<std::function<std::chrono::microseconds(
+        KvStore&, uint64_t, uint64_t, uint64_t)>>& benchmark_functions,
+    const std::string& root_directory, Options options, uint64_t operations) {
   uint64_t data_size = 1;
 
   KvStore db;
@@ -67,8 +67,8 @@ std::vector<std::vector<std::string>> run_with_increasing_data_size(
     std::cout << "Running experiment for " << data_size / 2 << " to "
               << data_size << "MB\n";
     for (int i = 0; i < benchmark_functions.size(); i++) {
-      results[i].push_back(
-          run_experiment(db, data_size / 2, data_size, benchmark_functions[i]));
+      results[i].push_back(run_experiment(db, data_size / 2, data_size,
+                                          benchmark_functions[i], operations));
     }
     data_size *= 2;
   }

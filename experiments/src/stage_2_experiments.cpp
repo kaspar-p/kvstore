@@ -7,13 +7,14 @@
 #include "experiments.hpp"
 #include "kvstore.hpp"
 
-auto benchmark_get_random(KvStore& db, uint64_t lower, uint64_t upper) {
+auto benchmark_get_random(KvStore& db, uint64_t lower, uint64_t upper,
+                          uint64_t operations) {
   std::random_device r;
   std::mt19937 eng(r());
   std::uniform_int_distribution<K> dist(lower, upper);
-  std::vector<K> random_keys(upper - lower);
+  std::vector<K> random_keys(operations);
 
-  for (std::size_t i = 0; i < upper - lower; i++) {
+  for (std::size_t i = 0; i < operations; i++) {
     random_keys[i] = static_cast<K>(dist(eng));
   }
 
@@ -36,18 +37,22 @@ int main() {
   Options sorted_options = {.dir = "/tmp",
                             .serialization = DataFileFormat::kFlatSorted};
 
-  std::vector<
-      std::function<std::chrono::microseconds(KvStore&, uint64_t, uint64_t)>>
+  std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
+                                                      uint64_t, uint64_t)>>
       benchmark_functions;
   benchmark_functions.emplace_back(benchmark_get_random);
 
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
+
   std::vector<std::vector<std::string>> btree_results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
-                                    "Benchmarks.Btree", btree_options);
+                                    "Benchmarks.Btree", btree_options,
+                                    operations);
 
   std::vector<std::vector<std::string>> sorted_results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
-                                    "Benchmarks.Sorted", btree_options);
+                                    "Benchmarks.Sorted", btree_options,
+                                    operations);
 
   write_to_csv("btree_queries.csv", "inputDataSize (MB),throughput",
                btree_results[0]);
