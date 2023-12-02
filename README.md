@@ -272,6 +272,11 @@ experiments can be run using the command:
 In stage 2, we compared query performance for the original binary search for SSTs, versus the new Btree search. These
 experiments can be run using the command:
 
+![Alt text](benchmark_graph/stage_1_get_random_operation.png)
+![Alt text](benchmark_graph/stage_1_get_sequential_operation.png)
+![Alt text](benchmark_graph/stage_1_put_operation.png)
+![Alt text](benchmark_graph/stage_1_scan_operation.png)
+
 ```sh
 ./build/experiments/stage_2_experiments
 ```
@@ -281,6 +286,8 @@ features we added.
 There is not much improvement when ```tiers=2```. we do see an improvement in Put performance for ```tiers=4```,
 though Get and Scan performance are worse, as might be expected for a higher number of tiers.
 These experiments can be run using the command:
+
+![Alt text](benchmark_graph/stage2.png)
 
 ```sh
 ./build/experiments/stage_3_experiments
