@@ -59,10 +59,7 @@ auto benchmark_scan(KvStore& db, uint64_t lower, uint64_t upper,
 
 int main() {
   uint64_t max_size_mb = 1024;
-  Options options =
-      Options{.dir = "/tmp",
-              .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
-              .buffer_pages_maximum = kMegabyteSize * 10 / kPageSize};
+  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
 
   std::vector<std::function<std::chrono::microseconds(KvStore&, uint64_t,
                                                       uint64_t, uint64_t)>>
@@ -73,18 +70,36 @@ int main() {
   benchmark_functions.emplace_back(benchmark_get_sequential);
   benchmark_functions.emplace_back(benchmark_scan);
 
-  uint64_t operations = kMegabyteSize / sizeof(std::pair<K, V>);
+  Options options =
+      Options{.dir = "/tmp",
+              .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
+              .buffer_pages_maximum = kMegabyteSize * 10 / kPageSize,
+              .tiers = 2};
   std::vector<std::vector<std::string>> results =
       run_with_increasing_data_size(max_size_mb, benchmark_functions,
                                     "Benchmarks.Stage3", options, operations);
-
   write_to_csv("stage_3_put.csv", "inputDataSize (MB),throughput", results[0]);
-
   write_to_csv("stage_3_get_random.csv", "inputDataSize (MB),throughput",
                results[1]);
-
   write_to_csv("stage_3_get_sequential.csv", "inputDataSize (MB),throughput",
                results[2]);
-
   write_to_csv("stage_3_scan.csv", "inputDataSize (MB),throughput", results[3]);
+
+  Options tiers_options =
+      Options{.dir = "/tmp",
+              .memory_buffer_elements = kMegabyteSize / sizeof(std::pair<K, V>),
+              .buffer_pages_maximum = kMegabyteSize * 10 / kPageSize,
+              .tiers = 4};
+  std::vector<std::vector<std::string>> tiers_results =
+      run_with_increasing_data_size(max_size_mb, benchmark_functions,
+                                    "Benchmarks.Stage3", tiers_options,
+                                    operations);
+  write_to_csv("stage_3_put_4_tiers.csv", "inputDataSize (MB),throughput",
+               tiers_results[0]);
+  write_to_csv("stage_3_get_random_4_tiers.csv",
+               "inputDataSize (MB),throughput", tiers_results[1]);
+  write_to_csv("stage_3_get_sequential_4_tiers.csv",
+               "inputDataSize (MB),throughput", tiers_results[2]);
+  write_to_csv("stage_3_scan_4_tiers.csv", "inputDataSize (MB),throughput",
+               tiers_results[3]);
 }
