@@ -107,7 +107,7 @@ target_compile_features(kvstore_evict PUBLIC cxx_std_17)
 target_link_libraries(kvstore_evict PRIVATE xxHash::xxhash)
 
 # lsm.cpp
-add_library(kvstore_lsm OBJECT src/lsm.cpp)
+add_library(kvstore_lsm OBJECT src/lsm_level.cpp src/lsm_run.cpp)
 target_include_directories(
         kvstore_lsm ${warning_guard}
         PUBLIC

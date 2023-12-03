@@ -16,7 +16,7 @@
 #include "buf.hpp"
 #include "constants.hpp"
 #include "filter.hpp"
-#include "lsm.hpp"
+#include "lsm_level.hpp"
 #include "manifest.hpp"
 #include "memtable.hpp"
 #include "minheap.hpp"
